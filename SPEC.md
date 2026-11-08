@@ -50,7 +50,7 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 
 ```
 +-----------------------------------------------------------------------+
-| DISPERSE       [ ↻ | Engine v | 📖 | Format v ]          (☀/☾)  (●)   |  <- Header
+| DISPERSE  [ ↻ | Engine v | 📖 | Layout v | Theme v | Format v ] (☀/☾)(●) |  <- Header
 +---------------------------+-------------------------------------------+
 |                           |                                           |
 |                           |                                           |
@@ -77,7 +77,9 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
         - The **per-engine code state**: the application preserves source code independently for each engine (`codeByEngine`), loading each engine's default example from `examples/{engine}.txt` on first use and retaining user edits when switching back and forth between languages.
         - The documentation link (`#docs-btn`) `href` to point to the active language's official documentation.
      3. **Language Documentation Link (`#docs-btn`)**: Anchor with an open-book icon (`book-open`) and caption `"Language documentation"`, opening the selected language's official documentation in a new tab (`target="_blank"`).
-     4. **Output Format Dropdown (`#format-select`)**: `svg` (default) and `png`, with caption `"Output format"`.
+     4. **Layout Engine Dropdown (`#layout-select`)**: Selectable layout engines for D2 (`dagre`, `elk`, `tala`), with caption `"Layout engine (D2)"`. Enabled only when `d2` is selected and disabled for all other engines.
+     5. **Diagram Theme Dropdown (`#theme-select`)**: Selectable themes for D2 (`default`, `neutral-gray`, `flagship-terrastruct`, `cool-classics`, `mixed-berry-blue`, `grape-soda`, `aubergine`, `colorblind-clear`, `vanilla-nitro-cola`, `orange-creamsicle`, `shirley-temple`, `earth-tones`, `everglade-green`, `buttered-toast`, `dark-mauve`, `dark-flagship-terrastruct`, `terminal`, `terminal-grayscale`, `origami`, `c4`), with caption `"Diagram theme (D2)"`. Enabled only when `d2` is selected and disabled for all other engines.
+     6. **Output Format Dropdown (`#format-select`)**: `svg` (default) and `png`, with caption `"Output format"`.
 3. **Right (Visual Preferences)**:
    - **Light / Dark Mode Button (`#theme-btn`)**: Circular button with a sun/moon icon and caption `"Toggle light/dark theme"`.
    - **Preferred Color Button (`#color-swatch`)**: Circular button **of the exact same diameter** as the theme button, filled with the current preferred color (`rgb(0, 128, 192)` by default) and caption `"Preferred theme color"`. Clicking it opens the native `<input type="color">`.
@@ -151,13 +153,13 @@ The engine dropdown includes all 28 engines from the public Kroki API, each mapp
 3. `bpmn` (BPMN - XML)
 4. `bytefield` (Bytefield - Clojure)
 5. `c4plantuml` (C4 with PlantUML)
-6. `d2` (D2)
+6. `d2` (D2 - **selected by default**)
 7. `dbml` (DBML)
 8. `ditaa` (Ditaa)
 9. `erd` (Erd)
 10. `excalidraw` (Excalidraw - JSON)
 11. `graphviz` (GraphViz / DOT)
-12. `mermaid` (Mermaid - **selected by default**)
+12. `mermaid` (Mermaid)
 13. `nomnoml` (Nomnoml)
 14. `nwdiag` (NwDiag)
 15. `packetdiag` (PacketDiag)

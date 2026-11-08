@@ -29,6 +29,35 @@ const ENGINES = [
   { id: 'wireviz', label: 'wireviz', mode: 'yaml', docs: 'https://github.com/wireviz/WireViz' }
 ];
 
+const D2_LAYOUTS = [
+  { id: 'dagre', label: 'dagre' },
+  { id: 'elk', label: 'elk' },
+  { id: 'tala', label: 'tala' }
+];
+
+const D2_THEMES = [
+  { id: 'default', label: 'default' },
+  { id: 'neutral-gray', label: 'neutral-gray' },
+  { id: 'flagship-terrastruct', label: 'flagship-terrastruct' },
+  { id: 'cool-classics', label: 'cool-classics' },
+  { id: 'mixed-berry-blue', label: 'mixed-berry-blue' },
+  { id: 'grape-soda', label: 'grape-soda' },
+  { id: 'aubergine', label: 'aubergine' },
+  { id: 'colorblind-clear', label: 'colorblind-clear' },
+  { id: 'vanilla-nitro-cola', label: 'vanilla-nitro-cola' },
+  { id: 'orange-creamsicle', label: 'orange-creamsicle' },
+  { id: 'shirley-temple', label: 'shirley-temple' },
+  { id: 'earth-tones', label: 'earth-tones' },
+  { id: 'everglade-green', label: 'everglade-green' },
+  { id: 'buttered-toast', label: 'buttered-toast' },
+  { id: 'dark-mauve', label: 'dark-mauve' },
+  { id: 'dark-flagship-terrastruct', label: 'dark-flagship-terrastruct' },
+  { id: 'terminal', label: 'terminal' },
+  { id: 'terminal-grayscale', label: 'terminal-grayscale' },
+  { id: 'origami', label: 'origami' },
+  { id: 'c4', label: 'c4' }
+];
+
 const exampleCache = {};
 
 async function loadExample(engineId) {
@@ -71,15 +100,32 @@ function base64UrlSafeToText(base64UrlSafe) {
   return new TextDecoder('utf-8').decode(utf8);
 }
 
+function buildOptionsQuery(engine, options = {}) {
+  if (engine !== 'd2' || !options) return '';
+  const params = new URLSearchParams();
+  if (options.layout && options.layout !== 'dagre') {
+    params.set('layout', options.layout);
+  }
+  if (options.theme && options.theme !== 'default') {
+    params.set('theme', options.theme);
+  }
+  const qs = params.toString();
+  return qs ? `?${qs}` : '';
+}
+
 window.kroki = {
   ENGINES,
+  D2_LAYOUTS,
+  D2_THEMES,
   loadExample,
   encode: textToBase64UrlSafe,
   decode: base64UrlSafeToText,
   getEngineInfo(engineId) {
     return ENGINES.find((e) => e.id === engineId) || { id: engineId, label: engineId, mode: 'text' };
   },
-  buildUrl(engine, format, payload) {
-    return `https://kroki.io/${engine}/${format}/${payload}`;
+  buildOptionsQuery,
+  buildUrl(engine, format, payload, options = {}) {
+    const query = buildOptionsQuery(engine, options);
+    return `https://kroki.io/${engine}/${format}/${payload}${query}`;
   }
 };

@@ -2,7 +2,7 @@ let panzoomInstance = null;
 let currentAbortController = null;
 let lastRenderedData = {
   format: 'svg',
-  engine: 'mermaid',
+  engine: 'd2',
   svgText: '',
   blobUrl: ''
 };

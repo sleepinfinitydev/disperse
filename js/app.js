@@ -1,6 +1,6 @@
 let editor = null;
 let updateTimeout = null;
-let currentEngine = 'mermaid';
+let currentEngine = 'd2';
 let isApplyingProgrammaticChange = false;
 const codeByEngine = {};
 
@@ -14,6 +14,12 @@ function setEditorModeForEngine(engineId) {
   if (docsBtn && info && info.docs) {
     docsBtn.href = info.docs;
   }
+  const isD2 = engineId === 'd2';
+  const layoutSelect = document.getElementById('layout-select');
+  const themeSelect = document.getElementById('theme-select');
+  if (layoutSelect) layoutSelect.disabled = !isD2;
+  if (themeSelect) themeSelect.disabled = !isD2;
+
   if (!editor) return;
   editor.session.setMode(`ace/mode/${info.mode || 'text'}`);
 }
@@ -178,6 +184,8 @@ function initSplitter() {
 function initSelects() {
   const engineSelect = document.getElementById('engine-select');
   const formatSelect = document.getElementById('format-select');
+  const layoutSelect = document.getElementById('layout-select');
+  const themeSelect = document.getElementById('theme-select');
   if (!engineSelect || !formatSelect) return;
 
   engineSelect.innerHTML = '';
@@ -187,8 +195,38 @@ function initSelects() {
     opt.textContent = engine.label;
     engineSelect.appendChild(opt);
   });
-  engineSelect.value = 'mermaid';
-  currentEngine = 'mermaid';
+  engineSelect.value = 'd2';
+  currentEngine = 'd2';
+
+  if (layoutSelect && window.kroki.D2_LAYOUTS) {
+    layoutSelect.innerHTML = '';
+    window.kroki.D2_LAYOUTS.forEach((layout) => {
+      const opt = document.createElement('option');
+      opt.value = layout.id;
+      opt.textContent = layout.label;
+      layoutSelect.appendChild(opt);
+    });
+    layoutSelect.value = 'dagre';
+    layoutSelect.disabled = false;
+    layoutSelect.addEventListener('change', () => {
+      syncState(true);
+    });
+  }
+
+  if (themeSelect && window.kroki.D2_THEMES) {
+    themeSelect.innerHTML = '';
+    window.kroki.D2_THEMES.forEach((theme) => {
+      const opt = document.createElement('option');
+      opt.value = theme.id;
+      opt.textContent = theme.label;
+      themeSelect.appendChild(opt);
+    });
+    themeSelect.value = 'default';
+    themeSelect.disabled = false;
+    themeSelect.addEventListener('change', () => {
+      syncState(true);
+    });
+  }
 
   engineSelect.addEventListener('change', async () => {
     const prevEngine = currentEngine;
@@ -249,10 +287,16 @@ function updateSnippets(krokiUrl, appUrl) {
 function syncState(renderDiagram = true) {
   const engineSelect = document.getElementById('engine-select');
   const formatSelect = document.getElementById('format-select');
+  const layoutSelect = document.getElementById('layout-select');
+  const themeSelect = document.getElementById('theme-select');
   if (!engineSelect || !formatSelect || !editor) return;
 
-  const engine = engineSelect.value || 'mermaid';
+  const engine = engineSelect.value || 'd2';
   const format = formatSelect.value || 'svg';
+  const options = {
+    layout: layoutSelect ? layoutSelect.value : 'dagre',
+    theme: themeSelect ? themeSelect.value : 'default'
+  };
   const code = editor.getValue();
 
   if (!code.trim()) {
@@ -263,10 +307,12 @@ function syncState(renderDiagram = true) {
   }
 
   const payload = window.kroki.encode(code);
-  const krokiUrl = window.kroki.buildUrl(engine, format, payload);
-  const appUrl = `${window.location.origin}${window.location.pathname}#${engine}/${format}/${payload}`;
+  const query = window.kroki.buildOptionsQuery(engine, options);
+  const krokiUrl = window.kroki.buildUrl(engine, format, payload, options);
+  const hashState = `#${engine}/${format}/${payload}${query}`;
+  const appUrl = `${window.location.origin}${window.location.pathname}${hashState}`;
 
-  window.history.replaceState(null, '', `#${engine}/${format}/${payload}`);
+  window.history.replaceState(null, '', hashState);
 
   const brandLink = document.getElementById('brand-link');
   if (brandLink) {
@@ -321,10 +367,13 @@ function initSnippets() {
 async function loadFromUrl() {
   const engineSelect = document.getElementById('engine-select');
   const formatSelect = document.getElementById('format-select');
+  const layoutSelect = document.getElementById('layout-select');
+  const themeSelect = document.getElementById('theme-select');
   const rawHash = window.location.hash.replace(/^#\/?/, '');
 
   if (rawHash) {
-    const parts = rawHash.split('/');
+    const [pathPart, queryPart = ''] = rawHash.split('?');
+    const parts = pathPart.split('/');
     if (parts.length >= 3) {
       const engine = parts[0];
       const format = parts[1];
@@ -340,6 +389,18 @@ async function loadFromUrl() {
       }
       if (validFormat && formatSelect) {
         formatSelect.value = format;
+      }
+
+      if (queryPart && engine === 'd2') {
+        const params = new URLSearchParams(queryPart);
+        const layout = params.get('layout');
+        const theme = params.get('theme');
+        if (layout && layoutSelect && window.kroki.D2_LAYOUTS.some((l) => l.id === layout)) {
+          layoutSelect.value = layout;
+        }
+        if (theme && themeSelect && window.kroki.D2_THEMES.some((t) => t.id === theme)) {
+          themeSelect.value = theme;
+        }
       }
 
       try {

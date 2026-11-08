@@ -233,10 +233,31 @@ button, .icon-btn, .toolbar-btn {
   height: 100%;
   line-height: 32px;
   font-weight: 600;
+  text-overflow: ellipsis;
 }
 
-.header-center .toolbar-select:hover {
+#theme-select {
+  max-width: 150px;
+}
+
+.header-center .toolbar-select:hover:not(:disabled) {
   background-color: var(--border-color);
+}
+
+select:disabled,
+button:disabled,
+.toolbar-item:disabled {
+  color: var(--text-muted);
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+select:disabled:hover,
+button:disabled:hover,
+.header-center .toolbar-select:disabled:hover {
+  background-color: transparent;
+  border-color: var(--border-color);
+  color: var(--text-muted);
 }
 
 .header-center .toolbar-btn:hover {
@@ -813,8 +834,17 @@ input[type="text"]:focus {
     justify-content: space-between;
   }
 
-  .header-center select {
+  .header-center .toolbar-select-wrap {
     flex: 1;
+    min-width: 0;
+  }
+
+  .header-center select,
+  #theme-select {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
   }
 
   button, .circle-btn, #color-swatch, .color-picker-wrapper {
