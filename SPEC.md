@@ -64,7 +64,7 @@ A aplicación ocupa o `100vw x 100dvh` (`100vh` como fallback) sen desprazamento
 
 ### 3.1. Barra Superior (Cabeceira)
 1. **Esquerda**:
-   - Título **`DISPERSE`** en maiúsculas (`text-transform: uppercase`), tipografía con carácter e cor primaria (`--color-primary`).
+   - Enlace de marca (`#brand-link`) composto pola icona `favicon.svg`, o título **`DISPERSE`** en maiúsculas (`text-transform: uppercase`) con cor primaria (`--color-primary`) e unha icona de elo de cadea (`link`). Mantén sempre o `href` sincronizado coa URL completa da páxina actual (`window.location.href` co estado do diagrama) e, ao facer clic nel, non recarga nin reinicia o editor, senón que copia automaticamente a URL actual ao portapapeis mostrando confirmación visual (`✓`).
 2. **Centro (Controis do Diagrama)**:
    - **Despregable de motor Kroki**: Lista con todos os motores soportados por Kroki. Cambiar de motor actualiza:
      - O endpoint de renderizado en Kroki.
@@ -224,4 +224,5 @@ A aplicación está deseñada para servirse estaticamente dende calquera servido
 - **`Containerfile`**: Permite xerar unha imaxe OCI baseada en `nginx:stable` (Debian, sen Alpine), copiando só os ficheiros estáticos estritamente necesarios (`index.html`, `css/` e `js/`).
 - **`Taskfile.yml`**: Proporciona rutinas para axilizar o desenvolvemento e o empaquetado:
   - `task run`: Levanta un servidor web local lixeiro (`python3 -m http.server`) no porto `8765` por defecto, sendo configurable mediante a variable `PORT` (ex. `task run PORT=9000`).
-  - `task build`: Crea a imaxe do contedor (`disperse:latest`) empregando de forma transparente `podman` ou `docker`.
+  - `task build`: Crea a imaxe do contedor (`ghcr.io/sleepinfinitydev/disperse` por defecto, configurable con `IMAGE=...`) etiquetada tanto co hash curto de Git (`git rev-parse --short HEAD`) coma con `latest`, empregando de forma transparente `podman` ou `docker`.
+  - `task push`: Constrúe e empurra ao rexistro ambas etiquetas (`:{{.GIT_HASH}}` e `:latest`).

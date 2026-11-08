@@ -1,5 +1,10 @@
 version: '3'
 
+vars:
+  IMAGE: '{{.IMAGE | default "ghcr.io/sleepinfinitydev/disperse"}}'
+  GIT_HASH:
+    sh: git rev-parse --short HEAD
+
 tasks:
   default:
     cmds:
@@ -15,15 +20,33 @@ tasks:
       - python3 -m http.server {{.PORT}}
 
   build:
-    desc: "Build the OCI container image (auto-detects podman or docker)"
+    desc: "Build the OCI container image tagged with git commit hash and latest"
     cmds:
       - |
         if command -v podman >/dev/null 2>&1; then
-          echo "Building image with Podman..."
-          podman build -t disperse:latest -f Containerfile .
+          echo "Building {{.IMAGE}}:{{.GIT_HASH}} and {{.IMAGE}}:latest with Podman..."
+          podman build -t {{.IMAGE}}:{{.GIT_HASH}} -t {{.IMAGE}}:latest -f Containerfile .
         elif command -v docker >/dev/null 2>&1; then
-          echo "Building image with Docker..."
-          docker build -t disperse:latest -f Containerfile .
+          echo "Building {{.IMAGE}}:{{.GIT_HASH}} and {{.IMAGE}}:latest with Docker..."
+          docker build -t {{.IMAGE}}:{{.GIT_HASH}} -t {{.IMAGE}}:latest -f Containerfile .
+        else
+          echo "Error: Neither Podman nor Docker was found in PATH."
+          exit 1
+        fi
+
+  push:
+    desc: "Push the OCI container image (git hash and latest tags) to the registry"
+    deps: [build]
+    cmds:
+      - |
+        if command -v podman >/dev/null 2>&1; then
+          echo "Pushing {{.IMAGE}}:{{.GIT_HASH}} and {{.IMAGE}}:latest with Podman..."
+          podman push {{.IMAGE}}:{{.GIT_HASH}}
+          podman push {{.IMAGE}}:latest
+        elif command -v docker >/dev/null 2>&1; then
+          echo "Pushing {{.IMAGE}}:{{.GIT_HASH}} and {{.IMAGE}}:latest with Docker..."
+          docker push {{.IMAGE}}:{{.GIT_HASH}}
+          docker push {{.IMAGE}}:latest
         else
           echo "Error: Neither Podman nor Docker was found in PATH."
           exit 1

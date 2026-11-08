@@ -16,10 +16,12 @@ task run
 ```
 By default, it starts a local server at `http://localhost:8765` (customizable via `task run PORT=9000`).
 
-### Build OCI Container Image
+### Build & Push OCI Container Image
 ```bash
 task build
+task push
 ```
+By default, it tags and pushes `ghcr.io/sleepinfinitydev/disperse:<git-short-hash>` and `ghcr.io/sleepinfinitydev/disperse:latest` (customizable via `IMAGE=...`).
 
 ## License
 Licensed under the [GNU General Public License v3.0 (GPLv3)](LICENSE).

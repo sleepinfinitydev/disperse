@@ -260,6 +260,11 @@ function syncState(renderDiagram = true) {
 
   window.history.replaceState(null, '', `#${engine}/${format}/${payload}`);
 
+  const brandLink = document.getElementById('brand-link');
+  if (brandLink) {
+    brandLink.href = appUrl;
+  }
+
   if (renderDiagram && window.viewer) {
     window.viewer.update(krokiUrl, format, engine);
   }
@@ -346,6 +351,24 @@ function loadFromUrl() {
 document.addEventListener('DOMContentLoaded', () => {
   if (window.lucide && typeof window.lucide.createIcons === 'function') {
     window.lucide.createIcons();
+  }
+  const brandLink = document.getElementById('brand-link');
+  if (brandLink) {
+    brandLink.href = window.location.href;
+    brandLink.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const currentUrl = window.location.href;
+      brandLink.href = currentUrl;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(currentUrl);
+        }
+      } catch (_) {}
+      brandLink.classList.add('copied');
+      setTimeout(() => {
+        brandLink.classList.remove('copied');
+      }, 1800);
+    });
   }
   if (window.themeManager) {
     window.themeManager.init();

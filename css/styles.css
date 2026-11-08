@@ -78,7 +78,23 @@ header {
 .header-left {
   display: flex;
   align-items: center;
+}
+
+.brand-link {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
+  text-decoration: none;
+  color: var(--color-primary);
+  border-radius: 6px;
+  padding: 2px 6px;
+  margin-left: -6px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.brand-link:hover {
+  background-color: var(--bg-surface);
+  color: var(--color-primary-hover);
 }
 
 .brand-logo {
@@ -92,9 +108,40 @@ header {
   font-size: clamp(1rem, 2vw, 1.25rem);
   font-weight: 800;
   text-transform: uppercase;
-  color: var(--color-primary);
+  color: inherit;
   letter-spacing: 0.12em;
   user-select: none;
+}
+
+.brand-link-icon {
+  width: 14px !important;
+  height: 14px !important;
+  color: var(--color-secondary);
+  opacity: 0.45;
+  transition: opacity 0.15s ease, transform 0.15s ease, color 0.15s ease;
+}
+
+.brand-link .brand-icon-check {
+  display: none;
+}
+
+.brand-link.copied .brand-icon-link {
+  display: none;
+}
+
+.brand-link.copied .brand-icon-check {
+  display: inline-flex;
+}
+
+.brand-link.copied .brand-link-icon {
+  opacity: 1;
+  color: var(--color-tertiary);
+}
+
+.brand-link:hover .brand-link-icon {
+  opacity: 1;
+  color: var(--color-primary);
+  transform: translateX(1px);
 }
 
 .header-center {
