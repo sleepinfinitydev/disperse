@@ -407,6 +407,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R')) {
       e.preventDefault();
       syncState(true);
+    } else if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+      e.preventDefault();
+      if (window.viewer && typeof window.viewer.download === 'function') {
+        window.viewer.download();
+      }
     }
   });
 });

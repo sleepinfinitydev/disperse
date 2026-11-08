@@ -50,7 +50,7 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 
 ```
 +-----------------------------------------------------------------------+
-| DISPERSE       (↻) [Engine v] [Format v] (📖)            (☀/☾)  (●)   |  <- Header
+| DISPERSE       [ ↻ | Engine v | 📖 | Format v ]          (☀/☾)  (●)   |  <- Header
 +---------------------------+-------------------------------------------+
 |                           |                                           |
 |                           |                                           |
@@ -67,19 +67,22 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 ### 3.1. Top Bar (Header)
 1. **Left**:
    - Brand link (`#brand-link`) composed of the `favicon.svg` logo, the uppercase **`DISPERSE`** title in `--color-primary`, and a chain link icon (`link`). Its `href` is always synchronized with the full current page URL (`window.location.href` including the diagram state). Clicking it does not reload or reset the editor; instead, it automatically copies the current URL to the clipboard with visual confirmation (`✓`).
-2. **Center (Diagram Controls, in order)**:
-   - **Refresh Button (`#refresh-btn`)**: Button with a refresh icon (`refresh-cw`) placed first to force preview rendering.
-     - **Keyboard shortcut**: `Ctrl + R` (or `Cmd + R`), intercepting the browser event (`e.preventDefault()`) to refresh the diagram without reloading the page.
-   - **Kroki Engine Dropdown (`#engine-select`)**: Lists all 28 engines supported by Kroki. Switching engines updates:
-     - The Kroki rendering endpoint.
-     - The editor's syntax highlighting mode.
-     - The **per-engine code state**: the application preserves source code independently for each engine (`codeByEngine`), loading each engine's default example from `examples/{engine}.txt` on first use and retaining user edits when switching back and forth between languages.
-     - The documentation button (`#docs-btn`) `href` to point to the active language's official documentation.
-   - **Output Format Dropdown (`#format-select`)**: `svg` (default) and `png`.
-   - **Language Documentation Link (`#docs-btn`)**: Anchor styled identically to header action buttons with an open-book icon (`book-open`) that opens the selected language's official documentation in a new tab (`target="_blank"`).
+2. **Center (Unified Segmented Toolbar, in order)**:
+   - Contained within a single pill-shaped segmented bar (`.header-center`, `34px` uniform height with vertical dividers):
+     1. **Refresh Button (`#refresh-btn`)**: Refresh icon (`refresh-cw`) with caption `"Refresh preview (Ctrl+R)"`.
+        - **Keyboard shortcut**: `Ctrl + R` (or `Cmd + R`), intercepting the browser event (`e.preventDefault()`) to refresh the diagram without reloading the page.
+     2. **Kroki Engine Dropdown (`#engine-select`)**: Lists all 28 engines supported by Kroki with caption `"Diagram language"`. Switching engines updates:
+        - The Kroki rendering endpoint.
+        - The editor's syntax highlighting mode.
+        - The **per-engine code state**: the application preserves source code independently for each engine (`codeByEngine`), loading each engine's default example from `examples/{engine}.txt` on first use and retaining user edits when switching back and forth between languages.
+        - The documentation link (`#docs-btn`) `href` to point to the active language's official documentation.
+     3. **Language Documentation Link (`#docs-btn`)**: Anchor with an open-book icon (`book-open`) and caption `"Language documentation"`, opening the selected language's official documentation in a new tab (`target="_blank"`).
+     4. **Output Format Dropdown (`#format-select`)**: `svg` (default) and `png`, with caption `"Output format"`.
 3. **Right (Visual Preferences)**:
-   - **Light / Dark Mode Button (`#theme-btn`)**: Circular button with a sun/moon icon.
-   - **Preferred Color Button (`#color-swatch`)**: Circular button **of the exact same diameter** as the theme button, filled with the current preferred color (`rgb(0, 128, 192)` by default). Clicking it opens the native `<input type="color">`.
+   - **Light / Dark Mode Button (`#theme-btn`)**: Circular button with a sun/moon icon and caption `"Toggle light/dark theme"`.
+   - **Preferred Color Button (`#color-swatch`)**: Circular button **of the exact same diameter** as the theme button, filled with the current preferred color (`rgb(0, 128, 192)` by default) and caption `"Preferred theme color"`. Clicking it opens the native `<input type="color">`.
+4. **Captions / Tooltips (`[data-tooltip]`)**:
+   - All icon buttons and controls across the header, splitter, viewer toolbar, and publishing footer display instant hover/focus captions indicating their action and keyboard shortcut where applicable (e.g., `Refresh preview (Ctrl+R)`, `Download diagram (Ctrl+S)`).
 
 ### 3.2. Main Area (Editor + Preview)
 - Occupies all available vertical space between header and footer (`flex: 1`).
@@ -127,7 +130,7 @@ Compact panel for obtaining ready-to-publish links and snippets:
 3. **Copy action**:
    - Clipboard button next to each snippet with visual feedback (temporarily switching to a `✓` check icon).
 4. **Footer credits**:
-   - Centered bottom credit line acknowledging the project, its license, and its dependencies: `Made with ❤️ in Betanzos (sleepinfinity.dev) · Disperse (GPLv3) was built on the shoulders of giants: Kroki, Ace, Panzoom, Pako, Lucide, and inspired by Niolesk.`
+   - Centered bottom credit line acknowledging the project, its license, and its dependencies: `Made with ❤️ in Betanzos · Copyleft 🄯 (GPLv3) by sleepinfinity.dev · Disperse was built on the shoulders of giants: Kroki, Ace, Panzoom, Pako, Lucide, and inspired by Niolesk.`
 
 ### 3.4. Responsive Design
 1. **Desktop & Wide Screens (`> 900px`)**:

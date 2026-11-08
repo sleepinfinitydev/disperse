@@ -209,6 +209,7 @@ function downloadDiagram() {
 window.viewer = {
   init: initViewer,
   update: updateViewer,
+  download: downloadDiagram,
   showError: showViewerError,
   hideError: hideViewerError
 };

@@ -10,33 +10,39 @@
 <body>
   <header>
     <div class="header-left">
-      <a id="brand-link" href="#" class="brand-link" aria-label="Copy link">
+      <a id="brand-link" href="#" class="brand-link" aria-label="Copy current page link" data-tooltip="Copy current page link">
         <img id="brand-logo" class="brand-logo" src="favicon.svg" alt="" width="26" height="26">
         <h1>DISPERSE</h1>
         <span class="brand-icon-link icon-wrap"><i data-lucide="link" class="brand-link-icon"></i></span>
         <span class="brand-icon-check icon-wrap"><i data-lucide="check" class="brand-link-icon"></i></span>
       </a>
     </div>
-    <div class="header-center">
-      <button id="refresh-btn" type="button" aria-label="Refresh">
+
+    <div class="header-center" role="toolbar" aria-label="Diagram controls">
+      <button id="refresh-btn" class="toolbar-item toolbar-btn" type="button" aria-label="Refresh preview (Ctrl+R)" data-tooltip="Refresh preview (Ctrl+R)">
         <i data-lucide="refresh-cw"></i>
       </button>
-      <select id="engine-select" aria-label="Engine"></select>
-      <select id="format-select" aria-label="Format">
-        <option value="svg">svg</option>
-        <option value="png">png</option>
-      </select>
-      <a id="docs-btn" class="icon-btn" href="https://mermaid.js.org/intro/" target="_blank" rel="noopener noreferrer" aria-label="Documentation">
+      <div class="toolbar-select-wrap" data-tooltip="Diagram language">
+        <select id="engine-select" class="toolbar-item toolbar-select" aria-label="Diagram language"></select>
+      </div>
+      <a id="docs-btn" class="toolbar-item toolbar-btn" href="https://mermaid.js.org/intro/" target="_blank" rel="noopener noreferrer" aria-label="Language documentation" data-tooltip="Language documentation">
         <i data-lucide="book-open"></i>
       </a>
+      <div class="toolbar-select-wrap" data-tooltip="Output format">
+        <select id="format-select" class="toolbar-item toolbar-select" aria-label="Output format">
+          <option value="svg">svg</option>
+          <option value="png">png</option>
+        </select>
+      </div>
     </div>
+
     <div class="header-right">
-      <button id="theme-btn" class="circle-btn" type="button" aria-label="Theme">
+      <button id="theme-btn" class="circle-btn" type="button" aria-label="Toggle light/dark theme" data-tooltip="Toggle light/dark theme" data-tooltip-align="right">
         <span id="theme-icon-light" class="icon-wrap"><i data-lucide="sun"></i></span>
         <span id="theme-icon-dark" class="icon-wrap" style="display:none"><i data-lucide="moon"></i></span>
       </button>
-      <div class="color-picker-wrapper">
-        <button id="color-swatch" class="circle-btn" type="button" aria-label="Color"></button>
+      <div class="color-picker-wrapper" data-tooltip="Preferred theme color" data-tooltip-align="right">
+        <button id="color-swatch" class="circle-btn" type="button" aria-label="Preferred theme color"></button>
         <input type="color" id="color-picker" value="#0080c0" aria-label="Color Picker">
       </div>
     </div>
@@ -47,15 +53,15 @@
       <div id="editor"></div>
     </section>
 
-    <div id="splitter" role="separator" aria-label="Resize panels">
+    <div id="splitter" role="separator" aria-label="Resize panels" title="Drag to resize · Double-click to reset (38.2%)">
       <div class="splitter-grip">
-        <button id="split-max-editor" class="splitter-quick-btn" type="button" aria-label="Maximize editor">
+        <button id="split-max-editor" class="splitter-quick-btn" type="button" aria-label="Maximize editor" data-tooltip="Maximize editor">
           <i data-lucide="chevron-down"></i>
         </button>
-        <button id="split-reset" class="splitter-quick-btn" type="button" aria-label="Reset split">
+        <button id="split-reset" class="splitter-quick-btn" type="button" aria-label="Reset split (38.2%)" data-tooltip="Reset split (38.2%)">
           <i data-lucide="minus"></i>
         </button>
-        <button id="split-max-viewer" class="splitter-quick-btn" type="button" aria-label="Maximize preview">
+        <button id="split-max-viewer" class="splitter-quick-btn" type="button" aria-label="Maximize preview" data-tooltip="Maximize preview">
           <i data-lucide="chevron-up"></i>
         </button>
       </div>
@@ -70,16 +76,16 @@
         <pre id="viewer-error-text" class="viewer-error-detail"></pre>
       </div>
       <div class="viewer-actions">
-        <button id="zoom-in" type="button" aria-label="Zoom In">
+        <button id="zoom-in" type="button" aria-label="Zoom in" data-tooltip="Zoom in" data-tooltip-pos="left">
           <i data-lucide="zoom-in"></i>
         </button>
-        <button id="zoom-out" type="button" aria-label="Zoom Out">
+        <button id="zoom-out" type="button" aria-label="Zoom out" data-tooltip="Zoom out" data-tooltip-pos="left">
           <i data-lucide="zoom-out"></i>
         </button>
-        <button id="zoom-fit" type="button" aria-label="Fit View">
+        <button id="zoom-fit" type="button" aria-label="Fit / Reset view" data-tooltip="Fit / Reset view" data-tooltip-pos="left">
           <i data-lucide="maximize-2"></i>
         </button>
-        <button id="download-btn" type="button" aria-label="Download">
+        <button id="download-btn" type="button" aria-label="Download diagram (Ctrl+S)" data-tooltip="Download diagram (Ctrl+S)" data-tooltip-pos="left">
           <i data-lucide="download"></i>
         </button>
       </div>
@@ -91,51 +97,51 @@
 
   <footer>
     <div class="snippet-row">
-      <div class="target-icon">
+      <div class="target-icon" data-tooltip="Direct Kroki image" data-tooltip-pos="top" data-tooltip-align="left">
         <i data-lucide="image"></i>
       </div>
       <div class="format-icons">
-        <button class="format-btn active" type="button" data-fmt="url" data-target="image" aria-label="Image URL">
+        <button class="format-btn active" type="button" data-fmt="url" data-target="image" aria-label="Direct image URL" data-tooltip="Direct image URL" data-tooltip-pos="top">
           <i data-lucide="link"></i>
         </button>
-        <button class="format-btn" type="button" data-fmt="md" data-target="image" aria-label="Image Markdown">
+        <button class="format-btn" type="button" data-fmt="md" data-target="image" aria-label="Markdown image" data-tooltip="Markdown image" data-tooltip-pos="top">
           <i data-lucide="file-down"></i>
         </button>
-        <button class="format-btn" type="button" data-fmt="html" data-target="image" aria-label="Image HTML">
+        <button class="format-btn" type="button" data-fmt="html" data-target="image" aria-label="HTML image tag" data-tooltip="HTML image tag" data-tooltip-pos="top">
           <i data-lucide="code-2"></i>
         </button>
       </div>
       <input type="text" id="out-image-text" readonly aria-label="Image snippet">
-      <button class="copy-btn" type="button" data-input="out-image-text" aria-label="Copy image snippet">
+      <button class="copy-btn" type="button" data-input="out-image-text" aria-label="Copy image snippet" data-tooltip="Copy to clipboard" data-tooltip-pos="top" data-tooltip-align="right">
         <span class="icon-copy icon-wrap"><i data-lucide="copy"></i></span>
         <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
       </button>
     </div>
 
     <div class="snippet-row">
-      <div class="target-icon">
+      <div class="target-icon" data-tooltip="Editable Disperse link" data-tooltip-pos="top" data-tooltip-align="left">
         <i data-lucide="pencil"></i>
       </div>
       <div class="format-icons">
-        <button class="format-btn active" type="button" data-fmt="url" data-target="editor" aria-label="Editor URL">
+        <button class="format-btn active" type="button" data-fmt="url" data-target="editor" aria-label="Direct editor URL" data-tooltip="Direct editor URL" data-tooltip-pos="top">
           <i data-lucide="link"></i>
         </button>
-        <button class="format-btn" type="button" data-fmt="md" data-target="editor" aria-label="Editor Markdown">
+        <button class="format-btn" type="button" data-fmt="md" data-target="editor" aria-label="Markdown with edit link" data-tooltip="Markdown with edit link" data-tooltip-pos="top">
           <i data-lucide="file-down"></i>
         </button>
-        <button class="format-btn" type="button" data-fmt="html" data-target="editor" aria-label="Editor HTML">
+        <button class="format-btn" type="button" data-fmt="html" data-target="editor" aria-label="HTML with edit link" data-tooltip="HTML with edit link" data-tooltip-pos="top">
           <i data-lucide="code-2"></i>
         </button>
       </div>
       <input type="text" id="out-editor-text" readonly aria-label="Editor snippet">
-      <button class="copy-btn" type="button" data-input="out-editor-text" aria-label="Copy editor snippet">
+      <button class="copy-btn" type="button" data-input="out-editor-text" aria-label="Copy editor snippet" data-tooltip="Copy to clipboard" data-tooltip-pos="top" data-tooltip-align="right">
         <span class="icon-copy icon-wrap"><i data-lucide="copy"></i></span>
         <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
       </button>
     </div>
 
     <div class="footer-credits">
-      Made with <span style="color: red;">❤️</span> in Betanzos (<a href="https://sleepinfinity.dev" target="_blank" rel="noopener noreferrer">sleepinfinity.dev</a>) · <a href="https://github.com/sleepinfinitydev/disperse" target="_blank" rel="noopener noreferrer">Disperse</a> (<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer">GPLv3</a>) was built on the shoulders of giants: <a href="https://kroki.io" target="_blank" rel="noopener noreferrer">Kroki</a>, <a href="https://ace.c9.io" target="_blank" rel="noopener noreferrer">Ace</a>, <a href="https://github.com/timmywil/panzoom" target="_blank" rel="noopener noreferrer">Panzoom</a>, <a href="https://github.com/nodeca/pako" target="_blank" rel="noopener noreferrer">Pako</a>, <a href="https://lucide.dev" target="_blank" rel="noopener noreferrer">Lucide</a>, and inspired by <a href="https://niolesk.top" target="_blank" rel="noopener noreferrer">Niolesk</a>.
+      Made with <span style="color: red;">❤️</span> in Betanzos · Copyleft &#127279; (<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer">GPLv3</a>) by <a href="https://sleepinfinity.dev" target="_blank" rel="noopener noreferrer">sleepinfinity.dev</a> · <a href="https://github.com/sleepinfinitydev/disperse" target="_blank" rel="noopener noreferrer">Disperse</a> was built on the shoulders of giants: <a href="https://kroki.io" target="_blank" rel="noopener noreferrer">Kroki</a>, <a href="https://ace.c9.io" target="_blank" rel="noopener noreferrer">Ace</a>, <a href="https://github.com/timmywil/panzoom" target="_blank" rel="noopener noreferrer">Panzoom</a>, <a href="https://github.com/nodeca/pako" target="_blank" rel="noopener noreferrer">Pako</a>, <a href="https://lucide.dev" target="_blank" rel="noopener noreferrer">Lucide</a>, and inspired by <a href="https://niolesk.top" target="_blank" rel="noopener noreferrer">Niolesk</a>.
     </div>
   </footer>
 
