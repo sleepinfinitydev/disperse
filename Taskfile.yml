@@ -1,0 +1,30 @@
+version: '3'
+
+tasks:
+  default:
+    cmds:
+      - task --list
+    silent: true
+
+  run:
+    desc: "Run the application locally for testing via Python HTTP server"
+    vars:
+      PORT: '{{.PORT | default "8765"}}'
+    cmds:
+      - echo "Starting server at http://localhost:{{.PORT}} ..."
+      - python3 -m http.server {{.PORT}}
+
+  build:
+    desc: "Build the OCI container image (auto-detects podman or docker)"
+    cmds:
+      - |
+        if command -v podman >/dev/null 2>&1; then
+          echo "Building image with Podman..."
+          podman build -t disperse:latest -f Containerfile .
+        elif command -v docker >/dev/null 2>&1; then
+          echo "Building image with Docker..."
+          docker build -t disperse:latest -f Containerfile .
+        else
+          echo "Error: Neither Podman nor Docker was found in PATH."
+          exit 1
+        fi

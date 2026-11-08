@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="eo" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DISPERSE</title>
+  <link id="app-favicon" rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <img id="brand-logo" class="brand-logo" src="favicon.svg" alt="" width="26" height="26">
+      <h1>DISPERSE</h1>
+    </div>
+    <div class="header-center">
+      <select id="engine-select" aria-label="Motoro"></select>
+      <select id="format-select" aria-label="Formato">
+        <option value="svg">svg</option>
+        <option value="png">png</option>
+      </select>
+      <button id="refresh-btn" type="button" aria-label="Aktualigi">
+        <i data-lucide="refresh-cw"></i>
+      </button>
+    </div>
+    <div class="header-right">
+      <button id="theme-btn" class="circle-btn" type="button" aria-label="Etoso">
+        <span id="theme-icon-light" class="icon-wrap"><i data-lucide="sun"></i></span>
+        <span id="theme-icon-dark" class="icon-wrap" style="display:none"><i data-lucide="moon"></i></span>
+      </button>
+      <div class="color-picker-wrapper">
+        <button id="color-swatch" class="circle-btn" type="button" aria-label="Koloro"></button>
+        <input type="color" id="color-picker" value="#0080c0" aria-label="Kolorelektilo">
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="editor-container">
+      <div id="editor"></div>
+    </section>
+
+    <div id="splitter" role="separator" aria-label="Regrandigi panelojn">
+      <div class="splitter-grip">
+        <button id="split-max-editor" class="splitter-quick-btn" type="button" aria-label="Maksimumigi redaktilon">
+          <i data-lucide="chevron-down"></i>
+        </button>
+        <button id="split-reset" class="splitter-quick-btn" type="button" aria-label="Restarigi proporcion">
+          <i data-lucide="minus"></i>
+        </button>
+        <button id="split-max-viewer" class="splitter-quick-btn" type="button" aria-label="Maksimumigi antaŭrigardon">
+          <i data-lucide="chevron-up"></i>
+        </button>
+      </div>
+    </div>
+
+    <section id="viewer-container">
+      <div id="viewer"></div>
+      <div id="viewer-error" class="viewer-error" style="display:none" role="alert">
+        <div class="viewer-error-header">
+          <i data-lucide="alert-triangle"></i>
+        </div>
+        <pre id="viewer-error-text" class="viewer-error-detail"></pre>
+      </div>
+      <div class="viewer-actions">
+        <button id="zoom-in" type="button" aria-label="Zomi">
+          <i data-lucide="zoom-in"></i>
+        </button>
+        <button id="zoom-out" type="button" aria-label="Malzomi">
+          <i data-lucide="zoom-out"></i>
+        </button>
+        <button id="zoom-fit" type="button" aria-label="Adapti al ekrano">
+          <i data-lucide="maximize-2"></i>
+        </button>
+        <button id="download-btn" type="button" aria-label="Elŝuti">
+          <i data-lucide="download"></i>
+        </button>
+      </div>
+      <div id="loading" style="display:none">
+        <i data-lucide="loader-2" class="spinner"></i>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="snippet-row">
+      <div class="target-icon">
+        <i data-lucide="image"></i>
+      </div>
+      <div class="format-icons">
+        <button class="format-btn active" type="button" data-fmt="url" data-target="image" aria-label="Bildo URL">
+          <i data-lucide="link"></i>
+        </button>
+        <button class="format-btn" type="button" data-fmt="md" data-target="image" aria-label="Bildo Markdown">
+          <i data-lucide="file-down"></i>
+        </button>
+        <button class="format-btn" type="button" data-fmt="html" data-target="image" aria-label="Bildo HTML">
+          <i data-lucide="code-2"></i>
+        </button>
+      </div>
+      <input type="text" id="out-image-text" readonly aria-label="Bilda kodo">
+      <button class="copy-btn" type="button" data-input="out-image-text" aria-label="Kopii bildan kodon">
+        <span class="icon-copy icon-wrap"><i data-lucide="copy"></i></span>
+        <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
+      </button>
+    </div>
+
+    <div class="snippet-row">
+      <div class="target-icon">
+        <i data-lucide="pencil"></i>
+      </div>
+      <div class="format-icons">
+        <button class="format-btn active" type="button" data-fmt="url" data-target="editor" aria-label="Redaktilo URL">
+          <i data-lucide="link"></i>
+        </button>
+        <button class="format-btn" type="button" data-fmt="md" data-target="editor" aria-label="Redaktilo Markdown">
+          <i data-lucide="file-down"></i>
+        </button>
+        <button class="format-btn" type="button" data-fmt="html" data-target="editor" aria-label="Redaktilo HTML">
+          <i data-lucide="code-2"></i>
+        </button>
+      </div>
+      <input type="text" id="out-editor-text" readonly aria-label="Redaktila kodo">
+      <button class="copy-btn" type="button" data-input="out-editor-text" aria-label="Kopii redaktilan kodon">
+        <span class="icon-copy icon-wrap"><i data-lucide="copy"></i></span>
+        <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
+      </button>
+    </div>
+
+    <div class="footer-credits">
+      Farita kun <span style="color: red;">❤️</span> en Betanzos. <a href="https://sleepinfinity.dev" target="_blank" rel="noopener noreferrer">https://sleepinfinity.dev</a>
+    </div>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ace.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+  <script src="https://unpkg.com/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/kroki.js"></script>
+  <script src="js/viewer.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
