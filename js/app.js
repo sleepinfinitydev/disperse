@@ -178,7 +178,6 @@ function initSelects() {
 
   engineSelect.innerHTML = '';
   window.kroki.ENGINES.forEach((engine) => {
-    codeByEngine[engine.id] = window.kroki.DEFAULT_EXAMPLES[engine.id] || '';
     const opt = document.createElement('option');
     opt.value = engine.id;
     opt.textContent = engine.label;
@@ -187,7 +186,7 @@ function initSelects() {
   engineSelect.value = 'mermaid';
   currentEngine = 'mermaid';
 
-  engineSelect.addEventListener('change', () => {
+  engineSelect.addEventListener('change', async () => {
     const prevEngine = currentEngine;
     const nextEngine = engineSelect.value;
 
@@ -198,16 +197,21 @@ function initSelects() {
     currentEngine = nextEngine;
     setEditorModeForEngine(nextEngine);
 
-    if (editor) {
-      const savedCode = codeByEngine[nextEngine];
-      const nextCode =
-        savedCode && savedCode.trim()
-          ? savedCode
-          : window.kroki.DEFAULT_EXAMPLES[nextEngine] || '';
-      setEditorCode(nextCode);
+    const savedCode = codeByEngine[nextEngine];
+    if (savedCode && savedCode.trim()) {
+      setEditorCode(savedCode);
+      syncState(true);
+    } else {
+      try {
+        const exampleCode = await window.kroki.loadExample(nextEngine);
+        if (currentEngine === nextEngine) {
+          setEditorCode(exampleCode);
+          syncState(true);
+        }
+      } catch (err) {
+        console.error('Failed to load example:', err);
+      }
     }
-
-    syncState(true);
   });
 
   formatSelect.addEventListener('change', () => {
@@ -310,7 +314,7 @@ function initSnippets() {
   });
 }
 
-function loadFromUrl() {
+async function loadFromUrl() {
   const engineSelect = document.getElementById('engine-select');
   const formatSelect = document.getElementById('format-select');
   const rawHash = window.location.hash.replace(/^#\/?/, '');
@@ -344,11 +348,15 @@ function loadFromUrl() {
     }
   }
 
-  const defaultCode = window.kroki.DEFAULT_EXAMPLES[currentEngine] || window.kroki.DEFAULT_EXAMPLES.mermaid;
-  setEditorCode(defaultCode);
+  try {
+    const defaultCode = await window.kroki.loadExample(currentEngine);
+    setEditorCode(defaultCode);
+  } catch (err) {
+    console.error('Failed to load initial example:', err);
+  }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   if (window.lucide && typeof window.lucide.createIcons === 'function') {
     window.lucide.createIcons();
   }
@@ -381,7 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   initSnippets();
 
-  loadFromUrl();
+  await loadFromUrl();
   syncState(true);
 
   const refreshBtn = document.getElementById('refresh-btn');

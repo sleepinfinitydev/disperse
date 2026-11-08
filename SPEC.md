@@ -206,8 +206,9 @@ Estrutura de ficheiros limpa e sen paso de compilación obrigatorio:
 - `css/styles.css` — Sistema de cores `oklch` tetrádico, layout con proporción áurea e temas claro/escuro.
 - `js/app.js` — Inicialización, estado da aplicación, atallos de teclado (`Ctrl+R`), splitter e eventos.
 - `js/theme.js` — Conversión RGB → OKLCH, xeración da paleta tetrádica e cambio de modo claro/escuro.
-- `js/kroki.js` — Catálogo de motores, exemplos por defecto, compresión/descompresión e comunicación coa API de Kroki.
+- `js/kroki.js` — Catálogo de motores, carga asíncrona con caché de exemplos (`examples/{motor}.txt`), compresión/descompresión e comunicación coa API de Kroki.
 - `js/viewer.js` — Xestión do visualizador (SVG e PNG) con zoom, pan e descarga.
+- `examples/*.txt` — Ficheiros individuais co código de exemplo por defecto para cada un dos 28 motores soportados.
 
 ### Librerías externas (vía CDN ESM / UMD)
 - **Editor de código**: **Ace Editor** (ou **CodeMirror 5/6**), por ofrecer soporte inmediato para modos como DOT, JSON, XML, YAML, Clojure, LaTeX, Verilog, etc.
@@ -221,7 +222,7 @@ Estrutura de ficheiros limpa e sen paso de compilación obrigatorio:
 
 A aplicación está deseñada para servirse estaticamente dende calquera servidor web. Para iso inclúense as seguintes ferramentas:
 
-- **`Containerfile`**: Permite xerar unha imaxe OCI baseada en `nginx:stable` (Debian, sen Alpine), copiando só os ficheiros estáticos estritamente necesarios (`index.html`, `css/` e `js/`).
+- **`Containerfile`**: Permite xerar unha imaxe OCI baseada en `nginx:stable` (Debian, sen Alpine), copiando só os ficheiros estáticos estritamente necesarios (`index.html`, `favicon.svg`, `css/`, `js/` e `examples/`).
 - **`Taskfile.yml`**: Proporciona rutinas para axilizar o desenvolvemento e o empaquetado:
   - `task run`: Levanta un servidor web local lixeiro (`python3 -m http.server`) no porto `8765` por defecto, sendo configurable mediante a variable `PORT` (ex. `task run PORT=9000`).
   - `task build`: Crea a imaxe do contedor (`ghcr.io/sleepinfinitydev/disperse` por defecto, configurable con `IMAGE=...`) etiquetada tanto co hash curto de Git (`git rev-parse --short HEAD`) coma con `latest`, empregando de forma transparente `podman` ou `docker`.

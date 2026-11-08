@@ -1,0 +1,3 @@
+[<actor>User] -> [Disperse]
+[Disperse] -> [Kroki API]
+[Kroki API] --> [SVG / PNG]

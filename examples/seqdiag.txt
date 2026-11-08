@@ -1,0 +1,6 @@
+seqdiag {
+  browser  -> webserver [label = "GET /index.html"];
+  browser <-- webserver;
+  browser  -> kroki [label = "GET /mermaid/svg/..."];
+  browser <-- kroki;
+}

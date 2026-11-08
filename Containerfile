@@ -4,6 +4,7 @@ FROM nginx:stable
 COPY index.html favicon.svg /usr/share/nginx/html/
 COPY css/ /usr/share/nginx/html/css/
 COPY js/ /usr/share/nginx/html/js/
+COPY examples/ /usr/share/nginx/html/examples/
 
 # Expose standard HTTP port
 EXPOSE 80

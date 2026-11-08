@@ -1,0 +1,12 @@
+[User]
+*id
+username
+email
+
+[Diagram]
+*id
++user_id
+engine
+content
+
+User 1--* Diagram

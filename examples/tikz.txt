@@ -1,0 +1,8 @@
+\documentclass[tikz,border=4pt]{standalone}
+\begin{document}
+\begin{tikzpicture}
+  \node[draw, rounded corners, fill=blue!10] (a) at (0,0) {Disperse};
+  \node[draw, rounded corners, fill=green!10] (b) at (3,0) {Kroki};
+  \draw[->, thick] (a) -- (b);
+\end{tikzpicture}
+\end{document}

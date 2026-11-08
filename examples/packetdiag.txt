@@ -1,0 +1,7 @@
+packetdiag {
+  colwidth = 16;
+  node_height = 60;
+  0-7: Source Port;
+  8-15: Destination Port;
+  16-31: Sequence Number;
+}

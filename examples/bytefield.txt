@@ -1,0 +1,4 @@
+(defattrs :bg-green {:fill "#a0ffa0"})
+(draw-column-headers)
+(draw-box "Address" [{:span 4} :bg-green])
+(draw-box "Data" {:span 12})

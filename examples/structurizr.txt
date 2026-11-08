@@ -1,0 +1,15 @@
+workspace {
+  model {
+    user = person "User"
+    disperse = softwareSystem "Disperse"
+    kroki = softwareSystem "Kroki"
+    user -> disperse "Edits diagrams"
+    disperse -> kroki "Renders diagrams"
+  }
+  views {
+    systemContext disperse {
+      include *
+      autolayout lr
+    }
+  }
+}

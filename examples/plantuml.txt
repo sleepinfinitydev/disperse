@@ -1,0 +1,10 @@
+@startuml
+skinparam monochrome false
+actor User
+participant Disperse
+participant Kroki
+
+User -> Disperse: Write diagram code
+Disperse -> Kroki: GET /engine/format/payload
+Kroki --> Disperse: Rendered SVG / PNG
+@enduml

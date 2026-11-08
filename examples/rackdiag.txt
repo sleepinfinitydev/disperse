@@ -1,0 +1,7 @@
+rackdiag {
+  16U;
+  1: UPS [2U];
+  3: DB Server [2U];
+  5: Web Server [1U];
+  6: Switch [1U];
+}

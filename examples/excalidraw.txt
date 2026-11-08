@@ -1,0 +1,30 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "https://excalidraw.com",
+  "elements": [
+    {
+      "type": "rectangle",
+      "id": "rect-1",
+      "x": 100,
+      "y": 100,
+      "width": 200,
+      "height": 90,
+      "angle": 0,
+      "strokeColor": "#0080c0",
+      "backgroundColor": "#a5d8ff",
+      "fillStyle": "hachure",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "seed": 12345,
+      "version": 1,
+      "versionNonce": 12345,
+      "isDeleted": false
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff"
+  }
+}

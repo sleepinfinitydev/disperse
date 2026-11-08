@@ -1,0 +1,12 @@
+@startuml
+!include <C4/C4_Container>
+
+Person(user, "User", "Creates diagrams as code")
+System_Boundary(disperse, "Disperse") {
+  Container(spa, "Web SPA", "Vanilla JS", "Edits and previews diagrams")
+}
+System_Ext(kroki, "Kroki API", "Renders diagrams")
+
+Rel(user, spa, "Uses")
+Rel(spa, kroki, "Requests SVG/PNG", "HTTPS")
+@enduml

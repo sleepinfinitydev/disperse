@@ -1,0 +1,5 @@
+flowchart LR
+  A[Code Editor] -->|Deflate + Base64| B(Kroki API)
+  B --> C{Format}
+  C -->|SVG| D[Vector Preview]
+  C -->|PNG| E[Raster Preview]

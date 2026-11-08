@@ -1,0 +1,11 @@
+actdiag {
+  write -> convert -> image
+  lane user {
+    label = "User"
+    write [label = "Write text"];
+    image [label = "Get diagram"];
+  }
+  lane kroki {
+    convert [label = "Convert text to image"];
+  }
+}
