@@ -23,5 +23,8 @@ task push
 ```
 By default, it tags and pushes `ghcr.io/sleepinfinitydev/disperse:<git-short-hash>` and `ghcr.io/sleepinfinitydev/disperse:latest` (customizable via `IMAGE=...`).
 
+## Acknowledgments
+Built on the shoulders of giants: [Kroki](https://kroki.io) (MIT), [Ace Editor](https://ace.c9.io) (BSD-3-Clause), [Panzoom](https://github.com/timmywil/panzoom) (MIT), [Pako](https://github.com/nodeca/pako) (MIT/Zlib), [Lucide](https://lucide.dev) (ISC/MIT), and inspired by [Niolesk](https://niolesk.top) (MIT).
+
 ## License
 Licensed under the [GNU General Public License v3.0 (GPLv3)](LICENSE).

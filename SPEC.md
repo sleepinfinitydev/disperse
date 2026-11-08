@@ -127,7 +127,7 @@ Compact panel for obtaining ready-to-publish links and snippets:
 3. **Copy action**:
    - Clipboard button next to each snippet with visual feedback (temporarily switching to a `✓` check icon).
 4. **Footer credits**:
-   - Centered bottom credit line: `Made with ❤️ in Betanzos. https://sleepinfinity.dev`.
+   - Centered bottom credit line acknowledging the project, its license, and its dependencies: `Made with ❤️ in Betanzos (sleepinfinity.dev) · Disperse (GPLv3) was built on the shoulders of giants: Kroki, Ace, Panzoom, Pako, Lucide, and inspired by Niolesk.`
 
 ### 3.4. Responsive Design
 1. **Desktop & Wide Screens (`> 900px`)**:
