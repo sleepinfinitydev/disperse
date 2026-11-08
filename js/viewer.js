@@ -87,7 +87,7 @@ function showViewerError(message) {
     viewer.style.opacity = '1';
   }
   if (errorText) {
-    errorText.textContent = (message || 'Sintaksa aŭ bildiga eraro').trim();
+    errorText.textContent = (message || 'Syntax or rendering error').trim();
   }
   if (errorBox) {
     errorBox.style.display = 'flex';
@@ -166,7 +166,7 @@ function updateViewer(url, format, engine) {
     })
     .catch((err) => {
       if (err && err.name === 'AbortError') return;
-      showViewerError(err && err.message ? err.message : 'Ne eblis bildigi la diagramon');
+      showViewerError(err && err.message ? err.message : 'Unable to render diagram');
     });
 }
 

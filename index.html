@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="eo" data-theme="light">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +10,7 @@
 <body>
   <header>
     <div class="header-left">
-      <a id="brand-link" href="#" class="brand-link" aria-label="Kopii ligilon">
+      <a id="brand-link" href="#" class="brand-link" aria-label="Copy link">
         <img id="brand-logo" class="brand-logo" src="favicon.svg" alt="" width="26" height="26">
         <h1>DISPERSE</h1>
         <span class="brand-icon-link icon-wrap"><i data-lucide="link" class="brand-link-icon"></i></span>
@@ -18,26 +18,26 @@
       </a>
     </div>
     <div class="header-center">
-      <button id="refresh-btn" type="button" aria-label="Aktualigi">
+      <button id="refresh-btn" type="button" aria-label="Refresh">
         <i data-lucide="refresh-cw"></i>
       </button>
-      <select id="engine-select" aria-label="Motoro"></select>
-      <select id="format-select" aria-label="Formato">
+      <select id="engine-select" aria-label="Engine"></select>
+      <select id="format-select" aria-label="Format">
         <option value="svg">svg</option>
         <option value="png">png</option>
       </select>
-      <a id="docs-btn" class="icon-btn" href="https://mermaid.js.org/intro/" target="_blank" rel="noopener noreferrer" aria-label="Dokumentaro">
+      <a id="docs-btn" class="icon-btn" href="https://mermaid.js.org/intro/" target="_blank" rel="noopener noreferrer" aria-label="Documentation">
         <i data-lucide="book-open"></i>
       </a>
     </div>
     <div class="header-right">
-      <button id="theme-btn" class="circle-btn" type="button" aria-label="Etoso">
+      <button id="theme-btn" class="circle-btn" type="button" aria-label="Theme">
         <span id="theme-icon-light" class="icon-wrap"><i data-lucide="sun"></i></span>
         <span id="theme-icon-dark" class="icon-wrap" style="display:none"><i data-lucide="moon"></i></span>
       </button>
       <div class="color-picker-wrapper">
-        <button id="color-swatch" class="circle-btn" type="button" aria-label="Koloro"></button>
-        <input type="color" id="color-picker" value="#0080c0" aria-label="Kolorelektilo">
+        <button id="color-swatch" class="circle-btn" type="button" aria-label="Color"></button>
+        <input type="color" id="color-picker" value="#0080c0" aria-label="Color Picker">
       </div>
     </div>
   </header>
@@ -47,15 +47,15 @@
       <div id="editor"></div>
     </section>
 
-    <div id="splitter" role="separator" aria-label="Regrandigi panelojn">
+    <div id="splitter" role="separator" aria-label="Resize panels">
       <div class="splitter-grip">
-        <button id="split-max-editor" class="splitter-quick-btn" type="button" aria-label="Maksimumigi redaktilon">
+        <button id="split-max-editor" class="splitter-quick-btn" type="button" aria-label="Maximize editor">
           <i data-lucide="chevron-down"></i>
         </button>
-        <button id="split-reset" class="splitter-quick-btn" type="button" aria-label="Restarigi proporcion">
+        <button id="split-reset" class="splitter-quick-btn" type="button" aria-label="Reset split">
           <i data-lucide="minus"></i>
         </button>
-        <button id="split-max-viewer" class="splitter-quick-btn" type="button" aria-label="Maksimumigi antaŭrigardon">
+        <button id="split-max-viewer" class="splitter-quick-btn" type="button" aria-label="Maximize preview">
           <i data-lucide="chevron-up"></i>
         </button>
       </div>
@@ -70,16 +70,16 @@
         <pre id="viewer-error-text" class="viewer-error-detail"></pre>
       </div>
       <div class="viewer-actions">
-        <button id="zoom-in" type="button" aria-label="Zomi">
+        <button id="zoom-in" type="button" aria-label="Zoom In">
           <i data-lucide="zoom-in"></i>
         </button>
-        <button id="zoom-out" type="button" aria-label="Malzomi">
+        <button id="zoom-out" type="button" aria-label="Zoom Out">
           <i data-lucide="zoom-out"></i>
         </button>
-        <button id="zoom-fit" type="button" aria-label="Adapti al ekrano">
+        <button id="zoom-fit" type="button" aria-label="Fit View">
           <i data-lucide="maximize-2"></i>
         </button>
-        <button id="download-btn" type="button" aria-label="Elŝuti">
+        <button id="download-btn" type="button" aria-label="Download">
           <i data-lucide="download"></i>
         </button>
       </div>
@@ -95,18 +95,18 @@
         <i data-lucide="image"></i>
       </div>
       <div class="format-icons">
-        <button class="format-btn active" type="button" data-fmt="url" data-target="image" aria-label="Bildo URL">
+        <button class="format-btn active" type="button" data-fmt="url" data-target="image" aria-label="Image URL">
           <i data-lucide="link"></i>
         </button>
-        <button class="format-btn" type="button" data-fmt="md" data-target="image" aria-label="Bildo Markdown">
+        <button class="format-btn" type="button" data-fmt="md" data-target="image" aria-label="Image Markdown">
           <i data-lucide="file-down"></i>
         </button>
-        <button class="format-btn" type="button" data-fmt="html" data-target="image" aria-label="Bildo HTML">
+        <button class="format-btn" type="button" data-fmt="html" data-target="image" aria-label="Image HTML">
           <i data-lucide="code-2"></i>
         </button>
       </div>
-      <input type="text" id="out-image-text" readonly aria-label="Bilda kodo">
-      <button class="copy-btn" type="button" data-input="out-image-text" aria-label="Kopii bildan kodon">
+      <input type="text" id="out-image-text" readonly aria-label="Image snippet">
+      <button class="copy-btn" type="button" data-input="out-image-text" aria-label="Copy image snippet">
         <span class="icon-copy icon-wrap"><i data-lucide="copy"></i></span>
         <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
       </button>
@@ -117,25 +117,25 @@
         <i data-lucide="pencil"></i>
       </div>
       <div class="format-icons">
-        <button class="format-btn active" type="button" data-fmt="url" data-target="editor" aria-label="Redaktilo URL">
+        <button class="format-btn active" type="button" data-fmt="url" data-target="editor" aria-label="Editor URL">
           <i data-lucide="link"></i>
         </button>
-        <button class="format-btn" type="button" data-fmt="md" data-target="editor" aria-label="Redaktilo Markdown">
+        <button class="format-btn" type="button" data-fmt="md" data-target="editor" aria-label="Editor Markdown">
           <i data-lucide="file-down"></i>
         </button>
-        <button class="format-btn" type="button" data-fmt="html" data-target="editor" aria-label="Redaktilo HTML">
+        <button class="format-btn" type="button" data-fmt="html" data-target="editor" aria-label="Editor HTML">
           <i data-lucide="code-2"></i>
         </button>
       </div>
-      <input type="text" id="out-editor-text" readonly aria-label="Redaktila kodo">
-      <button class="copy-btn" type="button" data-input="out-editor-text" aria-label="Kopii redaktilan kodon">
+      <input type="text" id="out-editor-text" readonly aria-label="Editor snippet">
+      <button class="copy-btn" type="button" data-input="out-editor-text" aria-label="Copy editor snippet">
         <span class="icon-copy icon-wrap"><i data-lucide="copy"></i></span>
         <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
       </button>
     </div>
 
     <div class="footer-credits">
-      Farita kun <span style="color: red;">❤️</span> en Betanzos. <a href="https://sleepinfinity.dev" target="_blank" rel="noopener noreferrer">https://sleepinfinity.dev</a>
+      Made with <span style="color: red;">❤️</span> in Betanzos. <a href="https://sleepinfinity.dev" target="_blank" rel="noopener noreferrer">https://sleepinfinity.dev</a>
     </div>
   </footer>
 

@@ -241,8 +241,8 @@ function updateSnippets(krokiUrl, appUrl) {
 
   if (edInput) {
     if (edFmt === 'url') edInput.value = appUrl;
-    else if (edFmt === 'md') edInput.value = `![](${krokiUrl}) [Redakti en Disperse](${appUrl})`;
-    else if (edFmt === 'html') edInput.value = `<img src="${krokiUrl}" /> <a href="${appUrl}">Redakti en Disperse</a>`;
+    else if (edFmt === 'md') edInput.value = `![](${krokiUrl}) [Edit in Disperse](${appUrl})`;
+    else if (edFmt === 'html') edInput.value = `<img src="${krokiUrl}" /> <a href="${appUrl}">Edit in Disperse</a>`;
   }
 }
 
@@ -257,7 +257,7 @@ function syncState(renderDiagram = true) {
 
   if (!code.trim()) {
     if (window.viewer && typeof window.viewer.showError === 'function') {
-      window.viewer.showError('Malplena diagramkodo');
+      window.viewer.showError('Empty diagram source');
     }
     return;
   }

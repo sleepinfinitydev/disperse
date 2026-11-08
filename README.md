@@ -4,7 +4,7 @@ Minimalist, icon-first single-page web application (SPA) for creating and sharin
 
 ## Features
 - **28 Diagram Engines**: Mermaid, GraphViz, PlantUML, C4, D2, Excalidraw, Vega-Lite, WaveDrom, BPMN, TikZ, and more.
-- **Zero-Text / Icon-First UI**: Clean interface with Esperanto (`eo`) localization.
+- **Zero-Text / Icon-First UI**: Clean icon-driven interface.
 - **Dynamic OKLCH Tetradic Theme**: Customizable base color with automatic light and dark modes.
 - **Stateless URL Sharing**: Diagrams are compressed (Zlib deflate + URL-safe Base64) directly into the URL hash and ready to export as Direct Links, Markdown, or HTML.
 
