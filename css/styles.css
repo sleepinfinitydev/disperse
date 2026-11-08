@@ -150,7 +150,7 @@ header {
   align-items: center;
 }
 
-select, button {
+select, button, .icon-btn {
   background-color: var(--bg-surface);
   color: var(--text-main);
   border: 1px solid var(--border-color);
@@ -160,23 +160,26 @@ select, button {
   font-weight: 500;
   cursor: pointer;
   outline: none;
+  text-decoration: none;
   transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 
-select:hover, button:hover {
+select:hover, button:hover, .icon-btn:hover {
   border-color: var(--color-secondary);
   background-color: var(--border-color);
 }
 
-select:focus-visible, button:focus-visible {
+select:focus-visible, button:focus-visible, .icon-btn:focus-visible {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 2px var(--selection-bg);
 }
 
-button {
+button, .icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 34px;
+  height: 34px;
   min-width: 34px;
   min-height: 34px;
   padding: 6px;
@@ -223,10 +226,12 @@ button {
   display: inline-flex;
 }
 
-#refresh-btn {
+#refresh-btn,
+#docs-btn {
   color: var(--color-primary);
 }
-#refresh-btn:hover {
+#refresh-btn:hover,
+#docs-btn:hover {
   background-color: var(--color-primary);
   color: var(--bg-panel);
   border-color: var(--color-primary);

@@ -48,7 +48,7 @@ A aplicación ocupa o `100vw x 100dvh` (`100vh` como fallback) sen desprazamento
 
 ```
 +-----------------------------------------------------------------------+
-| DISPERSE       [Motor v] [Formato v] (↻)                 (☀/☾)  (●)   |  <- Cabeceira
+| DISPERSE       (↻) [Motor v] [Formato v] (📖)            (☀/☾)  (●)   |  <- Cabeceira
 +---------------------------+-------------------------------------------+
 |                           |                                           |
 |                           |                                           |
@@ -65,14 +65,16 @@ A aplicación ocupa o `100vw x 100dvh` (`100vh` como fallback) sen desprazamento
 ### 3.1. Barra Superior (Cabeceira)
 1. **Esquerda**:
    - Enlace de marca (`#brand-link`) composto pola icona `favicon.svg`, o título **`DISPERSE`** en maiúsculas (`text-transform: uppercase`) con cor primaria (`--color-primary`) e unha icona de elo de cadea (`link`). Mantén sempre o `href` sincronizado coa URL completa da páxina actual (`window.location.href` co estado do diagrama) e, ao facer clic nel, non recarga nin reinicia o editor, senón que copia automaticamente a URL actual ao portapapeis mostrando confirmación visual (`✓`).
-2. **Centro (Controis do Diagrama)**:
+2. **Centro (Controis do Diagrama, nesta orde)**:
+   - **Botón de Refrescar**: Botón con icona de actualización (`↻`) en primeiro lugar para forzar o renderizado da vista previa.
+     - **Atallo de teclado**: `Ctrl + R` (ou `Cmd + R`), interceptando o evento (`e.preventDefault()`) para actualizar o diagrama sen recargar o navegador.
    - **Despregable de motor Kroki**: Lista con todos os motores soportados por Kroki. Cambiar de motor actualiza:
      - O endpoint de renderizado en Kroki.
      - O modo de resaltado de sintaxe e formateo do editor.
      - O **estado do código propio dese motor**: a aplicación mantén o código de xeito independente para cada linguaxe (`codeByEngine`), iniciándose coa plantilla de exemplo de cada motor e conservando o que o usuario escriba en cada un ao alternar entre motores.
+     - O enlace de documentación (`#docs-link`) para que apunte á documentación oficial do motor activo.
    - **Despregable de formato de saída**: `svg` (por defecto) e `png`.
-   - **Botón de Refrescar**: Botón con icona de actualización (`↻`) para forzar o renderizado da vista previa.
-     - **Atallo de teclado**: `Ctrl + R` (ou `Cmd + R`), interceptando o evento (`e.preventDefault()`) para actualizar o diagrama sen recargar o navegador.
+   - **Enlace á Documentación da linguaxe (`#docs-link`)**: Botón/enlace con icona de libro aberto (`book-open`) que abre nunha nova lapela (`target="_blank"`) a documentación oficial da linguaxe seleccionada.
 3. **Dereita (Preferencias Visuais)**:
    - **Botón Modo Claro / Escuro**: Botón redondo con icona de sol/lúa.
    - **Botón Cor Preferida**: Botón redondo **do mesmo diámetro** ca o botón de modo claro/escuro, recheo coa cor preferida actual (`rgb(0, 128, 192)` por defecto). Ao premer nel ábrese o selector nativo `<input type="color">`.

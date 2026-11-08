@@ -9,8 +9,12 @@ function isVerticalLayout() {
 }
 
 function setEditorModeForEngine(engineId) {
-  if (!editor) return;
   const info = window.kroki.getEngineInfo(engineId);
+  const docsBtn = document.getElementById('docs-btn');
+  if (docsBtn && info && info.docs) {
+    docsBtn.href = info.docs;
+  }
+  if (!editor) return;
   editor.session.setMode(`ace/mode/${info.mode || 'text'}`);
 }
 
