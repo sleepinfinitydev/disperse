@@ -825,6 +825,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // Editor font controls
+  const btnFontIn = document.getElementById('editor-font-in');
+  const btnFontOut = document.getElementById('editor-font-out');
+  const btnFontFit = document.getElementById('editor-font-fit');
+
+  if (btnFontIn && btnFontOut && btnFontFit) {
+    const changeFontSize = (delta) => {
+      if (!editor) return;
+      let currentSize = parseInt(editor.getOption('fontSize')) || 14;
+      let newSize = Math.max(8, Math.min(64, currentSize + delta));
+      editor.setOption('fontSize', newSize + 'px');
+    };
+
+    btnFontIn.addEventListener('click', () => changeFontSize(2));
+    btnFontOut.addEventListener('click', () => changeFontSize(-2));
+    btnFontFit.addEventListener('click', () => {
+      if (editor) editor.setOption('fontSize', '14px');
+    });
+  }
+
   // Local file controls in footer
   const fileOpenBtn = document.getElementById('file-open-btn');
   const fileSaveBtn = document.getElementById('file-save-btn');

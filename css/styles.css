@@ -655,7 +655,8 @@ main {
   -webkit-user-select: text;
 }
 
-.viewer-actions {
+.viewer-actions,
+.editor-actions {
   position: absolute;
   bottom: 16px;
   right: 16px;
@@ -670,13 +671,15 @@ main {
   z-index: 15;
 }
 
-.viewer-actions button {
+.viewer-actions button,
+.editor-actions button {
   border: 1px solid transparent;
   background-color: transparent;
   color: var(--text-main);
 }
 
-.viewer-actions button:hover {
+.viewer-actions button:hover,
+.editor-actions button:hover {
   background-color: var(--bg-surface);
   color: var(--color-primary);
   border-color: var(--border-color);
