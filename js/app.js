@@ -839,10 +839,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             case 'e': e.preventDefault(); document.querySelector('button[data-input="out-editor-text"]')?.click(); break;
           }
         } else { // Alt + Shift
-          switch (key) {
-            case '+': case '=': e.preventDefault(); document.getElementById('editor-font-in')?.click(); break;
-            case '_': case '-': e.preventDefault(); document.getElementById('editor-font-out')?.click(); break;
-            case ')': case '0': e.preventDefault(); document.getElementById('editor-font-fit')?.click(); break;
+          if (e.code === 'Digit0' || e.key === '0' || e.key === ')') {
+            e.preventDefault(); document.getElementById('editor-font-fit')?.click();
+          } else if (e.code === 'Equal' || e.code === 'NumpadAdd' || e.code === 'BracketRight' || e.key === '+') {
+            e.preventDefault(); document.getElementById('editor-font-in')?.click();
+          } else if (e.code === 'Minus' || e.code === 'NumpadSubtract' || e.code === 'Slash' || e.key === '_' || e.key === '-') {
+            e.preventDefault(); document.getElementById('editor-font-out')?.click();
           }
         }
       }
