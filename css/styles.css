@@ -948,7 +948,7 @@ body.drag-over .drop-overlay,
 /* Vim Mode Glider Animation */
 #editor-vim-mode.active svg {
   transform-origin: center;
-  animation: rotate-glider 15s linear infinite;
+  animation: rotate-glider 15s steps(4) infinite;
 }
 
 @keyframes rotate-glider {
