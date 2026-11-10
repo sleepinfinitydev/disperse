@@ -946,25 +946,15 @@ body.drag-over .drop-overlay,
 
 
 /* Vim Mode Glider Scanlines Effect */
-#editor-vim-mode {
-  position: relative;
-  overflow: hidden;
-}
-
-#editor-vim-mode.active::after {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: linear-gradient(
-    rgba(0, 0, 0, 0) 50%, 
-    rgba(0, 0, 0, 0.25) 50%
-  );
-  background-size: 100% 4px;
-  pointer-events: none;
+#editor-vim-mode.active svg {
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0.3) 50%);
+  mask-size: 100% 4px;
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0.3) 50%);
+  -webkit-mask-size: 100% 4px;
   animation: vim-scanlines 2s linear infinite;
 }
 
 @keyframes vim-scanlines {
-  0% { background-position: 0 0; }
-  100% { background-position: 0 8px; }
+  0% { mask-position: 0 0; -webkit-mask-position: 0 0; }
+  100% { mask-position: 0 8px; -webkit-mask-position: 0 8px; }
 }
