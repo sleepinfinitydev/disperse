@@ -822,8 +822,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Alt bindings
       else if (e.altKey && !e.ctrlKey && !e.metaKey) {
         const key = e.key.toLowerCase();
-        
-        if (!e.shiftKey) {
+        // On Windows with NumLock ON, Shift+Numpad0 is translated by the OS into Insert with shiftKey=false
+        const isShiftedNumpad0 = e.code === 'Numpad0' && (key === 'insert' || e.keyCode === 45);
+
+        if (!e.shiftKey && !isShiftedNumpad0) {
           switch (key) {
             case 't': e.preventDefault(); document.getElementById('theme-btn')?.click(); break;
             case 'a': e.preventDefault(); document.getElementById('file-autosave-btn')?.click(); break;
@@ -839,7 +841,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             case 'e': e.preventDefault(); document.querySelector('button[data-input="out-editor-text"]')?.click(); break;
           }
         } else { // Alt + Shift
-          if (e.code === 'Digit0' || e.code === 'Numpad0' || e.keyCode === 48 || e.keyCode === 96 || e.keyCode === 45 || e.key === '0' || e.key === ')' || e.key === '=' || key === 'insert') {
+          if (isShiftedNumpad0 || e.code === 'Digit0' || e.code === 'Numpad0' || e.keyCode === 48 || e.keyCode === 96 || e.keyCode === 45 || e.key === '0' || e.key === ')' || e.key === '=' || key === 'insert') {
             e.preventDefault(); document.getElementById('editor-font-fit')?.click();
           } else if (e.code === 'Equal' || e.code === 'NumpadAdd' || e.code === 'BracketRight' || e.keyCode === 187 || e.keyCode === 107 || e.key === '+') {
             e.preventDefault(); document.getElementById('editor-font-in')?.click();
