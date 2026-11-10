@@ -67,7 +67,7 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 
 ### 3.1. Top Bar (Header)
 1. **Left**:
-   - Brand link (`#brand-link`) composed of the `favicon.svg` logo, the uppercase **`DISPERSE`** title in `--color-primary`, and a chain link icon (`link`). Its `href` is always synchronized with the full current page URL (`window.location.href` including the diagram state). Clicking it does not reload or reset the editor; instead, it automatically copies the current URL to the clipboard with visual confirmation (`✓`).
+   - Brand link (`#brand-link`) composed of the `favicon.svg` logo, the uppercase **`DISPERSE`** title in `--color-primary`, and a chain link icon (`link`), with caption `"Copy current page link (Alt+L)"`. Its `href` is always synchronized with the full current page URL (`window.location.href` including the diagram state). Clicking it (or pressing `Alt + L`) does not reload or reset the editor; instead, it automatically copies the current URL to the clipboard with visual confirmation (`✓`).
 2. **Center (Unified Segmented Toolbar, in order)**:
    - Contained within a single pill-shaped segmented bar (`.header-center`, `34px` uniform height with vertical dividers):
      1. **Refresh Button (`#refresh-btn`)**: Refresh icon (`refresh-cw`) with caption `"Refresh preview (Ctrl+R)"`.
@@ -82,10 +82,10 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
      5. **Diagram Theme Dropdown (`#theme-select`)**: Selectable themes for D2 (`default`, `neutral-gray`, `flagship-terrastruct`, `cool-classics`, `mixed-berry-blue`, `grape-soda`, `aubergine`, `colorblind-clear`, `vanilla-nitro-cola`, `orange-creamsicle`, `shirley-temple`, `earth-tones`, `everglade-green`, `buttered-toast`, `dark-mauve`, `dark-flagship-terrastruct`, `terminal`, `terminal-grayscale`, `origami`, `c4`), with caption `"Diagram theme (D2)"`. Enabled only when `d2` is selected and disabled for all other engines.
      6. **Output Format Dropdown (`#format-select`)**: `svg` (default) and `png`, with caption `"Output format"`.
 3. **Right (Visual Preferences)**:
-   - **Light / Dark Mode Button (`#theme-btn`)**: Circular button with a sun/moon icon and caption `"Toggle light/dark theme"`.
-   - **Preferred Color Button (`#color-swatch`)**: Circular button **of the exact same diameter** as the theme button, filled with the current preferred color (`rgb(0, 128, 192)` by default) and caption `"Preferred theme color"`. Clicking it opens the native `<input type="color">`.
+   - **Light / Dark Mode Button (`#theme-btn`)**: Circular button with a sun/moon icon and caption `"Toggle light/dark theme (Alt+T)"`.
+   - **Preferred Color Button (`#color-swatch`)**: Circular button **of the exact same diameter** as the theme button, filled with the current preferred color (`rgb(0, 128, 192)` by default) and caption `"Preferred theme color"`. Clicking it opens the native `<input type="color">` (which has `tabindex="-1"` so keyboard focus stays on `#color-swatch`).
 4. **Captions / Tooltips (`[data-tooltip]`)**:
-   - All icon buttons and controls across the header, splitter, viewer toolbar, and publishing footer display instant hover/focus captions indicating their action and keyboard shortcut where applicable (e.g., `Refresh preview (Ctrl+R)`, `Download diagram (Ctrl+S)`).
+   - All icon buttons and controls across the header, splitter, editor/viewer toolbars, and publishing footer display instant hover/focus captions indicating their action and keyboard shortcut where applicable (e.g., `Refresh preview (Ctrl+R)`, `Download diagram (Alt+D)`, `Save local file (Ctrl+S)`).
 
 ### 3.2. Main Area (Editor + Preview)
 - Occupies all available vertical space between header and footer (`flex: 1`).
@@ -96,21 +96,26 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
   - Draggable bar via mouse/touch (`pointerdown` / `pointermove` with `setPointerCapture`) to resize both panels freely within bounds (`15%` - `85%`).
   - **Magnetic Snap**: When dragging near the default golden ratio ($38.2\% \pm 1.6\%$), the splitter snaps into place and highlights with `--color-tertiary`.
   - Double-clicking the splitter also restores the golden ratio ($38.2\% / 61.8\%$).
+  - **Quick-Split Buttons**: Three quick-action buttons inside the splitter grip allow instant layout adjustments via click or keyboard shortcuts: Maximize editor (`#split-max-editor`, `Alt+1`), Reset split (`#split-reset`, `Alt+2`), and Maximize preview (`#split-max-viewer`, `Alt+3`).
 
 #### Left Panel: Rich Code Editor
+- Automatically receives focus (`editor.focus()`) on application startup so users can begin typing immediately.
 - Line numbers, syntax highlighting matched to the diagram language, auto-closing brackets/quotes, `Tab` indentation, and code folding.
 - Editor theme synchronized with the `oklch` color system and light/dark mode.
 - Debounced preview update (`500ms` after typing stops) in addition to manual refresh via `Ctrl + R` or the refresh button.
-- Floating action bar for text zoom: increase, decrease, and reset font size.
+- Floating action bar for text zoom:
+  - Increase font size (`#editor-font-in`, `Alt+Shift++`)
+  - Decrease font size (`#editor-font-out`, `Alt+Shift+-`)
+  - Reset font size (`#editor-font-fit`, `Alt+Shift+0`)
 
 #### Right Panel: Diagram Viewer (SVG / PNG)
 - Full **Zoom** (mouse wheel, pinch gesture, `+` / `-` buttons) and **Pan** (canvas drag) support.
 - Works uniformly for both **SVG** and **PNG** outputs.
 - Floating action bar (icon-only):
-  - Zoom In (`+`)
-  - Zoom Out (`-`)
-  - Fit / Reset View
-  - Download file (`.svg` or `.png`)
+  - Zoom In (`#zoom-in`, `Alt++`)
+  - Zoom Out (`#zoom-out`, `Alt+-`)
+  - Fit / Reset View (`#zoom-fit`, `Alt+0`)
+  - Download file (`#download-btn`, `.svg` or `.png`, `Alt+D`)
 - Visual loading spinner during requests.
 - **Explicit rendering error display (`#viewer-error`)**: On syntax errors returned by Kroki (e.g., `HTTP 400`) or empty source code, it never fails silently. The previous diagram is cleared and a centered overlay card is displayed. The error border and alert icon are always rendered in **red** (`--color-error`, invariant to the user's color theme), while the inner `<pre>` error message block follows the active color scheme, uses a standard text cursor (`cursor: text`), and supports independent scrolling and text selection.
 
@@ -121,7 +126,7 @@ Compact panel for obtaining ready-to-publish links, snippets, and managing local
      `https://kroki.io/{engine}/{format}/{compressed_payload}`
    - **Editor (pencil icon)**: Points to this Disperse instance with state in the URL hash:
      `{current_origin}/#{engine}/{format}/{compressed_payload}`
-   - **Local File (hard drive icon)**: Progressive local file workflow. Includes actions to Open (`Ctrl+O`), Save (`Ctrl+S`), Save As (`Ctrl+Shift+S`), and Toggle Auto-Save. It supports dragging and dropping files directly onto the window (via `#drop-overlay`).
+   - **Local File (hard drive icon)**: Progressive local file workflow. Includes actions to Open (`Ctrl+O`), Save (`Ctrl+S`), Save As (`Ctrl+Shift+S`), and Toggle Auto-Save (`Alt+A`). It supports dragging and dropping files directly onto the window (via `#drop-overlay`).
 2. **Snippet output formats** (selectable via icons):
    - **Direct URL** (`link` icon):
      - Image: `https://kroki.io/mermaid/svg/eNpL...`
@@ -133,7 +138,8 @@ Compact panel for obtaining ready-to-publish links, snippets, and managing local
      - Image: `<img src="https://kroki.io/mermaid/svg/eNpL..." />`
      - Editor (image followed by edit link): `<img src="https://kroki.io/mermaid/svg/eNpL..." /> <a href="https://.../disperse/#mermaid/svg/eNpL...">Edit in Disperse</a>`
 3. **Copy action**:
-   - Clipboard button next to each snippet with visual feedback (temporarily switching to a `✓` check icon).
+   - Clipboard button next to each snippet with visual feedback (temporarily switching to a `✓` check icon), triggered via click or keyboard shortcuts (`Alt+I` for the image snippet, `Alt+E` for the editor snippet).
+   - Read-only snippet and status text inputs (`#out-image-text`, `#out-editor-text`, `#out-file-text`) have `tabindex="-1"` to keep keyboard `Tab` navigation agile across interactive buttons.
 4. **Footer credits**:
    - Centered bottom credit line acknowledging the project, its license, and its dependencies: `Made with ❤️ in Betanzos · Copyleft 🄯 (GPLv3) by sleepinfinity.dev · Disperse was built on the shoulders of giants: Kroki, Ace, Panzoom, Pako, Lucide, and inspired by Niolesk.`
 
@@ -144,6 +150,33 @@ Compact panel for obtaining ready-to-publish links, snippets, and managing local
    - Stacked vertical layout (Editor top `38.2%` height | Horizontal draggable splitter with quick-maximize/reset buttons | Viewer bottom `61.8%` height).
 3. **Mobile (`<= 600px`)**:
    - Compact wrapped header and touch-friendly controls (`>= 36px`).
+
+### 3.5. Keyboard Shortcuts & Focus Flow
+All keyboard shortcuts are reflected in their corresponding control tooltips (`data-tooltip`) and `aria-label` attributes, and support both main keyboard keys and numeric keypad (`Numpad`) keys across international layouts:
+
+| Shortcut | Action | Control |
+| :--- | :--- | :--- |
+| `Ctrl/Cmd + R` | Refresh diagram preview | `#refresh-btn` |
+| `Ctrl/Cmd + O` | Open local file | `#file-open-btn` |
+| `Ctrl/Cmd + S` | Save local file (or download source fallback) | `#file-save-btn` |
+| `Ctrl/Cmd + Shift + S` | Save local file as... | `#file-save-as-btn` |
+| `Alt + A` | Toggle local file auto-save | `#file-autosave-btn` |
+| `Alt + T` | Toggle light/dark theme | `#theme-btn` |
+| `Alt + L` | Copy current page link | `#brand-link` |
+| `Alt + 1` | Maximize editor panel | `#split-max-editor` |
+| `Alt + 2` | Reset split to golden ratio ($38.2\%$) | `#split-reset` |
+| `Alt + 3` | Maximize preview panel | `#split-max-viewer` |
+| `Alt + +` | Zoom in diagram preview | `#zoom-in` |
+| `Alt + -` | Zoom out diagram preview | `#zoom-out` |
+| `Alt + 0` | Fit / Reset diagram view | `#zoom-fit` |
+| `Alt + D` | Download rendered diagram | `#download-btn` |
+| `Alt + Shift + +` | Increase editor font size | `#editor-font-in` |
+| `Alt + Shift + -` | Decrease editor font size | `#editor-font-out` |
+| `Alt + Shift + 0` | Reset editor font size | `#editor-font-fit` |
+| `Alt + I` | Copy image snippet | `.copy-btn[data-input="out-image-text"]` |
+| `Alt + E` | Copy editor snippet | `.copy-btn[data-input="out-editor-text"]` |
+
+- **Focus & Tab Order**: On load, focus is placed directly inside the Ace code editor. Natural DOM order guides `Tab` navigation cleanly from the header toolbar through the editor, splitter, viewer actions, and footer buttons, skipping non-interactive read-only text fields and hidden inputs (`tabindex="-1"`).
 
 ---
 
@@ -202,7 +235,7 @@ Clean file structure requiring no build step:
 - `index.html` — Semantic structure and CDN library imports.
 - `favicon.svg` — Vector brand icon and logo (a prism dispersing a beam into 4 tetradic graph nodes).
 - `css/styles.css` — Tetradic `oklch` color system, golden-ratio responsive layout, and light/dark themes.
-- `js/app.js` — Initialization, per-engine application state, keyboard shortcuts (`Ctrl+R`), magnetic splitter, and events.
+- `js/app.js` — Initialization, per-engine application state, global keyboard shortcuts (`Ctrl/Cmd` and `Alt`/`Alt+Shift`), magnetic splitter, local file workflow, and events.
 - `js/theme.js` — `sRGB → Oklab → OKLCH` conversion, tetradic palette generation, dynamic brand icon coloring, and light/dark mode toggle.
 - `js/kroki.js` — Engine catalog, documentation links, cached lazy-loading of `examples/{engine}.txt`, compression/decompression, and Kroki URL builder.
 - `js/viewer.js` — Diagram viewer (SVG and PNG) with zoom, pan, error overlay, and file download.
