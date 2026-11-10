@@ -2,7 +2,17 @@ let editor = null;
 let updateTimeout = null;
 let currentEngine = 'd2';
 let isApplyingProgrammaticChange = false;
-const codeByEngine = {};
+let baselineContent = '';
+let isSavingInProgress = false;
+let pendingAutoSave = false;
+
+const fileState = {
+  handle: null,
+  name: '',
+  savedContent: null,
+  isDirty: false,
+  autoSave: false
+};
 
 function isVerticalLayout() {
   return window.matchMedia('(max-width: 900px)').matches;
@@ -49,20 +59,26 @@ function initEditor() {
 
   editor.session.on('change', () => {
     if (isApplyingProgrammaticChange) return;
-    codeByEngine[currentEngine] = editor.getValue();
+    updateLocalFileUI();
     clearTimeout(updateTimeout);
     updateTimeout = setTimeout(() => {
       syncState(true);
+      if (fileState.autoSave && fileState.handle && fileState.isDirty) {
+        performAutoSave();
+      }
     }, 500);
   });
 }
 
-function setEditorCode(code) {
+function setEditorCode(code, isBaseline = false) {
   if (!editor) return;
   isApplyingProgrammaticChange = true;
   editor.setValue(code, -1);
-  codeByEngine[currentEngine] = code;
+  if (isBaseline && !fileState.name) {
+    baselineContent = code;
+  }
   isApplyingProgrammaticChange = false;
+  updateLocalFileUI();
 }
 
 function initSplitter() {
@@ -232,28 +248,28 @@ function initSelects() {
   engineSelect.addEventListener('change', async () => {
     const prevEngine = currentEngine;
     const nextEngine = engineSelect.value;
-
-    if (editor) {
-      codeByEngine[prevEngine] = editor.getValue();
-    }
+    const currentCode = editor ? editor.getValue() : '';
 
     currentEngine = nextEngine;
     setEditorModeForEngine(nextEngine);
 
-    const savedCode = codeByEngine[nextEngine];
-    if (savedCode && savedCode.trim()) {
-      setEditorCode(savedCode);
-      syncState(true);
-    } else {
+    const isEmpty = !currentCode.trim();
+    const hasLoadedFile = Boolean(fileState.name);
+    const isStockExample =
+      isEmpty || (!hasLoadedFile && (await window.kroki.isExampleCode(currentCode, prevEngine)));
+
+    if (isStockExample) {
       try {
         const exampleCode = await window.kroki.loadExample(nextEngine);
         if (currentEngine === nextEngine) {
-          setEditorCode(exampleCode);
+          setEditorCode(exampleCode, true);
           syncState(true);
         }
       } catch (err) {
         console.error('Failed to load example:', err);
       }
+    } else {
+      syncState(true);
     }
   });
 
@@ -406,7 +422,7 @@ async function loadFromUrl() {
 
       try {
         const decoded = window.kroki.decode(payload);
-        setEditorCode(decoded);
+        setEditorCode(decoded, true);
         return;
       } catch (err) {
         console.error('Failed to decode URL state:', err);
@@ -416,9 +432,324 @@ async function loadFromUrl() {
 
   try {
     const defaultCode = await window.kroki.loadExample(currentEngine);
-    setEditorCode(defaultCode);
+    setEditorCode(defaultCode, true);
   } catch (err) {
     console.error('Failed to load initial example:', err);
+  }
+}
+
+function hasUnsavedChanges() {
+  if (!editor) return false;
+  const currentCode = editor.getValue();
+  if (fileState.name) {
+    return currentCode !== fileState.savedContent;
+  }
+  return currentCode.trim() !== '' && currentCode !== baselineContent;
+}
+
+function flashSaveButton() {
+  const saveBtn = document.getElementById('file-save-btn');
+  if (!saveBtn) return;
+  saveBtn.classList.add('saved');
+  setTimeout(() => {
+    saveBtn.classList.remove('saved');
+  }, 1400);
+}
+
+function supportsFileSystemAccess() {
+  return (
+    typeof window.showOpenFilePicker === 'function' &&
+    typeof window.showSaveFilePicker === 'function'
+  );
+}
+
+function initProgressiveFileUI() {
+  const hasFSA = supportsFileSystemAccess();
+  const saveBtn = document.getElementById('file-save-btn');
+  const saveIcon = document.getElementById('file-save-icon');
+  const downloadIcon = document.getElementById('file-download-icon');
+  const saveAsBtn = document.getElementById('file-save-as-btn');
+  const autoSaveBtn = document.getElementById('file-autosave-btn');
+  const fileInputText = document.getElementById('out-file-text');
+
+  if (!hasFSA) {
+    if (saveIcon) saveIcon.style.display = 'none';
+    if (downloadIcon) downloadIcon.style.display = 'inline-flex';
+    if (saveAsBtn) saveAsBtn.style.display = 'none';
+    if (autoSaveBtn) autoSaveBtn.style.display = 'none';
+    if (saveBtn) {
+      saveBtn.setAttribute('data-tooltip', 'Download source file (Ctrl+S)');
+      saveBtn.setAttribute('aria-label', 'Download source file (Ctrl+S)');
+    }
+    if (fileInputText) {
+      fileInputText.placeholder =
+        'No local file — Open (Ctrl+O), Download source (Ctrl+S), or drop a file anywhere';
+    }
+  }
+  updateLocalFileUI();
+}
+
+function updateLocalFileUI() {
+  const hasFSA = supportsFileSystemAccess();
+  const fileInputText = document.getElementById('out-file-text');
+  const saveBtn = document.getElementById('file-save-btn');
+  const autoSaveBtn = document.getElementById('file-autosave-btn');
+  const targetIcon = document.getElementById('file-target-icon');
+
+  if (autoSaveBtn) {
+    autoSaveBtn.classList.toggle('active', Boolean(fileState.autoSave));
+  }
+
+  if (!fileState.name) {
+    fileState.isDirty = false;
+    if (fileInputText) {
+      fileInputText.value = '';
+      fileInputText.classList.remove('dirty');
+    }
+    if (saveBtn) saveBtn.classList.remove('dirty');
+    if (targetIcon) targetIcon.classList.remove('dirty');
+    return;
+  }
+
+  const currentCode = editor ? editor.getValue() : '';
+  fileState.isDirty = currentCode !== fileState.savedContent;
+
+  if (saveBtn) saveBtn.classList.toggle('dirty', fileState.isDirty);
+  if (targetIcon) targetIcon.classList.toggle('dirty', fileState.isDirty);
+  if (fileInputText) {
+    fileInputText.classList.toggle('dirty', fileState.isDirty);
+    let statusLabel = 'Saved';
+    if (fileState.isDirty) {
+      statusLabel = isSavingInProgress ? 'Saving...' : 'Unsaved changes';
+    } else if (fileState.autoSave && fileState.handle) {
+      statusLabel = 'Auto-save active';
+    } else if (!fileState.handle) {
+      statusLabel = hasFSA ? 'Loaded (Save to link file on disk)' : 'Loaded';
+    }
+    fileInputText.value = `${fileState.name}  •  ${statusLabel}`;
+  }
+}
+
+async function ensureReadWritePermission(handle) {
+  if (!handle) return false;
+  if (typeof handle.queryPermission === 'function') {
+    let perm = await handle.queryPermission({ mode: 'readwrite' });
+    if (perm === 'granted') return true;
+    if (typeof handle.requestPermission === 'function') {
+      perm = await handle.requestPermission({ mode: 'readwrite' });
+      return perm === 'granted';
+    }
+    return false;
+  }
+  return true;
+}
+
+async function writeToFileHandle(handle, content) {
+  const granted = await ensureReadWritePermission(handle);
+  if (!granted) {
+    throw new Error('Write permission not granted');
+  }
+  const writable = await handle.createWritable();
+  await writable.write(content);
+  await writable.close();
+}
+
+function triggerFallbackDownload(filename, content) {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function performAutoSave() {
+  if (!fileState.autoSave || !fileState.handle || !editor) return;
+  if (isSavingInProgress) {
+    pendingAutoSave = true;
+    return;
+  }
+
+  const contentToSave = editor.getValue();
+  if (contentToSave === fileState.savedContent) {
+    updateLocalFileUI();
+    return;
+  }
+
+  isSavingInProgress = true;
+  updateLocalFileUI();
+
+  try {
+    await writeToFileHandle(fileState.handle, contentToSave);
+    fileState.savedContent = contentToSave;
+    baselineContent = contentToSave;
+    flashSaveButton();
+  } catch (err) {
+    console.error('Auto-save failed:', err);
+    fileState.autoSave = false;
+  } finally {
+    isSavingInProgress = false;
+    updateLocalFileUI();
+    if (pendingAutoSave) {
+      pendingAutoSave = false;
+      if (editor.getValue() !== fileState.savedContent) {
+        performAutoSave();
+      }
+    }
+  }
+}
+
+async function loadFileIntoEditor(file, handle = null) {
+  if (!file) return;
+  try {
+    const text = await file.text();
+    fileState.handle = handle || null;
+    fileState.name = file.webkitRelativePath || file.name || 'untitled.txt';
+    fileState.savedContent = text;
+    fileState.isDirty = false;
+    baselineContent = text;
+
+    if (fileState.autoSave) {
+      if (!fileState.handle) {
+        fileState.autoSave = false;
+      } else {
+        const granted = await ensureReadWritePermission(fileState.handle).catch(() => false);
+        if (!granted) {
+          fileState.autoSave = false;
+        }
+      }
+    }
+
+    setEditorCode(text, false);
+    updateLocalFileUI();
+    syncState(true);
+  } catch (err) {
+    console.error('Failed to read local file:', err);
+  }
+}
+
+async function openLocalFile() {
+  if (fileState.isDirty) {
+    const proceed = window.confirm(
+      `You have unsaved changes in "${fileState.name}". Open another file anyway?`
+    );
+    if (!proceed) return;
+  }
+
+  if (typeof window.showOpenFilePicker === 'function') {
+    try {
+      const [handle] = await window.showOpenFilePicker({ multiple: false });
+      if (!handle) return;
+      const file = await handle.getFile();
+      await loadFileIntoEditor(file, handle);
+      return;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+      console.error('Failed to open file via File System Access API:', err);
+    }
+  }
+
+  const fileInput = document.getElementById('file-input');
+  if (fileInput) {
+    fileInput.click();
+  }
+}
+
+async function saveLocalFileAs() {
+  if (!editor) return false;
+  const content = editor.getValue();
+  const ext = window.kroki.getEngineExtension(currentEngine);
+  const suggestedName = fileState.name || `diagram.${ext}`;
+
+  if (typeof window.showSaveFilePicker === 'function') {
+    try {
+      const handle = await window.showSaveFilePicker({ suggestedName });
+      if (!handle) return false;
+      await writeToFileHandle(handle, content);
+      fileState.handle = handle;
+      fileState.name = handle.name || suggestedName;
+      fileState.savedContent = content;
+      fileState.isDirty = false;
+      baselineContent = content;
+      flashSaveButton();
+      updateLocalFileUI();
+      return true;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return false;
+      console.error('Failed to save file as:', err);
+      return false;
+    }
+  }
+
+  triggerFallbackDownload(suggestedName, content);
+  fileState.name = suggestedName;
+  fileState.savedContent = content;
+  fileState.isDirty = false;
+  baselineContent = content;
+  flashSaveButton();
+  updateLocalFileUI();
+  return true;
+}
+
+async function saveLocalFile() {
+  if (!editor) return false;
+  const content = editor.getValue();
+
+  if (fileState.handle) {
+    try {
+      isSavingInProgress = true;
+      updateLocalFileUI();
+      await writeToFileHandle(fileState.handle, content);
+      fileState.savedContent = content;
+      fileState.isDirty = false;
+      baselineContent = content;
+      flashSaveButton();
+      return true;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return false;
+      console.error('Failed to write to file handle:', err);
+    } finally {
+      isSavingInProgress = false;
+      updateLocalFileUI();
+    }
+  }
+
+  return saveLocalFileAs();
+}
+
+async function toggleAutoSave() {
+  if (fileState.autoSave) {
+    fileState.autoSave = false;
+    updateLocalFileUI();
+    return;
+  }
+
+  const supportsFileSystem =
+    typeof window.showSaveFilePicker === 'function' || Boolean(fileState.handle);
+
+  if (!supportsFileSystem) {
+    window.alert(
+      'Direct auto-save to disk requires a browser with File System Access API support (e.g., Chrome, Edge, Brave). You can still save manually with Ctrl+S.'
+    );
+    return;
+  }
+
+  if (!fileState.handle) {
+    const saved = await saveLocalFileAs();
+    if (!saved || !fileState.handle) return;
+  } else {
+    const granted = await ensureReadWritePermission(fileState.handle);
+    if (!granted) return;
+  }
+
+  fileState.autoSave = true;
+  updateLocalFileUI();
+
+  if (fileState.isDirty) {
+    await performAutoSave();
   }
 }
 
@@ -454,6 +785,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.viewer.init();
   }
   initSnippets();
+  initProgressiveFileUI();
 
   await loadFromUrl();
   syncState(true);
@@ -465,66 +797,186 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R')) {
-      e.preventDefault();
-      syncState(true);
-    } else if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
-      e.preventDefault();
-      if (window.viewer && typeof window.viewer.download === 'function') {
-        window.viewer.download();
+  window.addEventListener(
+    'keydown',
+    (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R')) {
+        e.preventDefault();
+        syncState(true);
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'o' || e.key === 'O')) {
+        e.preventDefault();
+        openLocalFile();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          saveLocalFileAs();
+        } else {
+          saveLocalFile();
+        }
       }
+    },
+    true
+  );
+
+  window.addEventListener('beforeunload', (e) => {
+    if (hasUnsavedChanges()) {
+      e.preventDefault();
+      e.returnValue = '';
     }
   });
 
-  // Local file functionality
-  const openFileBtn = document.getElementById('open-file-btn');
+  // Local file controls in footer
+  const fileOpenBtn = document.getElementById('file-open-btn');
+  const fileSaveBtn = document.getElementById('file-save-btn');
+  const fileSaveAsBtn = document.getElementById('file-save-as-btn');
+  const fileAutoSaveBtn = document.getElementById('file-autosave-btn');
   const fileInput = document.getElementById('file-input');
+  const outFileText = document.getElementById('out-file-text');
 
-  const handleFile = async (file) => {
-    if (!file) return;
-    try {
-      const text = await file.text();
-      setEditorCode(text);
-      syncState(true);
-    } catch (err) {
-      console.error('Failed to read file:', err);
-    }
-  };
-
-  if (openFileBtn && fileInput) {
-    openFileBtn.addEventListener('click', () => {
-      fileInput.click();
+  if (fileOpenBtn) {
+    fileOpenBtn.addEventListener('click', () => openLocalFile());
+  }
+  if (fileSaveBtn) {
+    fileSaveBtn.addEventListener('click', () => saveLocalFile());
+  }
+  if (fileSaveAsBtn) {
+    fileSaveAsBtn.addEventListener('click', () => saveLocalFileAs());
+  }
+  if (fileAutoSaveBtn) {
+    fileAutoSaveBtn.addEventListener('click', () => toggleAutoSave());
+  }
+  if (outFileText) {
+    outFileText.addEventListener('click', () => {
+      if (!fileState.name) {
+        openLocalFile();
+      }
     });
-
-    fileInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) {
-        handleFile(e.target.files[0]);
+  }
+  if (fileInput) {
+    fileInput.addEventListener('change', async (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        await loadFileIntoEditor(e.target.files[0], null);
         fileInput.value = '';
       }
     });
   }
 
   // Drag and drop functionality
-  document.body.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    document.body.classList.add('drag-over');
-  });
+  const dropOverlay = document.getElementById('drop-overlay');
+  let dragCounter = 0;
 
-  document.body.addEventListener('dragleave', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    document.body.classList.remove('drag-over');
-  });
-
-  document.body.addEventListener('drop', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    document.body.classList.remove('drag-over');
-    
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFile(e.dataTransfer.files[0]);
+  const isFileDrag = (e) => {
+    if (!e.dataTransfer) return false;
+    if (e.dataTransfer.types && e.dataTransfer.types.length > 0) {
+      return Array.from(e.dataTransfer.types).some(
+        (t) => t === 'Files' || t === 'application/x-moz-file'
+      );
     }
-  });
+    return Boolean(e.dataTransfer.files && e.dataTransfer.files.length > 0);
+  };
+
+  const showDropOverlay = () => {
+    document.body.classList.add('drag-over');
+    if (dropOverlay) dropOverlay.classList.add('active');
+  };
+
+  const hideDropOverlay = () => {
+    dragCounter = 0;
+    document.body.classList.remove('drag-over');
+    if (dropOverlay) dropOverlay.classList.remove('active');
+  };
+
+  window.addEventListener(
+    'dragenter',
+    (e) => {
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounter++;
+      showDropOverlay();
+    },
+    true
+  );
+
+  window.addEventListener(
+    'dragover',
+    (e) => {
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'copy';
+      }
+      showDropOverlay();
+    },
+    true
+  );
+
+  window.addEventListener(
+    'dragleave',
+    (e) => {
+      if (dragCounter === 0 && !document.body.classList.contains('drag-over')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounter = Math.max(0, dragCounter - 1);
+      const leftWindow =
+        !e.relatedTarget &&
+        (e.clientX <= 0 ||
+          e.clientY <= 0 ||
+          e.clientX >= window.innerWidth ||
+          e.clientY >= window.innerHeight);
+      if (dragCounter === 0 || leftWindow) {
+        hideDropOverlay();
+      }
+    },
+    true
+  );
+
+  window.addEventListener(
+    'drop',
+    async (e) => {
+      if (!isFileDrag(e) && !document.body.classList.contains('drag-over')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      hideDropOverlay();
+
+      const droppedFile =
+        e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0
+          ? e.dataTransfer.files[0]
+          : null;
+
+      let handlePromise = null;
+      if (e.dataTransfer && e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+        const firstItem = e.dataTransfer.items[0];
+        if (typeof firstItem.getAsFileSystemHandle === 'function') {
+          handlePromise = firstItem.getAsFileSystemHandle().catch(() => null);
+        }
+      }
+
+      if (fileState.isDirty) {
+        const proceed = window.confirm(
+          `You have unsaved changes in "${fileState.name}". Load dropped file anyway?`
+        );
+        if (!proceed) return;
+      }
+
+      let handle = null;
+      if (handlePromise) {
+        const resolved = await handlePromise;
+        if (resolved && resolved.kind === 'file') {
+          handle = resolved;
+        }
+      }
+
+      if (handle) {
+        const file = await handle.getFile();
+        await loadFileIntoEditor(file, handle);
+      } else if (droppedFile) {
+        await loadFileIntoEditor(droppedFile, null);
+      }
+    },
+    true
+  );
+
+  window.addEventListener('blur', hideDropOverlay);
 });

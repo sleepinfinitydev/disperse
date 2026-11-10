@@ -59,6 +59,7 @@ const D2_THEMES = [
 ];
 
 const exampleCache = {};
+const examplePayloadCache = {};
 
 async function loadExample(engineId) {
   if (exampleCache[engineId]) {
@@ -70,7 +71,53 @@ async function loadExample(engineId) {
   }
   const text = (await response.text()).trimEnd();
   exampleCache[engineId] = text;
+  examplePayloadCache[engineId] = textToBase64UrlSafe(text);
   return text;
+}
+
+async function isExampleCode(code, engineId) {
+  const normalized = (code || '').trimEnd();
+  if (!normalized) return true;
+  const codePayload = textToBase64UrlSafe(normalized);
+
+  if (engineId) {
+    try {
+      await loadExample(engineId);
+      if (examplePayloadCache[engineId] === codePayload) {
+        return true;
+      }
+    } catch (_) {}
+  }
+
+  return false;
+}
+
+const ENGINE_EXTENSIONS = {
+  bpmn: 'bpmn',
+  bytefield: 'clj',
+  c4plantuml: 'puml',
+  d2: 'd2',
+  dbml: 'dbml',
+  ditaa: 'ditaa',
+  erd: 'erd',
+  excalidraw: 'excalidraw',
+  graphviz: 'dot',
+  mermaid: 'mmd',
+  nomnoml: 'nomnoml',
+  pikchr: 'pikchr',
+  plantuml: 'puml',
+  structurizr: 'dsl',
+  symbolator: 'vhd',
+  tikz: 'tex',
+  umlet: 'uxf',
+  vega: 'vg.json',
+  vegalite: 'vl.json',
+  wavedrom: 'json',
+  wireviz: 'yml'
+};
+
+function getEngineExtension(engineId) {
+  return ENGINE_EXTENSIONS[engineId] || 'txt';
 }
 
 function textToBase64UrlSafe(text) {
@@ -118,6 +165,8 @@ window.kroki = {
   D2_LAYOUTS,
   D2_THEMES,
   loadExample,
+  isExampleCode,
+  getEngineExtension,
   encode: textToBase64UrlSafe,
   decode: base64UrlSafeToText,
   getEngineInfo(engineId) {

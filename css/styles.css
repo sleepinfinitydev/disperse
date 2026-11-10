@@ -289,20 +289,25 @@ button:disabled:hover,
 }
 
 .format-btn .lucide,
-.copy-btn .lucide {
+.copy-btn .lucide,
+.file-btn .lucide {
   width: 16px;
   height: 16px;
 }
 
-.copy-btn .icon-check {
+.copy-btn .icon-check,
+#file-save-btn .icon-check {
   display: none;
 }
 
-.copy-btn.copied .icon-copy {
-  display: none;
+.copy-btn.copied .icon-copy,
+#file-save-btn.saved .icon-save,
+#file-save-btn.saved .icon-download {
+  display: none !important;
 }
 
-.copy-btn.copied .icon-check {
+.copy-btn.copied .icon-check,
+#file-save-btn.saved .icon-check {
   display: inline-flex;
 }
 
@@ -732,16 +737,52 @@ footer {
   flex-shrink: 0;
 }
 
-.format-btn {
+.format-btn,
+.file-btn {
   min-width: 30px;
   min-height: 28px;
   padding: 4px 6px;
 }
 
-.format-btn.active {
+.format-btn.active,
+.file-btn.active {
   background-color: var(--color-primary);
   color: var(--bg-panel);
   border-color: var(--color-primary);
+}
+
+#file-autosave-btn {
+  color: var(--color-tertiary);
+}
+
+#file-autosave-btn.active {
+  background-color: var(--color-tertiary);
+  color: var(--bg-panel);
+  border-color: var(--color-tertiary);
+}
+
+#file-save-btn.dirty {
+  border-color: var(--color-tertiary);
+  color: var(--color-tertiary);
+}
+
+#file-save-btn.saved {
+  background-color: var(--color-tertiary);
+  color: var(--bg-panel);
+  border-color: var(--color-tertiary);
+}
+
+#file-target-icon.dirty {
+  color: var(--color-tertiary);
+}
+
+#out-file-text::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+#out-file-text.dirty {
+  border-color: var(--color-tertiary);
 }
 
 input[type="text"] {
@@ -857,16 +898,44 @@ input[type="text"]:focus {
   }
 }
 
-body.drag-over::after {
-  content: 'Drop file to open';
+.drop-overlay {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
   z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
   pointer-events: none;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+body.drag-over .drop-overlay,
+.drop-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.drop-overlay-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 28px 42px;
+  background-color: var(--bg-panel);
+  color: var(--text-main);
+  border: 2px dashed var(--color-primary);
+  border-radius: 12px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
+
+.drop-overlay-box .lucide {
+  width: 40px;
+  height: 40px;
+  color: var(--color-primary);
 }

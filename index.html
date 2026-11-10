@@ -22,10 +22,6 @@
       <button id="refresh-btn" class="toolbar-item toolbar-btn" type="button" aria-label="Refresh preview (Ctrl+R)" data-tooltip="Refresh preview (Ctrl+R)">
         <i data-lucide="refresh-cw"></i>
       </button>
-      <button id="open-file-btn" class="toolbar-item toolbar-btn" type="button" aria-label="Open local file" data-tooltip="Open local file">
-        <i data-lucide="folder-open"></i>
-      </button>
-      <input type="file" id="file-input" style="display: none;" accept=".txt,.md,.d2,.plantuml,.puml,.dot">
       <div class="toolbar-select-wrap" data-tooltip="Diagram language">
         <select id="engine-select" class="toolbar-item toolbar-select" aria-label="Diagram language"></select>
       </div>
@@ -95,7 +91,7 @@
         <button id="zoom-fit" type="button" aria-label="Fit / Reset view" data-tooltip="Fit / Reset view" data-tooltip-pos="left">
           <i data-lucide="maximize-2"></i>
         </button>
-        <button id="download-btn" type="button" aria-label="Download diagram (Ctrl+S)" data-tooltip="Download diagram (Ctrl+S)" data-tooltip-pos="left">
+        <button id="download-btn" type="button" aria-label="Download diagram" data-tooltip="Download diagram" data-tooltip-pos="left">
           <i data-lucide="download"></i>
         </button>
       </div>
@@ -150,10 +146,41 @@
       <input type="text" id="out-editor-text" readonly aria-label="Editor snippet">
     </div>
 
+    <div class="snippet-row" id="local-file-row">
+      <div id="file-target-icon" class="target-icon" data-tooltip="Local file" data-tooltip-pos="top" data-tooltip-align="left">
+        <i data-lucide="hard-drive"></i>
+      </div>
+      <div class="format-icons">
+        <button id="file-open-btn" class="file-btn" type="button" aria-label="Open local file (Ctrl+O)" data-tooltip="Open local file (Ctrl+O)" data-tooltip-pos="top">
+          <i data-lucide="folder-open"></i>
+        </button>
+        <button id="file-save-btn" class="file-btn" type="button" aria-label="Save local file (Ctrl+S)" data-tooltip="Save local file (Ctrl+S)" data-tooltip-pos="top">
+          <span id="file-save-icon" class="icon-save icon-wrap"><i data-lucide="save"></i></span>
+          <span id="file-download-icon" class="icon-download icon-wrap" style="display:none"><i data-lucide="download"></i></span>
+          <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
+        </button>
+        <button id="file-save-as-btn" class="file-btn" type="button" aria-label="Save file as... (Ctrl+Shift+S)" data-tooltip="Save file as... (Ctrl+Shift+S)" data-tooltip-pos="top">
+          <i data-lucide="save-all"></i>
+        </button>
+      </div>
+      <button id="file-autosave-btn" class="file-btn" type="button" aria-label="Toggle auto-save" data-tooltip="Toggle auto-save" data-tooltip-pos="top">
+        <i data-lucide="zap"></i>
+      </button>
+      <input type="text" id="out-file-text" readonly aria-label="Local file status" placeholder="No local file — Open (Ctrl+O), Save (Ctrl+S), or drop a file anywhere">
+      <input type="file" id="file-input" style="display:none">
+    </div>
+
     <div class="footer-credits">
       Made with <span style="color: red;">❤️</span> in Betanzos · Copyleft &#127279; (<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer">GPLv3</a>) by <a href="https://sleepinfinity.dev" target="_blank" rel="noopener noreferrer">sleepinfinity.dev</a> · <a href="https://github.com/sleepinfinitydev/disperse" target="_blank" rel="noopener noreferrer">Disperse</a> was built on the shoulders of giants: <a href="https://kroki.io" target="_blank" rel="noopener noreferrer">Kroki</a>, <a href="https://ace.c9.io" target="_blank" rel="noopener noreferrer">Ace</a>, <a href="https://github.com/timmywil/panzoom" target="_blank" rel="noopener noreferrer">Panzoom</a>, <a href="https://github.com/nodeca/pako" target="_blank" rel="noopener noreferrer">Pako</a>, <a href="https://lucide.dev" target="_blank" rel="noopener noreferrer">Lucide</a>, and inspired by <a href="https://niolesk.top" target="_blank" rel="noopener noreferrer">Niolesk</a>.
     </div>
   </footer>
+
+  <div id="drop-overlay" class="drop-overlay" aria-hidden="true">
+    <div class="drop-overlay-box">
+      <i data-lucide="file-up"></i>
+      <span>Drop file to open</span>
+    </div>
+  </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ace.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
