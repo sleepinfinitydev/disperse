@@ -476,4 +476,55 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
   });
+
+  // Local file functionality
+  const openFileBtn = document.getElementById('open-file-btn');
+  const fileInput = document.getElementById('file-input');
+
+  const handleFile = async (file) => {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      setEditorCode(text);
+      syncState(true);
+    } catch (err) {
+      console.error('Failed to read file:', err);
+    }
+  };
+
+  if (openFileBtn && fileInput) {
+    openFileBtn.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleFile(e.target.files[0]);
+        fileInput.value = '';
+      }
+    });
+  }
+
+  // Drag and drop functionality
+  document.body.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    document.body.classList.add('drag-over');
+  });
+
+  document.body.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    document.body.classList.remove('drag-over');
+  });
+
+  document.body.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    document.body.classList.remove('drag-over');
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  });
 });
