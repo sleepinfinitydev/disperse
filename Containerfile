@@ -1,5 +1,7 @@
 FROM nginx:stable
 
+LABEL org.opencontainers.image.source="https://github.com/sleepinfinitydev/disperse"
+
 # Copy static application files to the Nginx document root
 COPY index.html favicon.svg /usr/share/nginx/html/
 COPY css/ /usr/share/nginx/html/css/
