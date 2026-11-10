@@ -945,16 +945,13 @@ body.drag-over .drop-overlay,
 }
 
 
-/* Vim Mode Glider Scanlines Effect */
+/* Vim Mode Glider Animation */
 #editor-vim-mode.active svg {
-  mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0.3) 50%);
-  mask-size: 100% 4px;
-  -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0.3) 50%);
-  -webkit-mask-size: 100% 4px;
-  animation: vim-scanlines 2s linear infinite;
+  transform-origin: center;
+  animation: rotate-glider 15s linear infinite;
 }
 
-@keyframes vim-scanlines {
-  0% { mask-position: 0 0; -webkit-mask-position: 0 0; }
-  100% { mask-position: 0 8px; -webkit-mask-position: 0 8px; }
+@keyframes rotate-glider {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
