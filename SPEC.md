@@ -103,10 +103,11 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 - Line numbers, syntax highlighting matched to the diagram language, auto-closing brackets/quotes, `Tab` indentation, and code folding.
 - Editor theme synchronized with the `oklch` color system and light/dark mode.
 - Debounced preview update (`500ms` after typing stops) in addition to manual refresh via `Ctrl + R` or the refresh button.
-- Floating action bar for text zoom:
+- Floating action bar for text zoom and editing mode:
   - Increase font size (`#editor-font-in`, `Alt+Shift++`)
   - Decrease font size (`#editor-font-out`, `Alt+Shift+-`)
   - Reset font size (`#editor-font-fit`, `Alt+Shift+0`)
+  - Toggle Vim keybindings mode (`#editor-vim-mode`, `Alt+V`, persisted in `localStorage` with an animated glider icon when active)
 
 #### Right Panel: Diagram Viewer (SVG / PNG)
 - Full **Zoom** (mouse wheel, pinch gesture, `+` / `-` buttons) and **Pan** (canvas drag) support.
@@ -162,6 +163,7 @@ All keyboard shortcuts are reflected in their corresponding control tooltips (`d
 | `Ctrl/Cmd + Shift + S` | Save local file as... | `#file-save-as-btn` |
 | `Alt + A` | Toggle local file auto-save | `#file-autosave-btn` |
 | `Alt + T` | Toggle light/dark theme | `#theme-btn` |
+| `Alt + V` | Toggle Vim mode in editor | `#editor-vim-mode` |
 | `Alt + L` | Copy current page link | `#brand-link` |
 | `Alt + 1` | Maximize editor panel | `#split-max-editor` |
 | `Alt + 2` | Reset split to golden ratio ($38.2\%$) | `#split-reset` |
@@ -240,9 +242,10 @@ Clean file structure requiring no build step:
 - `js/kroki.js` — Engine catalog, documentation links, cached lazy-loading of `examples/{engine}.txt`, compression/decompression, and Kroki URL builder.
 - `js/viewer.js` — Diagram viewer (SVG and PNG) with zoom, pan, error overlay, and file download.
 - `examples/*.txt` — Individual default example files for each of the 28 supported engines.
+- `assets/screenshot.png` — Application screenshot referenced in `README.md`.
 
 ### External Libraries (via CDN)
-- **Code Editor**: **Ace Editor** (`ace.js`).
+- **Code Editor**: **Ace Editor** (`ace.js`, `keybinding-vim.min.js`).
 - **Zoom & Pan**: **`@panzoom/panzoom`** (`panzoom.min.js`).
 - **Compression**: **`pako`** (`pako.min.js`).
 - **Iconography**: **`lucide`** (`lucide.min.js`).
@@ -251,7 +254,11 @@ Clean file structure requiring no build step:
 
 ## 7. Deployment and Containerization
 
-- **`Containerfile`**: Builds an OCI image based on `nginx:stable` (Debian), copying only the required static assets (`index.html`, `favicon.svg`, `css/`, `js/`, and `examples/`).
+- **`Containerfile`**: Builds an OCI image based on `nginx:stable` (Debian), linked to the repository via `LABEL org.opencontainers.image.source`, copying only the required static assets (`index.html`, `favicon.svg`, `css/`, `js/`, and `examples/`). It configures Nginx to listen on port `8765` (`ENV PORT=8765`, `EXPOSE 8765 80`) and prints the server URL (`Starting server at http://localhost:8765 ...`) on startup.
+- **Running the Container**:
+  ```bash
+  docker run --rm -p 8765:8765 ghcr.io/sleepinfinitydev/disperse:latest
+  ```
 - **`Taskfile.yml`**: Provides development and packaging tasks:
   - `task run`: Starts a lightweight local web server (`python3 -m http.server`) on port `8765` by default (configurable via `PORT`, e.g., `task run PORT=9000`).
   - `task build`: Builds the container image (`ghcr.io/sleepinfinitydev/disperse` by default, configurable via `IMAGE=...`) tagged with both the short Git commit hash (`git rev-parse --short HEAD`) and `latest`, auto-detecting `podman` or `docker`.

@@ -12,6 +12,12 @@ Minimalist, icon-first single-page web application (SPA) for creating and sharin
 
 ## Quick Start
 
+### Run with Docker
+```bash
+docker run --rm -p 8765:8765 ghcr.io/sleepinfinitydev/disperse:latest
+```
+Then open `http://localhost:8765` in your browser.
+
 ### Run locally (with [Task](https://taskfile.dev))
 ```bash
 task run
