@@ -748,7 +748,8 @@ footer {
 }
 
 .format-btn.active,
-.file-btn.active {
+.file-btn.active,
+.editor-actions button.active {
   background-color: var(--color-primary);
   color: var(--bg-panel);
   border-color: var(--color-primary);

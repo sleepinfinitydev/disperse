@@ -5,6 +5,7 @@ let isApplyingProgrammaticChange = false;
 let baselineContent = '';
 let isSavingInProgress = false;
 let pendingAutoSave = false;
+let isVimMode = localStorage.getItem('disperse-vim-mode') === 'true';
 
 const fileState = {
   handle: null,
@@ -56,6 +57,11 @@ function initEditor() {
 
   window.editor = editor;
   setEditorModeForEngine(currentEngine);
+  
+  if (isVimMode) {
+    editor.setKeyboardHandler('ace/keyboard/vim');
+    document.getElementById('editor-vim-mode')?.classList.add('active');
+  }
 
   editor.session.on('change', () => {
     if (isApplyingProgrammaticChange) return;
@@ -720,6 +726,22 @@ async function saveLocalFile() {
   return saveLocalFileAs();
 }
 
+function toggleVimMode() {
+  isVimMode = !isVimMode;
+  localStorage.setItem('disperse-vim-mode', isVimMode);
+  if (editor) {
+    if (isVimMode) {
+      editor.setKeyboardHandler('ace/keyboard/vim');
+    } else {
+      editor.setKeyboardHandler(null);
+    }
+  }
+  const vimBtn = document.getElementById('editor-vim-mode');
+  if (vimBtn) {
+    vimBtn.classList.toggle('active', isVimMode);
+  }
+}
+
 async function toggleAutoSave() {
   if (fileState.autoSave) {
     fileState.autoSave = false;
@@ -828,6 +850,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!e.shiftKey && !isShiftedNumpad0) {
           switch (key) {
             case 't': e.preventDefault(); document.getElementById('theme-btn')?.click(); break;
+            case 'v': e.preventDefault(); document.getElementById('editor-vim-mode')?.click(); break;
             case 'a': e.preventDefault(); document.getElementById('file-autosave-btn')?.click(); break;
             case 'd': e.preventDefault(); document.getElementById('download-btn')?.click(); break;
             case '1': case '¡': e.preventDefault(); document.getElementById('split-max-editor')?.click(); break;
@@ -865,6 +888,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnFontIn = document.getElementById('editor-font-in');
   const btnFontOut = document.getElementById('editor-font-out');
   const btnFontFit = document.getElementById('editor-font-fit');
+  const btnVimMode = document.getElementById('editor-vim-mode');
+
+  if (btnVimMode) {
+    btnVimMode.addEventListener('click', toggleVimMode);
+  }
 
   if (btnFontIn && btnFontOut && btnFontFit) {
     const changeFontSize = (delta) => {

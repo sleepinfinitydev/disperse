@@ -67,6 +67,16 @@
         <button id="editor-font-fit" type="button" aria-label="Reset font size (Alt+Shift+0)" data-tooltip="Reset font size (Alt+Shift+0)" data-tooltip-pos="left">
           <i data-lucide="rotate-ccw"></i>
         </button>
+        <div style="height: 1px; background-color: var(--border-color); margin: 2px 0;"></div>
+        <button id="editor-vim-mode" type="button" aria-label="Toggle Vim mode (Alt+V)" data-tooltip="Toggle Vim mode (Alt+V)" data-tooltip-pos="left">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="6" r="2" fill="currentColor"/>
+            <circle cx="18" cy="12" r="2" fill="currentColor"/>
+            <circle cx="6" cy="18" r="2" fill="currentColor"/>
+            <circle cx="12" cy="18" r="2" fill="currentColor"/>
+            <circle cx="18" cy="18" r="2" fill="currentColor"/>
+          </svg>
+        </button>
       </div>
     </section>
 
@@ -194,6 +204,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ace.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/keybinding-vim.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
   <script src="https://unpkg.com/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
