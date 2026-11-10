@@ -944,3 +944,27 @@ body.drag-over .drop-overlay,
   color: var(--color-primary);
 }
 
+
+/* Vim Mode Glider Scanlines Effect */
+#editor-vim-mode {
+  position: relative;
+  overflow: hidden;
+}
+
+#editor-vim-mode.active::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(
+    rgba(0, 0, 0, 0) 50%, 
+    rgba(0, 0, 0, 0.25) 50%
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  animation: vim-scanlines 2s linear infinite;
+}
+
+@keyframes vim-scanlines {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 8px; }
+}
