@@ -56,11 +56,12 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 |                           |                                           |
 |        CODE EDITOR        |            VIEWER (SVG / PNG)             |
 |         (~38.2%)          |                 (~61.8%)                  |  <- Main Area
-|                           |                                    [+][-] |
+|                  [+][-][↺]|                                    [+][-] |
 |                           |                                           |
 +---------------------------+-------------------------------------------+
 | [🖼] [🔗] [M↓] [</>]  https://kroki.io/...                        [📋] |  <- Publishing Footer
 | [✏️] [🔗] [M↓] [</>]  https://.../disperse/#...                   [📋] |
+| [💾] [📂] [💾] [📝] [⚡]  No local file — Open (Ctrl+O)...             |
 +-----------------------------------------------------------------------+
 ```
 
@@ -100,6 +101,7 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 - Line numbers, syntax highlighting matched to the diagram language, auto-closing brackets/quotes, `Tab` indentation, and code folding.
 - Editor theme synchronized with the `oklch` color system and light/dark mode.
 - Debounced preview update (`500ms` after typing stops) in addition to manual refresh via `Ctrl + R` or the refresh button.
+- Floating action bar for text zoom: increase, decrease, and reset font size.
 
 #### Right Panel: Diagram Viewer (SVG / PNG)
 - Full **Zoom** (mouse wheel, pinch gesture, `+` / `-` buttons) and **Pan** (canvas drag) support.
@@ -112,13 +114,14 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 - Visual loading spinner during requests.
 - **Explicit rendering error display (`#viewer-error`)**: On syntax errors returned by Kroki (e.g., `HTTP 400`) or empty source code, it never fails silently. The previous diagram is cleared and a centered overlay card is displayed. The error border and alert icon are always rendered in **red** (`--color-error`, invariant to the user's color theme), while the inner `<pre>` error message block follows the active color scheme, uses a standard text cursor (`cursor: text`), and supports independent scrolling and text selection.
 
-### 3.3. Bottom Bar (Publishing & Sharing Snippets)
-Compact panel for obtaining ready-to-publish links and snippets:
-1. **Target types** (two rows identified by icons):
+### 3.3. Bottom Bar (Publishing, Sharing Snippets & Local Files)
+Compact panel for obtaining ready-to-publish links, snippets, and managing local files:
+1. **Target types** (three rows identified by icons):
    - **Image (image icon)**: Points directly to the public Kroki API:
      `https://kroki.io/{engine}/{format}/{compressed_payload}`
    - **Editor (pencil icon)**: Points to this Disperse instance with state in the URL hash:
      `{current_origin}/#{engine}/{format}/{compressed_payload}`
+   - **Local File (hard drive icon)**: Progressive local file workflow. Includes actions to Open (`Ctrl+O`), Save (`Ctrl+S`), Save As (`Ctrl+Shift+S`), and Toggle Auto-Save. It supports dragging and dropping files directly onto the window (via `#drop-overlay`).
 2. **Snippet output formats** (selectable via icons):
    - **Direct URL** (`link` icon):
      - Image: `https://kroki.io/mermaid/svg/eNpL...`
