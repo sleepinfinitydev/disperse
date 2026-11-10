@@ -22,6 +22,7 @@ function setEditorModeForEngine(engineId) {
 
   if (!editor) return;
   editor.session.setMode(`ace/mode/${info.mode || 'text'}`);
+  editor.session.setUseWorker(false);
 }
 
 function initEditor() {
