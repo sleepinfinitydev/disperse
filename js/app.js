@@ -789,6 +789,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await loadFromUrl();
   syncState(true);
+  
+  if (editor) {
+    editor.focus();
+  }
 
   const refreshBtn = document.getElementById('refresh-btn');
   if (refreshBtn) {
@@ -800,18 +804,46 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener(
     'keydown',
     (e) => {
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R')) {
+      // Ctrl/Cmd bindings
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'r') {
         e.preventDefault();
         syncState(true);
-      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'o' || e.key === 'O')) {
+      } else if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'o') {
         e.preventDefault();
         openLocalFile();
-      } else if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+      } else if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 's') {
         e.preventDefault();
         if (e.shiftKey) {
           saveLocalFileAs();
         } else {
           saveLocalFile();
+        }
+      }
+      // Alt bindings
+      else if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        const key = e.key.toLowerCase();
+        
+        if (!e.shiftKey) {
+          switch (key) {
+            case 't': e.preventDefault(); document.getElementById('theme-btn')?.click(); break;
+            case 'a': e.preventDefault(); document.getElementById('file-autosave-btn')?.click(); break;
+            case 'd': e.preventDefault(); document.getElementById('download-btn')?.click(); break;
+            case '1': case '¡': e.preventDefault(); document.getElementById('split-max-editor')?.click(); break;
+            case '2': case '™': e.preventDefault(); document.getElementById('split-reset')?.click(); break;
+            case '3': case '£': e.preventDefault(); document.getElementById('split-max-viewer')?.click(); break;
+            case '+': case '=': e.preventDefault(); document.getElementById('zoom-in')?.click(); break;
+            case '-': e.preventDefault(); document.getElementById('zoom-out')?.click(); break;
+            case '0': case 'º': e.preventDefault(); document.getElementById('zoom-fit')?.click(); break;
+            case 'l': e.preventDefault(); document.getElementById('brand-link')?.click(); break;
+            case 'i': e.preventDefault(); document.querySelector('button[data-input="out-image-text"]')?.click(); break;
+            case 'e': e.preventDefault(); document.querySelector('button[data-input="out-editor-text"]')?.click(); break;
+          }
+        } else { // Alt + Shift
+          switch (key) {
+            case '+': case '=': e.preventDefault(); document.getElementById('editor-font-in')?.click(); break;
+            case '_': case '-': e.preventDefault(); document.getElementById('editor-font-out')?.click(); break;
+            case ')': case '0': e.preventDefault(); document.getElementById('editor-font-fit')?.click(); break;
+          }
         }
       }
     },

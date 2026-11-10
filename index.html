@@ -10,7 +10,7 @@
 <body>
   <header>
     <div class="header-left">
-      <a id="brand-link" href="#" class="brand-link" aria-label="Copy current page link" data-tooltip="Copy current page link">
+      <a id="brand-link" href="#" class="brand-link" aria-label="Copy current page link (Alt+L)" data-tooltip="Copy current page link (Alt+L)">
         <img id="brand-logo" class="brand-logo" src="favicon.svg" alt="" width="26" height="26">
         <h1>DISPERSE</h1>
         <span class="brand-icon-link icon-wrap"><i data-lucide="link" class="brand-link-icon"></i></span>
@@ -43,13 +43,13 @@
     </div>
 
     <div class="header-right">
-      <button id="theme-btn" class="circle-btn" type="button" aria-label="Toggle light/dark theme" data-tooltip="Toggle light/dark theme" data-tooltip-align="right">
+      <button id="theme-btn" class="circle-btn" type="button" aria-label="Toggle light/dark theme (Alt+T)" data-tooltip="Toggle light/dark theme (Alt+T)" data-tooltip-align="right">
         <span id="theme-icon-light" class="icon-wrap"><i data-lucide="sun"></i></span>
         <span id="theme-icon-dark" class="icon-wrap" style="display:none"><i data-lucide="moon"></i></span>
       </button>
       <div class="color-picker-wrapper" data-tooltip="Preferred theme color" data-tooltip-align="right">
         <button id="color-swatch" class="circle-btn" type="button" aria-label="Preferred theme color"></button>
-        <input type="color" id="color-picker" value="#0080c0" aria-label="Color Picker">
+        <input type="color" id="color-picker" value="#0080c0" aria-label="Color Picker" tabindex="-1">
       </div>
     </div>
   </header>
@@ -58,13 +58,13 @@
     <section id="editor-container">
       <div id="editor"></div>
       <div class="editor-actions">
-        <button id="editor-font-in" type="button" aria-label="Increase font size" data-tooltip="Increase font size" data-tooltip-pos="left">
+        <button id="editor-font-in" type="button" aria-label="Increase font size (Alt+Shift++)" data-tooltip="Increase font size (Alt+Shift++)" data-tooltip-pos="left">
           <i data-lucide="plus"></i>
         </button>
-        <button id="editor-font-out" type="button" aria-label="Decrease font size" data-tooltip="Decrease font size" data-tooltip-pos="left">
+        <button id="editor-font-out" type="button" aria-label="Decrease font size (Alt+Shift+-)" data-tooltip="Decrease font size (Alt+Shift+-)" data-tooltip-pos="left">
           <i data-lucide="minus"></i>
         </button>
-        <button id="editor-font-fit" type="button" aria-label="Reset font size" data-tooltip="Reset font size" data-tooltip-pos="left">
+        <button id="editor-font-fit" type="button" aria-label="Reset font size (Alt+Shift+0)" data-tooltip="Reset font size (Alt+Shift+0)" data-tooltip-pos="left">
           <i data-lucide="rotate-ccw"></i>
         </button>
       </div>
@@ -72,13 +72,13 @@
 
     <div id="splitter" role="separator" aria-label="Resize panels" title="Drag to resize · Double-click to reset (38.2%)">
       <div class="splitter-grip">
-        <button id="split-max-editor" class="splitter-quick-btn" type="button" aria-label="Maximize editor" data-tooltip="Maximize editor">
+        <button id="split-max-editor" class="splitter-quick-btn" type="button" aria-label="Maximize editor (Alt+1)" data-tooltip="Maximize editor (Alt+1)">
           <i data-lucide="chevron-down"></i>
         </button>
-        <button id="split-reset" class="splitter-quick-btn" type="button" aria-label="Reset split (38.2%)" data-tooltip="Reset split (38.2%)">
+        <button id="split-reset" class="splitter-quick-btn" type="button" aria-label="Reset split (Alt+2)" data-tooltip="Reset split (Alt+2)">
           <i data-lucide="minus"></i>
         </button>
-        <button id="split-max-viewer" class="splitter-quick-btn" type="button" aria-label="Maximize preview" data-tooltip="Maximize preview">
+        <button id="split-max-viewer" class="splitter-quick-btn" type="button" aria-label="Maximize preview (Alt+3)" data-tooltip="Maximize preview (Alt+3)">
           <i data-lucide="chevron-up"></i>
         </button>
       </div>
@@ -93,16 +93,16 @@
         <pre id="viewer-error-text" class="viewer-error-detail"></pre>
       </div>
       <div class="viewer-actions">
-        <button id="zoom-in" type="button" aria-label="Zoom in" data-tooltip="Zoom in" data-tooltip-pos="left">
+        <button id="zoom-in" type="button" aria-label="Zoom in (Alt++)" data-tooltip="Zoom in (Alt++)" data-tooltip-pos="left">
           <i data-lucide="zoom-in"></i>
         </button>
-        <button id="zoom-out" type="button" aria-label="Zoom out" data-tooltip="Zoom out" data-tooltip-pos="left">
+        <button id="zoom-out" type="button" aria-label="Zoom out (Alt+-)" data-tooltip="Zoom out (Alt+-)" data-tooltip-pos="left">
           <i data-lucide="zoom-out"></i>
         </button>
-        <button id="zoom-fit" type="button" aria-label="Fit / Reset view" data-tooltip="Fit / Reset view" data-tooltip-pos="left">
+        <button id="zoom-fit" type="button" aria-label="Fit / Reset view (Alt+0)" data-tooltip="Fit / Reset view (Alt+0)" data-tooltip-pos="left">
           <i data-lucide="maximize-2"></i>
         </button>
-        <button id="download-btn" type="button" aria-label="Download diagram" data-tooltip="Download diagram" data-tooltip-pos="left">
+        <button id="download-btn" type="button" aria-label="Download diagram (Alt+D)" data-tooltip="Download diagram (Alt+D)" data-tooltip-pos="left">
           <i data-lucide="download"></i>
         </button>
       </div>
@@ -128,11 +128,11 @@
           <i data-lucide="code-2"></i>
         </button>
       </div>
-      <button class="copy-btn" type="button" data-input="out-image-text" aria-label="Copy image snippet" data-tooltip="Copy to clipboard" data-tooltip-pos="top">
+      <button class="copy-btn" type="button" data-input="out-image-text" aria-label="Copy image snippet" data-tooltip="Copy image snippet (Alt+I)" data-tooltip-pos="top">
         <span class="icon-copy icon-wrap"><i data-lucide="copy"></i></span>
         <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
       </button>
-      <input type="text" id="out-image-text" readonly aria-label="Image snippet">
+      <input type="text" id="out-image-text" readonly aria-label="Image snippet" tabindex="-1">
     </div>
 
     <div class="snippet-row">
@@ -150,11 +150,11 @@
           <i data-lucide="code-2"></i>
         </button>
       </div>
-      <button class="copy-btn" type="button" data-input="out-editor-text" aria-label="Copy editor snippet" data-tooltip="Copy to clipboard" data-tooltip-pos="top">
+      <button class="copy-btn" type="button" data-input="out-editor-text" aria-label="Copy editor snippet" data-tooltip="Copy editor snippet (Alt+E)" data-tooltip-pos="top">
         <span class="icon-copy icon-wrap"><i data-lucide="copy"></i></span>
         <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
       </button>
-      <input type="text" id="out-editor-text" readonly aria-label="Editor snippet">
+      <input type="text" id="out-editor-text" readonly aria-label="Editor snippet" tabindex="-1">
     </div>
 
     <div class="snippet-row" id="local-file-row">
@@ -174,10 +174,10 @@
           <i data-lucide="save-all"></i>
         </button>
       </div>
-      <button id="file-autosave-btn" class="file-btn" type="button" aria-label="Toggle auto-save" data-tooltip="Toggle auto-save" data-tooltip-pos="top">
+      <button id="file-autosave-btn" class="file-btn" type="button" aria-label="Toggle auto-save (Alt+A)" data-tooltip="Toggle auto-save (Alt+A)" data-tooltip-pos="top">
         <i data-lucide="zap"></i>
       </button>
-      <input type="text" id="out-file-text" readonly aria-label="Local file status" placeholder="No local file — Open (Ctrl+O), Save (Ctrl+S), or drop a file anywhere">
+      <input type="text" id="out-file-text" readonly aria-label="Local file status" placeholder="No local file — Open (Ctrl+O), Save (Ctrl+S), or drop a file anywhere" tabindex="-1">
       <input type="file" id="file-input" style="display:none">
     </div>
 
