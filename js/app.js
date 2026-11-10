@@ -61,7 +61,6 @@ function initEditor() {
   if (isVimMode) {
     editor.setKeyboardHandler('ace/keyboard/vim');
     document.getElementById('editor-vim-mode')?.classList.add('active');
-    document.getElementById('editor-container')?.classList.add('crt-hacker-mode');
   }
 
   editor.session.on('change', () => {
@@ -736,12 +735,10 @@ function toggleVimMode() {
     if (isVimMode) {
       editor.setKeyboardHandler('ace/keyboard/vim');
       editor.setTheme('ace/theme/tomorrow_night');
-      editorContainer?.classList.add('crt-hacker-mode');
     } else {
       editor.setKeyboardHandler(null);
       const isDark = window.themeManager ? window.themeManager.isDark : false;
       editor.setTheme(isDark ? 'ace/theme/tomorrow_night' : 'ace/theme/chrome');
-      editorContainer?.classList.remove('crt-hacker-mode');
     }
   }
   const vimBtn = document.getElementById('editor-vim-mode');

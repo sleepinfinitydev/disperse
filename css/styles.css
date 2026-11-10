@@ -944,27 +944,3 @@ body.drag-over .drop-overlay,
   color: var(--color-primary);
 }
 
-/* Retro CRT Hacker Effect */
-.crt-hacker-mode {
-  filter: sepia(0.8) hue-rotate(75deg) saturate(300%) contrast(1.2) brightness(0.9);
-}
-
-.crt-hacker-mode::after {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: linear-gradient(
-    rgba(0, 0, 0, 0) 50%, 
-    rgba(0, 0, 0, 0.15) 50%
-  );
-  background-size: 100% 4px;
-  z-index: 9999;
-  pointer-events: none;
-  animation: scroll-scanlines 5s linear infinite;
-}
-
-@keyframes scroll-scanlines {
-  0% { background-position: 0 0; }
-  100% { background-position: 0 100%; }
-}
-
