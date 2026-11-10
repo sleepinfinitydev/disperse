@@ -2,6 +2,8 @@
 
 Minimalist, icon-first single-page web application (SPA) for creating and sharing **Diagrams as Code**, powered by [Kroki](https://kroki.io).
 
+![Disperse Screenshot](assets/screenshot.png)
+
 ## Features
 - **28 Diagram Engines**: Mermaid, GraphViz, PlantUML, C4, D2, Excalidraw, Vega-Lite, WaveDrom, BPMN, TikZ, and more.
 - **Zero-Text / Icon-First UI**: Clean icon-driven interface.
