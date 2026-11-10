@@ -99,7 +99,8 @@ function updateTheme(hexColor, isDark) {
   }
 
   if (window.editor && typeof window.editor.setTheme === 'function') {
-    window.editor.setTheme(isDark ? 'ace/theme/tomorrow_night' : 'ace/theme/chrome');
+    const isVim = localStorage.getItem('disperse-vim-mode') === 'true';
+    window.editor.setTheme((isDark || isVim) ? 'ace/theme/tomorrow_night' : 'ace/theme/chrome');
   }
 
   try {
