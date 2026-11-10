@@ -839,11 +839,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             case 'e': e.preventDefault(); document.querySelector('button[data-input="out-editor-text"]')?.click(); break;
           }
         } else { // Alt + Shift
-          if (e.code === 'Digit0' || e.code === 'Numpad0' || e.key === '0' || e.key === ')' || e.key === '=' || key === 'insert') {
+          if (e.code === 'Digit0' || e.code === 'Numpad0' || e.keyCode === 48 || e.keyCode === 96 || e.keyCode === 45 || e.key === '0' || e.key === ')' || e.key === '=' || key === 'insert') {
             e.preventDefault(); document.getElementById('editor-font-fit')?.click();
-          } else if (e.code === 'Equal' || e.code === 'NumpadAdd' || e.code === 'BracketRight' || e.key === '+') {
+          } else if (e.code === 'Equal' || e.code === 'NumpadAdd' || e.code === 'BracketRight' || e.keyCode === 187 || e.keyCode === 107 || e.key === '+') {
             e.preventDefault(); document.getElementById('editor-font-in')?.click();
-          } else if (e.code === 'Minus' || e.code === 'NumpadSubtract' || e.code === 'Slash' || e.key === '_' || e.key === '-') {
+          } else if (e.code === 'Minus' || e.code === 'NumpadSubtract' || e.code === 'Slash' || e.keyCode === 189 || e.keyCode === 109 || e.key === '_' || e.key === '-') {
             e.preventDefault(); document.getElementById('editor-font-out')?.click();
           }
         }
