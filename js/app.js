@@ -839,7 +839,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             case 'e': e.preventDefault(); document.querySelector('button[data-input="out-editor-text"]')?.click(); break;
           }
         } else { // Alt + Shift
-          if (e.code === 'Digit0' || e.key === '0' || e.key === ')') {
+          if (e.code === 'Digit0' || e.code === 'Numpad0' || e.key === '0' || e.key === ')' || e.key === '=') {
             e.preventDefault(); document.getElementById('editor-font-fit')?.click();
           } else if (e.code === 'Equal' || e.code === 'NumpadAdd' || e.code === 'BracketRight' || e.key === '+') {
             e.preventDefault(); document.getElementById('editor-font-in')?.click();
