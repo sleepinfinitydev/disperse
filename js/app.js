@@ -188,15 +188,18 @@ function initSplitter() {
       applySplitPercentage(38.2);
     });
   }
+  let previousSplitPercentage = 38.2;
   if (btnMaximizePreview) {
     btnMaximizePreview.addEventListener('click', (e) => {
       e.stopPropagation();
       const isVertical = isVerticalLayout();
-      const currentSize = isVertical ? editorContainer.style.height : editorContainer.style.width;
+      const currentSizeStr = isVertical ? editorContainer.style.height : editorContainer.style.width;
+      const currentPct = parseFloat(currentSizeStr) || 38.2;
       
-      if (currentSize === '0%') {
-        applySplitPercentage(38.2);
+      if (currentPct === 0) {
+        applySplitPercentage(previousSplitPercentage);
       } else {
+        previousSplitPercentage = currentPct;
         applySplitPercentage(0);
         setTimeout(() => {
           const zoomFitBtn = document.getElementById('zoom-fit');
