@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DISPERSE</title>
   <link id="app-favicon" rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="stylesheet" href="css/styles.css?v=4">
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
   <header>
@@ -131,85 +131,92 @@
     </section>
   </main>
 
+  <div id="export-splitter" role="separator" aria-orientation="horizontal" aria-label="Resize export section (Alt+X)" title="Drag to resize · Double-click to restore (Alt+X)">
+    <div class="splitter-grip">
+      <button id="export-collapse" class="splitter-quick-btn" type="button" aria-label="Collapse export section (Alt+X)" data-tooltip="Collapse export section (Alt+X)" data-tooltip-pos="top">
+        <i data-lucide="chevron-down"></i>
+      </button>
+      <button id="export-restore" class="splitter-quick-btn" type="button" aria-label="Restore export section (Alt+X)" data-tooltip="Restore export section (Alt+X)" data-tooltip-pos="top">
+        <i data-lucide="chevron-up"></i>
+      </button>
+    </div>
+  </div>
+
   <footer>
-    <button id="toggle-export-btn" class="toolbar-btn export-toggle-btn" type="button" aria-label="Toggle export section (Alt+X)" data-tooltip="Toggle export section (Alt+X)" data-tooltip-pos="top" data-tooltip-align="left">
-      <i data-lucide="chevron-down"></i>
-    </button>
-    
     <div id="export-section" class="export-section">
-      <div class="snippet-row">
-        <div class="target-icon" data-tooltip="Direct Kroki image" data-tooltip-pos="top" data-tooltip-align="left">
-          <i data-lucide="image"></i>
-        </div>
-        <div class="format-icons">
-          <button class="format-btn active" type="button" data-fmt="url" data-target="image" aria-label="Direct image URL" data-tooltip="Direct image URL" data-tooltip-pos="top">
-            <i data-lucide="link"></i>
-          </button>
-          <button class="format-btn" type="button" data-fmt="md" data-target="image" aria-label="Markdown image" data-tooltip="Markdown image" data-tooltip-pos="top">
-            <i data-lucide="file-down"></i>
-          </button>
-          <button class="format-btn" type="button" data-fmt="html" data-target="image" aria-label="HTML image tag" data-tooltip="HTML image tag" data-tooltip-pos="top">
-            <i data-lucide="code-2"></i>
-          </button>
-        </div>
-        <button class="copy-btn" type="button" data-input="out-image-text" aria-label="Copy image snippet" data-tooltip="Copy image snippet (Alt+I)" data-tooltip-pos="top">
-          <span class="icon-copy icon-wrap"><i data-lucide="copy"></i></span>
-          <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
-        </button>
-        <input type="text" id="out-image-text" readonly aria-label="Image snippet" tabindex="-1">
-      </div>
-
-      <div class="snippet-row">
-        <div class="target-icon" data-tooltip="Editable Disperse link" data-tooltip-pos="top" data-tooltip-align="left">
-          <i data-lucide="pencil"></i>
-        </div>
-        <div class="format-icons">
-          <button class="format-btn active" type="button" data-fmt="url" data-target="editor" aria-label="Direct editor URL" data-tooltip="Direct editor URL" data-tooltip-pos="top">
-            <i data-lucide="link"></i>
-          </button>
-          <button class="format-btn" type="button" data-fmt="md" data-target="editor" aria-label="Markdown with edit link" data-tooltip="Markdown with edit link" data-tooltip-pos="top">
-            <i data-lucide="file-down"></i>
-          </button>
-          <button class="format-btn" type="button" data-fmt="html" data-target="editor" aria-label="HTML with edit link" data-tooltip="HTML with edit link" data-tooltip-pos="top">
-            <i data-lucide="code-2"></i>
-          </button>
-        </div>
-        <button class="copy-btn" type="button" data-input="out-editor-text" aria-label="Copy editor snippet" data-tooltip="Copy editor snippet (Alt+E)" data-tooltip-pos="top">
-          <span class="icon-copy icon-wrap"><i data-lucide="copy"></i></span>
-          <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
-        </button>
-        <input type="text" id="out-editor-text" readonly aria-label="Editor snippet" tabindex="-1">
-      </div>
-
-      <div class="snippet-row" id="local-file-row">
-        <div id="file-target-icon" class="target-icon" data-tooltip="Local file" data-tooltip-pos="top" data-tooltip-align="left">
-          <i data-lucide="hard-drive"></i>
-        </div>
-        <div class="format-icons">
-          <button id="file-open-btn" class="file-btn" type="button" aria-label="Open local file (Ctrl+O)" data-tooltip="Open local file (Ctrl+O)" data-tooltip-pos="top">
-            <i data-lucide="folder-open"></i>
-          </button>
-          <button id="file-save-btn" class="file-btn" type="button" aria-label="Save local file (Ctrl+S)" data-tooltip="Save local file (Ctrl+S)" data-tooltip-pos="top">
-            <span id="file-save-icon" class="icon-save icon-wrap"><i data-lucide="save"></i></span>
-            <span id="file-download-icon" class="icon-download icon-wrap" style="display:none"><i data-lucide="download"></i></span>
+      <div id="export-section-content" class="export-section-content">
+        <div class="snippet-row">
+          <div class="target-icon" data-tooltip="Direct Kroki image" data-tooltip-pos="top" data-tooltip-align="left">
+            <i data-lucide="image"></i>
+          </div>
+          <div class="format-icons">
+            <button class="format-btn active" type="button" data-fmt="url" data-target="image" aria-label="Direct image URL" data-tooltip="Direct image URL" data-tooltip-pos="top">
+              <i data-lucide="link"></i>
+            </button>
+            <button class="format-btn" type="button" data-fmt="md" data-target="image" aria-label="Markdown image" data-tooltip="Markdown image" data-tooltip-pos="top">
+              <i data-lucide="file-down"></i>
+            </button>
+            <button class="format-btn" type="button" data-fmt="html" data-target="image" aria-label="HTML image tag" data-tooltip="HTML image tag" data-tooltip-pos="top">
+              <i data-lucide="code-2"></i>
+            </button>
+          </div>
+          <button class="copy-btn" type="button" data-input="out-image-text" aria-label="Copy image snippet" data-tooltip="Copy image snippet (Alt+I)" data-tooltip-pos="top">
+            <span class="icon-copy icon-wrap"><i data-lucide="copy"></i></span>
             <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
           </button>
-          <button id="file-save-as-btn" class="file-btn" type="button" aria-label="Save file as... (Ctrl+Shift+S)" data-tooltip="Save file as... (Ctrl+Shift+S)" data-tooltip-pos="top">
-            <i data-lucide="save-all"></i>
-          </button>
+          <input type="text" id="out-image-text" readonly aria-label="Image snippet" tabindex="-1">
         </div>
-        <button id="file-autosave-btn" class="file-btn" type="button" aria-label="Toggle auto-save (Alt+A)" data-tooltip="Toggle auto-save (Alt+A)" data-tooltip-pos="top">
-          <i data-lucide="zap"></i>
-        </button>
-        <input type="text" id="out-file-text" readonly aria-label="Local file status" placeholder="No local file — Open (Ctrl+O), Save (Ctrl+S), or drop a file anywhere" tabindex="-1">
-        <input type="file" id="file-input" style="display:none">
+
+        <div class="snippet-row">
+          <div class="target-icon" data-tooltip="Editable Disperse link" data-tooltip-pos="top" data-tooltip-align="left">
+            <i data-lucide="pencil"></i>
+          </div>
+          <div class="format-icons">
+            <button class="format-btn active" type="button" data-fmt="url" data-target="editor" aria-label="Direct editor URL" data-tooltip="Direct editor URL" data-tooltip-pos="top">
+              <i data-lucide="link"></i>
+            </button>
+            <button class="format-btn" type="button" data-fmt="md" data-target="editor" aria-label="Markdown with edit link" data-tooltip="Markdown with edit link" data-tooltip-pos="top">
+              <i data-lucide="file-down"></i>
+            </button>
+            <button class="format-btn" type="button" data-fmt="html" data-target="editor" aria-label="HTML with edit link" data-tooltip="HTML with edit link" data-tooltip-pos="top">
+              <i data-lucide="code-2"></i>
+            </button>
+          </div>
+          <button class="copy-btn" type="button" data-input="out-editor-text" aria-label="Copy editor snippet" data-tooltip="Copy editor snippet (Alt+E)" data-tooltip-pos="top">
+            <span class="icon-copy icon-wrap"><i data-lucide="copy"></i></span>
+            <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
+          </button>
+          <input type="text" id="out-editor-text" readonly aria-label="Editor snippet" tabindex="-1">
+        </div>
+
+        <div class="snippet-row" id="local-file-row">
+          <div id="file-target-icon" class="target-icon" data-tooltip="Local file" data-tooltip-pos="top" data-tooltip-align="left">
+            <i data-lucide="hard-drive"></i>
+          </div>
+          <div class="format-icons">
+            <button id="file-open-btn" class="file-btn" type="button" aria-label="Open local file (Ctrl+O)" data-tooltip="Open local file (Ctrl+O)" data-tooltip-pos="top">
+              <i data-lucide="folder-open"></i>
+            </button>
+            <button id="file-save-btn" class="file-btn" type="button" aria-label="Save local file (Ctrl+S)" data-tooltip="Save local file (Ctrl+S)" data-tooltip-pos="top">
+              <span id="file-save-icon" class="icon-save icon-wrap"><i data-lucide="save"></i></span>
+              <span id="file-download-icon" class="icon-download icon-wrap" style="display:none"><i data-lucide="download"></i></span>
+              <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
+            </button>
+            <button id="file-save-as-btn" class="file-btn" type="button" aria-label="Save file as... (Ctrl+Shift+S)" data-tooltip="Save file as... (Ctrl+Shift+S)" data-tooltip-pos="top">
+              <i data-lucide="save-all"></i>
+            </button>
+          </div>
+          <button id="file-autosave-btn" class="file-btn" type="button" aria-label="Toggle auto-save (Alt+A)" data-tooltip="Toggle auto-save (Alt+A)" data-tooltip-pos="top">
+            <i data-lucide="zap"></i>
+          </button>
+          <input type="text" id="out-file-text" readonly aria-label="Local file status" placeholder="No local file — Open (Ctrl+O), Save (Ctrl+S), or drop a file anywhere" tabindex="-1">
+          <input type="file" id="file-input" style="display:none">
+        </div>
       </div>
     </div>
 
-    <div class="footer-credits-bar">
-      <div class="footer-credits">
-        Made with <span style="color: red;">❤️</span> in Betanzos · Copyleft &#127279; (<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer">GPLv3</a>) by <a href="https://sleepinfinity.dev" target="_blank" rel="noopener noreferrer">sleepinfinity.dev</a> · <a href="https://github.com/sleepinfinitydev/disperse" target="_blank" rel="noopener noreferrer">Disperse</a> was built on the shoulders of giants: <a href="https://kroki.io" target="_blank" rel="noopener noreferrer">Kroki</a>, <a href="https://ace.c9.io" target="_blank" rel="noopener noreferrer">Ace</a>, <a href="https://github.com/timmywil/panzoom" target="_blank" rel="noopener noreferrer">Panzoom</a>, <a href="https://github.com/nodeca/pako" target="_blank" rel="noopener noreferrer">Pako</a>, <a href="https://lucide.dev" target="_blank" rel="noopener noreferrer">Lucide</a>, and inspired by <a href="https://niolesk.top" target="_blank" rel="noopener noreferrer">Niolesk</a>.
-      </div>
+    <div class="footer-credits">
+      Made with <span style="color: red;">❤️</span> in Betanzos · Copyleft &#127279; (<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer">GPLv3</a>) by <a href="https://sleepinfinity.dev" target="_blank" rel="noopener noreferrer">sleepinfinity.dev</a> · <a href="https://github.com/sleepinfinitydev/disperse" target="_blank" rel="noopener noreferrer">Disperse</a> was built on the shoulders of giants: <a href="https://kroki.io" target="_blank" rel="noopener noreferrer">Kroki</a>, <a href="https://ace.c9.io" target="_blank" rel="noopener noreferrer">Ace</a>, <a href="https://github.com/timmywil/panzoom" target="_blank" rel="noopener noreferrer">Panzoom</a>, <a href="https://github.com/nodeca/pako" target="_blank" rel="noopener noreferrer">Pako</a>, <a href="https://lucide.dev" target="_blank" rel="noopener noreferrer">Lucide</a>, and inspired by <a href="https://niolesk.top" target="_blank" rel="noopener noreferrer">Niolesk</a>.
     </div>
   </footer>
 
@@ -226,7 +233,6 @@
   <script src="https://unpkg.com/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
   <script src="js/theme.js"></script>
-  <script src="js/export-collapse.js?v=4"></script>
   <script src="js/kroki.js"></script>
   <script src="js/viewer.js"></script>
   <script src="js/app.js"></script>

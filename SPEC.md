@@ -142,10 +142,12 @@ Compact panel for obtaining ready-to-publish links, snippets, and managing local
 3. **Copy action**:
    - Clipboard button next to each snippet with visual feedback (temporarily switching to a `✓` check icon), triggered via click or keyboard shortcuts (`Alt+I` for the image snippet, `Alt+E` for the editor snippet).
    - Read-only snippet and status text inputs (`#out-image-text`, `#out-editor-text`, `#out-file-text`) have `tabindex="-1"` to keep keyboard `Tab` navigation agile across interactive buttons.
-4. **Collapsible Export Section**:
-   - The three rows (Image, Editor, Local File) are grouped into a collapsible container (`#export-section`).
-   - A toggle button (`#toggle-export-btn`, `Alt+X`) anchored to the top-left of the footer allows collapsing/expanding the section. It automatically adapts to a small square when collapsed and stays alongside the footer credits.
-   - Expanding the preview to fullscreen (`Alt+Enter`) automatically collapses the export section if it is expanded, keeping the user interface clean and maximizing the viewport.
+4. **Resizable / Collapsible Export Section (`#export-splitter` & `#export-section`)**:
+   - A horizontal draggable splitter (`#export-splitter`) between the main area and the footer allows resizing or collapsing the export rows (`#export-section`) downward.
+   - Dragging upward is capped at the natural height of the export content, while dragging downward collapses only the export rows (`0px`), keeping the footer credits visible at the bottom.
+   - Double-clicking `#export-splitter` restores the export section to its full height, and pressing `Alt+X` toggles between collapsed and restored states.
+   - In reduced-size viewports (`<= 900px`), `#export-splitter` expands to `24px` and displays quick-action buttons inside its `.splitter-grip` (`#export-collapse` `▼` and `#export-restore` `▲`), matching `#splitter`.
+   - Maximizing the preview (`Alt+Enter` / `#maximize-preview`) automatically collapses `#export-section` if it is expanded and restores its previous height when exiting maximized preview (unless manually adjusted in the meantime).
 5. **Footer credits**:
    - Centered bottom credit line acknowledging the project, its license, and its dependencies: `Made with ❤️ in Betanzos · Copyleft 🄯 (GPLv3) by sleepinfinity.dev · Disperse was built on the shoulders of giants: Kroki, Ace, Panzoom, Pako, Lucide, and inspired by Niolesk.`
 
@@ -183,7 +185,7 @@ All keyboard shortcuts are reflected in their corresponding control tooltips (`d
 | `Alt + Shift + 0` | Reset editor font size | `#editor-font-fit` |
 | `Alt + I` | Copy image snippet | `.copy-btn[data-input="out-image-text"]` |
 | `Alt + E` | Copy editor snippet | `.copy-btn[data-input="out-editor-text"]` |
-| `Alt + X` | Toggle export section | `#toggle-export-btn` |
+| `Alt + X` | Toggle export section | `#export-splitter` |
 
 - **Focus & Tab Order**: On load, focus is placed directly inside the Ace code editor. Natural DOM order guides `Tab` navigation cleanly from the header toolbar through the editor, splitter, viewer actions, and footer buttons, skipping non-interactive read-only text fields and hidden inputs (`tabindex="-1"`).
 
