@@ -265,3 +265,4 @@ Clean file structure requiring no build step:
   - `task run`: Starts a lightweight local web server (`python3 -m http.server`) on port `8765` by default (configurable via `PORT`, e.g., `task run PORT=9000`).
   - `task build`: Builds the container image (`ghcr.io/sleepinfinitydev/disperse` by default, configurable via `IMAGE=...`) tagged with both the short Git commit hash (`git rev-parse --short HEAD`) and `latest`, auto-detecting `podman` or `docker`.
   - `task push`: Builds and pushes both tags (`:{{.GIT_HASH}}` and `:latest`) to the container registry.
+- **GitHub Actions (`.github/workflows/oci-image.yml`)**: Automatically builds the OCI image from `Containerfile` and pushes both `:<git-short-hash>` and `:latest` tags to GitHub Container Registry (`ghcr.io/sleepinfinitydev/disperse`) on every push to `main` using `GITHUB_TOKEN` with minimal permissions (`contents: read`, `packages: write`).
