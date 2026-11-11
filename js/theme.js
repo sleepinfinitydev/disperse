@@ -103,6 +103,10 @@ function updateTheme(hexColor, isDark) {
     window.editor.setTheme((isDark || isVim) ? 'ace/theme/tomorrow_night' : 'ace/theme/chrome');
   }
 
+  if (window.wysiwyg && typeof window.wysiwyg.setTheme === 'function') {
+    window.wysiwyg.setTheme(isDark ? 'dark' : 'light');
+  }
+
   try {
     localStorage.setItem('disperse-color', hexColor);
     localStorage.setItem('disperse-theme', isDark ? 'dark' : 'light');

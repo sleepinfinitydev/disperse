@@ -2,6 +2,7 @@ const ENGINES = [
   { id: 'd2', label: 'd2', mode: 'yaml', docs: 'https://d2lang.com/tour/intro/', featured: true },
   { id: 'mermaid', label: 'mermaid', mode: 'yaml', docs: 'https://mermaid.js.org/intro/', featured: true },
   { id: 'dbml', label: 'dbml', mode: 'sql', docs: 'https://dbml.dbdiagram.io/docs/', featured: true },
+  { id: 'excalidraw', label: 'Excalidraw (Editor)', mode: 'json', docs: 'https://docs.excalidraw.com/', featured: true, wysiwyg: true, krokiFormats: ['svg'] },
   { id: 'c4plantuml-context', label: 'c4plantuml (context)', krokiEngine: 'c4plantuml', mode: 'text', docs: 'https://github.com/plantuml-stdlib/C4-PlantUML', featured: true },
   { id: 'c4plantuml-container', label: 'c4plantuml (container)', krokiEngine: 'c4plantuml', mode: 'text', docs: 'https://github.com/plantuml-stdlib/C4-PlantUML', featured: true },
   { id: 'c4plantuml-component', label: 'c4plantuml (component)', krokiEngine: 'c4plantuml', mode: 'text', docs: 'https://github.com/plantuml-stdlib/C4-PlantUML', featured: true },
@@ -13,7 +14,6 @@ const ENGINES = [
   { id: 'bytefield', label: 'bytefield', mode: 'clojure', docs: 'https://bytefield-svg.deepsymmetry.org/' },
   { id: 'ditaa', label: 'ditaa', mode: 'text', docs: 'https://github.com/stathissideris/ditaa' },
   { id: 'erd', label: 'erd', mode: 'ini', docs: 'https://github.com/BurntSushi/erd' },
-  { id: 'excalidraw', label: 'excalidraw', mode: 'json', docs: 'https://docs.excalidraw.com/' },
   { id: 'graphviz', label: 'graphviz', mode: 'dot', docs: 'https://graphviz.org/documentation/' },
   { id: 'nomnoml', label: 'nomnoml', mode: 'text', docs: 'https://nomnoml.com/' },
   { id: 'nwdiag', label: 'nwdiag', mode: 'dot', docs: 'http://blockdiag.com/en/nwdiag/' },
@@ -134,6 +134,10 @@ function getKrokiEngine(engineId) {
   return info.krokiEngine || info.id || engineId;
 }
 
+function isWysiwygEngine(engineId) {
+  return Boolean(getEngineInfo(engineId).wysiwyg);
+}
+
 function resolveEngineId(engineId, code = '') {
   if (ENGINES.some((e) => e.id === engineId)) {
     return engineId;
@@ -204,11 +208,17 @@ window.kroki = {
   decode: base64UrlSafeToText,
   getEngineInfo,
   getKrokiEngine,
+  isWysiwygEngine,
   resolveEngineId,
   buildOptionsQuery,
   buildUrl(engine, format, payload, options = {}) {
-    const krokiEngine = getKrokiEngine(engine);
+    const info = getEngineInfo(engine);
+    const krokiEngine = info.krokiEngine || info.id || engine;
+    const effectiveFormat =
+      Array.isArray(info.krokiFormats) && !info.krokiFormats.includes(format)
+        ? info.krokiFormats[0]
+        : format;
     const query = buildOptionsQuery(krokiEngine, options);
-    return `https://kroki.io/${krokiEngine}/${format}/${payload}${query}`;
+    return `https://kroki.io/${krokiEngine}/${effectiveFormat}/${payload}${query}`;
   }
 };

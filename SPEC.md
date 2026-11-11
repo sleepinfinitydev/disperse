@@ -97,16 +97,17 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 ### 4.2. Main Area (Editor + Preview)
 - Occupies all available vertical space between header and footer (`flex: 1`).
 - **Golden Ratio by default ($\varphi \approx 1.618$)**:
-  - **Left Panel (Editor)**: $38.2\%$ of total width ($1 - 1/\varphi$).
-  - **Right Panel (Preview)**: $61.8\%$ of total width ($1/\varphi$).
+  - **Left Panel (Editor)**: $38.2\%$ of total width ($1 - 1/\varphi$) for text-first engines, and **collapsed ($0\%$) by default** when a graphical WYSIWYG engine (`excalidraw`) is active.
+  - **Right Panel (Preview / WYSIWYG Editor)**: $61.8\%$ of total width ($1/\varphi$) for text-first engines, and **$100\%$ by default** when a graphical WYSIWYG engine is active.
 - **Resizable Splitter (`#splitter`)**:
   - Draggable bar via mouse/touch (`pointerdown` / `pointermove` with `setPointerCapture`) to resize both panels freely across the full range (`0%` - `100%`), allowing complete collapse of the editor or preview panel.
+  - **Automatic WYSIWYG Collapse & Restore**: Selecting a graphical WYSIWYG engine (`Excalidraw (Editor)`) or opening an `#excalidraw/...` URL automatically collapses the code editor panel to `0%` so the visual canvas occupies the entire workspace. Users can expand the code editor at any time (via dragging `#splitter`, double-clicking it, or pressing `Alt+2` / `Alt+Enter`) to inspect or edit the live synchronized code. Switching back to a text-based engine automatically restores the `38.2%` split.
   - **Magnetic Snap**: When dragging near the default golden ratio ($38.2\% \pm 1.6\%$), the splitter snaps into place and highlights with `--color-tertiary`.
   - Double-clicking the splitter also restores the golden ratio ($38.2\% / 61.8\%$).
   - **Quick-Split Buttons**: Three quick-action buttons inside the splitter grip allow instant layout adjustments via click or keyboard shortcuts: Maximize editor (`#split-max-editor`, `Alt+1`), Reset split (`#split-reset`, `Alt+2`), and Maximize preview (`#split-max-viewer`, `Alt+3`).
 
 #### Left Panel: Rich Code Editor
-- Automatically receives focus (`editor.focus()`) on application startup so users can begin typing immediately.
+- Automatically receives focus (`editor.focus()`) on application startup for text-first engines so users can begin typing immediately.
 - Line numbers, syntax highlighting matched to the diagram language, auto-closing brackets/quotes, `Tab` indentation, and code folding.
 - Editor theme synchronized with the `oklch` color system and light/dark mode.
 - Debounced preview update (`500ms` after typing stops) in addition to manual refresh via `Ctrl + R` or the refresh button.
@@ -116,9 +117,17 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
   - Reset font size (`#editor-font-fit`, `equal` icon, `Alt+Shift+0`)
   - Toggle Vim keybindings mode (`#editor-vim-mode`, `Alt+V`, persisted in `localStorage` with an animated glider icon when active)
 
-#### Right Panel: Diagram Viewer (SVG / PNG)
-- Full **Zoom** (mouse wheel, pinch gesture, `+` / `-` buttons) and **Pan** (canvas drag) support.
-- Works uniformly for both **SVG** and **PNG** outputs.
+#### Right Panel: Diagram Viewer (SVG / PNG) & Embedded WYSIWYG Editor
+- **Standard SVG / PNG Viewer (`#viewer`)**:
+  - Full **Zoom** (mouse wheel, pinch gesture, `+` / `-` buttons) and **Pan** (canvas drag) support.
+  - Works uniformly for both **SVG** and **PNG** outputs.
+- **Embedded WYSIWYG Visual Editor (`#wysiwyg-container`)**:
+  - Activated automatically when a graphical WYSIWYG engine (`Excalidraw (Editor)`) is selected or when a `.excalidraw` file is opened/dropped.
+  - Lazy-loads `@excalidraw/excalidraw` (`https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/excalidraw.production.min.js` with `window.EXCALIDRAW_ASSET_PATH = 'https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/'`) on demand without impacting initial page load for other languages.
+  - **Bidirectional Real-Time Synchronization**:
+    - **Canvas → Code Editor & URLs**: Drawing or modifying elements on the Excalidraw canvas serializes the canonical `.excalidraw` JSON (`serializeAsJSON`), updates the Ace code editor, recalculates the compressed URL hash (`#excalidraw/...`) and Kroki/Disperse sharing snippets (`https://kroki.io/excalidraw/svg/...`), and triggers local file auto-save when active.
+    - **Code Editor / File → Canvas**: Editing the JSON in the Ace editor, loading a URL, or opening/dropping a `.excalidraw` file restores and updates the live Excalidraw scene (`updateScene`).
+  - **Theme & Action Integration**: Synchronizes natively with Disperse's light/dark mode (`Alt+T`) and wires the floating viewer action buttons (`#zoom-in`, `#zoom-out`, `#zoom-fit`, `#maximize-preview`, and `#download-btn` exporting `.svg` or `.png` client-side via `exportToSvg` / `exportToBlob`).
 - Floating action bar (icon-only):
   - Zoom In (`#zoom-in`, `Alt++`)
   - Zoom Out (`#zoom-out`, `Alt+-`)
@@ -126,7 +135,7 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
   - Maximize / Restore Preview (`#maximize-preview`, toggling `maximize`/`minimize` icons, `Alt+Enter`): Collapses the editor panel to `0%` and fits the diagram to the full preview area, or restores the previous split percentage when clicked again.
   - Download file (`#download-btn`, `.svg` or `.png`, `Alt+D`)
 - Visual loading spinner during requests.
-- **Explicit rendering error display (`#viewer-error`)**: On syntax errors returned by Kroki (e.g., `HTTP 400`) or empty source code, it never fails silently. The previous diagram is cleared and a centered overlay card is displayed. The error border and alert icon are always rendered in **red** (`--color-error`, invariant to the user's color theme), while the inner `<pre>` error message block follows the active color scheme, uses a standard text cursor (`cursor: text`), and supports independent scrolling and text selection.
+- **Explicit rendering error display (`#viewer-error`)**: On syntax errors returned by Kroki (e.g., `HTTP 400`), invalid WYSIWYG JSON, or empty source code, it never fails silently. The previous diagram is cleared and a centered overlay card is displayed. The error border and alert icon are always rendered in **red** (`--color-error`, invariant to the user's color theme), while the inner `<pre>` error message block follows the active color scheme, uses a standard text cursor (`cursor: text`), and supports independent scrolling and text selection.
 
 ### 4.3. Bottom Bar (Publishing, Sharing Snippets & Local Files)
 Compact panel for obtaining ready-to-publish links, snippets, and managing local files:
@@ -207,21 +216,21 @@ Displayed at the top of `#engine-select` above a disabled separator (`───�
 1. `d2` (`d2` — D2, **selected by default**)
 2. `mermaid` (`mermaid` — Mermaid)
 3. `dbml` (`dbml` — DBML / SQL Database Markup Language)
-4. `c4plantuml-context` (`c4plantuml (context)` — C4 System Context diagram via `c4plantuml` Kroki engine)
-5. `c4plantuml-container` (`c4plantuml (container)` — C4 Container diagram via `c4plantuml` Kroki engine)
-6. `c4plantuml-component` (`c4plantuml (component)` — C4 Component diagram via `c4plantuml` Kroki engine)
-7. `c4plantuml-dynamic` (`c4plantuml (dynamic)` — C4 Dynamic diagram via `c4plantuml` Kroki engine)
-8. `c4plantuml-deployment` (`c4plantuml (deployment)` — C4 Deployment diagram via `c4plantuml` Kroki engine)
+4. `excalidraw` (`Excalidraw (Editor)` — Embedded interactive Excalidraw WYSIWYG editor + JSON, `wysiwyg: true`)
+5. `c4plantuml-context` (`c4plantuml (context)` — C4 System Context diagram via `c4plantuml` Kroki engine)
+6. `c4plantuml-container` (`c4plantuml (container)` — C4 Container diagram via `c4plantuml` Kroki engine)
+7. `c4plantuml-component` (`c4plantuml (component)` — C4 Component diagram via `c4plantuml` Kroki engine)
+8. `c4plantuml-dynamic` (`c4plantuml (dynamic)` — C4 Dynamic diagram via `c4plantuml` Kroki engine)
+9. `c4plantuml-deployment` (`c4plantuml (deployment)` — C4 Deployment diagram via `c4plantuml` Kroki engine)
 
 ### 5.2. Remaining Engines (Alphabetical Order)
 Displayed below the separator:
-9. `actdiag` (ActDiag)
-10. `blockdiag` (BlockDiag)
-11. `bpmn` (BPMN - XML)
-12. `bytefield` (Bytefield - Clojure)
-13. `ditaa` (Ditaa)
-14. `erd` (Erd)
-15. `excalidraw` (Excalidraw - JSON)
+10. `actdiag` (ActDiag)
+11. `blockdiag` (BlockDiag)
+12. `bpmn` (BPMN - XML)
+13. `bytefield` (Bytefield - Clojure)
+14. `ditaa` (Ditaa)
+15. `erd` (Erd)
 16. `graphviz` (GraphViz / DOT)
 17. `nomnoml` (Nomnoml)
 18. `nwdiag` (NwDiag)
@@ -266,6 +275,7 @@ Clean file structure requiring no build step:
 - `js/theme.js` — `sRGB → Oklab → OKLCH` conversion, tetradic palette generation, dynamic brand icon coloring, and light/dark mode toggle.
 - `js/kroki.js` — Engine catalog, documentation links, cached lazy-loading of `examples/{engine}.txt`, compression/decompression, and Kroki URL builder.
 - `js/viewer.js` — Diagram viewer (SVG and PNG) with zoom, pan, error overlay, and file download.
+- `js/wysiwyg.js` — Lazy-loaded embedded WYSIWYG visual editor (`@excalidraw/excalidraw`) with bidirectional Ace Editor / URL synchronization and client-side SVG/PNG export.
 - `examples/*.txt` — Individual default example files for each of the 32 selectable engine/template entries (28 Kroki engines including 5 C4-PlantUML diagram types).
 - `assets/screenshot.png` — Application screenshot referenced in `README.md`.
 
@@ -274,6 +284,7 @@ Clean file structure requiring no build step:
 - **Zoom & Pan**: **`@panzoom/panzoom`** (`panzoom.min.js`).
 - **Compression**: **`pako`** (`pako.min.js`).
 - **Iconography**: **`lucide`** (`lucide.min.js`).
+- **WYSIWYG Visual Editor (Lazy-Loaded on Demand)**: **`@excalidraw/excalidraw`** (`https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/excalidraw.production.min.js` with `react@18.3.1` and `react-dom@18.3.1`).
 
 ---
 

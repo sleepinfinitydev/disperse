@@ -34,7 +34,8 @@ function initViewer() {
         'wheel',
         (e) => {
           if (!panzoomInstance) return;
-          if (e.target && e.target.closest('#viewer-error, .viewer-actions')) {
+          if (viewerContainer.classList.contains('wysiwyg-active')) return;
+          if (e.target && e.target.closest('#viewer-error, .viewer-actions, #wysiwyg-container')) {
             return;
           }
           panzoomInstance.zoomWithWheel(e);
@@ -52,24 +53,41 @@ function initViewer() {
   if (zoomInBtn) {
     zoomInBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (window.wysiwyg && window.wysiwyg.isActive()) {
+        window.wysiwyg.zoomIn();
+        return;
+      }
       if (panzoomInstance) panzoomInstance.zoomIn();
     });
   }
   if (zoomOutBtn) {
     zoomOutBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (window.wysiwyg && window.wysiwyg.isActive()) {
+        window.wysiwyg.zoomOut();
+        return;
+      }
       if (panzoomInstance) panzoomInstance.zoomOut();
     });
   }
   if (zoomFitBtn) {
     zoomFitBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (window.wysiwyg && window.wysiwyg.isActive()) {
+        window.wysiwyg.zoomFit();
+        return;
+      }
       if (panzoomInstance) panzoomInstance.reset();
     });
   }
   if (downloadBtn) {
     downloadBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (window.wysiwyg && window.wysiwyg.isActive()) {
+        const formatSelect = document.getElementById('format-select');
+        window.wysiwyg.download(formatSelect ? formatSelect.value : 'svg');
+        return;
+      }
       downloadDiagram();
     });
   }
@@ -211,5 +229,13 @@ window.viewer = {
   update: updateViewer,
   download: downloadDiagram,
   showError: showViewerError,
-  hideError: hideViewerError
+  hideError: hideViewerError,
+  cancelPending() {
+    if (currentAbortController) {
+      currentAbortController.abort();
+      currentAbortController = null;
+    }
+    const loading = document.getElementById('loading');
+    if (loading) loading.style.display = 'none';
+  }
 };
