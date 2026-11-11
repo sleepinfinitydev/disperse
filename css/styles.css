@@ -885,6 +885,14 @@ input[type="text"]:focus {
   text-decoration: underline;
 }
 
+.lucide.heart-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--color-tertiary);
+  fill: var(--color-tertiary);
+  vertical-align: -2px;
+}
+
 @media (max-width: 900px) {
   main {
     flex-direction: column;
