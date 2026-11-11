@@ -1,8 +1,8 @@
 const ENGINES = [
+  { id: 'excalidraw', label: 'Excalidraw (Editor)', mode: 'json', docs: 'https://docs.excalidraw.com/', featured: true, wysiwyg: true, krokiFormats: ['svg'] },
   { id: 'd2', label: 'd2', mode: 'yaml', docs: 'https://d2lang.com/tour/intro/', featured: true },
   { id: 'mermaid', label: 'mermaid', mode: 'yaml', docs: 'https://mermaid.js.org/intro/', featured: true },
   { id: 'dbml', label: 'dbml', mode: 'sql', docs: 'https://dbml.dbdiagram.io/docs/', featured: true },
-  { id: 'excalidraw', label: 'Excalidraw (Editor)', mode: 'json', docs: 'https://docs.excalidraw.com/', featured: true, wysiwyg: true, krokiFormats: ['svg'] },
   { id: 'c4plantuml-context', label: 'c4plantuml (context)', krokiEngine: 'c4plantuml', mode: 'text', docs: 'https://github.com/plantuml-stdlib/C4-PlantUML', featured: true },
   { id: 'c4plantuml-container', label: 'c4plantuml (container)', krokiEngine: 'c4plantuml', mode: 'text', docs: 'https://github.com/plantuml-stdlib/C4-PlantUML', featured: true },
   { id: 'c4plantuml-component', label: 'c4plantuml (component)', krokiEngine: 'c4plantuml', mode: 'text', docs: 'https://github.com/plantuml-stdlib/C4-PlantUML', featured: true },

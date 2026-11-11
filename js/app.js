@@ -458,9 +458,10 @@ function initSelects() {
   if (!engineSelect || !formatSelect) return;
 
   engineSelect.innerHTML = '';
-  let lastWasFeatured = false;
+  let lastGroup = null;
   window.kroki.ENGINES.forEach((engine) => {
-    if (lastWasFeatured && !engine.featured) {
+    const currentGroup = engine.wysiwyg ? 'editor' : (engine.featured ? 'featured' : 'other');
+    if (lastGroup && lastGroup !== currentGroup) {
       const sep = document.createElement('option');
       sep.disabled = true;
       sep.value = '';
@@ -471,7 +472,7 @@ function initSelects() {
     opt.value = engine.id;
     opt.textContent = engine.label;
     engineSelect.appendChild(opt);
-    lastWasFeatured = Boolean(engine.featured);
+    lastGroup = currentGroup;
   });
   engineSelect.value = 'd2';
   currentEngine = 'd2';

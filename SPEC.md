@@ -79,7 +79,7 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
    - Contained within a single pill-shaped segmented bar (`.header-center`, `34px` uniform height with vertical dividers):
      1. **Refresh Button (`#refresh-btn`)**: Refresh icon (`refresh-cw`) with caption `"Refresh preview (Ctrl+R)"`.
         - **Keyboard shortcut**: `Ctrl + R` (or `Cmd + R`), intercepting the browser event (`e.preventDefault()`) to refresh the diagram without reloading the page.
-     2. **Kroki Engine Dropdown (`#engine-select`)**: Lists all 28 engines supported by Kroki (32 entries in total, with featured languages and 5 C4-PlantUML diagram types at the top, followed by a visual separator and the remaining engines in alphabetical order) with caption `"Diagram language"`. Switching engines updates:
+     2. **Kroki Engine Dropdown (`#engine-select`)**: Lists all 28 engines supported by Kroki (32 entries in total, grouped into Embedded Visual Editors at the top, followed by a visual separator, Featured Code Languages including 5 C4-PlantUML diagram types, a second visual separator, and the remaining engines in alphabetical order) with caption `"Diagram language"`. Switching engines updates:
         - The Kroki rendering endpoint (`c4plantuml-*` variants map to the `c4plantuml` Kroki endpoint).
         - The editor's syntax highlighting mode.
         - The **example code**: when the editor is empty or still displays the previous engine's stock template, switching engines loads the new engine's default example from `examples/{engine}.txt`; otherwise, user edits are preserved.
@@ -212,20 +212,23 @@ All keyboard shortcuts are reflected in their corresponding control tooltips (`d
 
 The engine dropdown covers all 28 engines from the public Kroki API (32 selectable entries in total), each mapped to its corresponding Ace Editor syntax mode, official documentation URL, and default template in `examples/{id}.txt`.
 
-### 5.1. Featured Languages (Top of List)
-Displayed at the top of `#engine-select` above a disabled separator (`──────────────`):
-1. `d2` (`d2` — D2, **selected by default**)
-2. `mermaid` (`mermaid` — Mermaid)
-3. `dbml` (`dbml` — DBML / SQL Database Markup Language)
-4. `excalidraw` (`Excalidraw (Editor)` — Embedded interactive Excalidraw WYSIWYG editor + JSON, `wysiwyg: true`)
+### 5.1. Embedded Visual Editors (Top of List)
+Displayed at the very top of `#engine-select` above the first disabled separator (`──────────────`):
+1. `excalidraw` (`Excalidraw (Editor)` — Embedded interactive Excalidraw WYSIWYG editor + JSON, `wysiwyg: true`)
+
+### 5.2. Featured Code Languages
+Displayed below the first separator and above the second disabled separator (`──────────────`):
+2. `d2` (`d2` — D2, **selected by default**)
+3. `mermaid` (`mermaid` — Mermaid)
+4. `dbml` (`dbml` — DBML / SQL Database Markup Language)
 5. `c4plantuml-context` (`c4plantuml (context)` — C4 System Context diagram via `c4plantuml` Kroki engine)
 6. `c4plantuml-container` (`c4plantuml (container)` — C4 Container diagram via `c4plantuml` Kroki engine)
 7. `c4plantuml-component` (`c4plantuml (component)` — C4 Component diagram via `c4plantuml` Kroki engine)
 8. `c4plantuml-dynamic` (`c4plantuml (dynamic)` — C4 Dynamic diagram via `c4plantuml` Kroki engine)
 9. `c4plantuml-deployment` (`c4plantuml (deployment)` — C4 Deployment diagram via `c4plantuml` Kroki engine)
 
-### 5.2. Remaining Engines (Alphabetical Order)
-Displayed below the separator:
+### 5.3. Remaining Engines (Alphabetical Order)
+Displayed below the second separator:
 10. `actdiag` (ActDiag)
 11. `blockdiag` (BlockDiag)
 12. `bpmn` (BPMN - XML)
