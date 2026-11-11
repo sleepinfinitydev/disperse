@@ -168,7 +168,7 @@ function initSplitter() {
   const btnMaxEditor = document.getElementById('split-max-editor');
   const btnMaxViewer = document.getElementById('split-max-viewer');
   const btnResetGolden = document.getElementById('split-reset');
-  const btnFullScreen = document.getElementById('full-screen-preview');
+  const btnMaximizePreview = document.getElementById('maximize-preview');
 
   if (btnMaxEditor) {
     btnMaxEditor.addEventListener('click', (e) => {
@@ -188,14 +188,21 @@ function initSplitter() {
       applySplitPercentage(38.2);
     });
   }
-  if (btnFullScreen) {
-    btnFullScreen.addEventListener('click', (e) => {
+  if (btnMaximizePreview) {
+    btnMaximizePreview.addEventListener('click', (e) => {
       e.stopPropagation();
-      applySplitPercentage(0);
-      setTimeout(() => {
-        const zoomFitBtn = document.getElementById('zoom-fit');
-        if (zoomFitBtn) zoomFitBtn.click();
-      }, 50);
+      const isVertical = isVerticalLayout();
+      const currentSize = isVertical ? editorContainer.style.height : editorContainer.style.width;
+      
+      if (currentSize === '0%') {
+        applySplitPercentage(38.2);
+      } else {
+        applySplitPercentage(0);
+        setTimeout(() => {
+          const zoomFitBtn = document.getElementById('zoom-fit');
+          if (zoomFitBtn) zoomFitBtn.click();
+        }, 50);
+      }
     });
   }
 
@@ -875,7 +882,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             case '+': case '=': e.preventDefault(); document.getElementById('zoom-in')?.click(); break;
             case '-': e.preventDefault(); document.getElementById('zoom-out')?.click(); break;
             case '0': case 'º': e.preventDefault(); document.getElementById('zoom-fit')?.click(); break;
-            case 'enter': e.preventDefault(); document.getElementById('full-screen-preview')?.click(); break;
+            case 'enter': e.preventDefault(); document.getElementById('maximize-preview')?.click(); break;
             case 'l': e.preventDefault(); document.getElementById('brand-link')?.click(); break;
             case 'i': e.preventDefault(); document.querySelector('button[data-input="out-image-text"]')?.click(); break;
             case 'e': e.preventDefault(); document.querySelector('button[data-input="out-editor-text"]')?.click(); break;
