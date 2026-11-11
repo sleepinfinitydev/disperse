@@ -142,7 +142,11 @@ Compact panel for obtaining ready-to-publish links, snippets, and managing local
 3. **Copy action**:
    - Clipboard button next to each snippet with visual feedback (temporarily switching to a `✓` check icon), triggered via click or keyboard shortcuts (`Alt+I` for the image snippet, `Alt+E` for the editor snippet).
    - Read-only snippet and status text inputs (`#out-image-text`, `#out-editor-text`, `#out-file-text`) have `tabindex="-1"` to keep keyboard `Tab` navigation agile across interactive buttons.
-4. **Footer credits**:
+4. **Collapsible Export Section**:
+   - The three rows (Image, Editor, Local File) are grouped into a collapsible container (`#export-section`).
+   - A toggle button (`#toggle-export-btn`) anchored to the top-left of the footer allows collapsing/expanding the section. It automatically adapts to a small square when collapsed and stays alongside the footer credits.
+   - Expanding the preview to fullscreen (`Alt+Enter`) automatically collapses the export section if it is expanded, keeping the user interface clean and maximizing the viewport.
+5. **Footer credits**:
    - Centered bottom credit line acknowledging the project, its license, and its dependencies: `Made with ❤️ in Betanzos · Copyleft 🄯 (GPLv3) by sleepinfinity.dev · Disperse was built on the shoulders of giants: Kroki, Ace, Panzoom, Pako, Lucide, and inspired by Niolesk.`
 
 ### 3.4. Responsive Design
