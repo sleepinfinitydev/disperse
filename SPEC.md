@@ -44,7 +44,14 @@ The system generates dynamic CSS custom properties (`--color-primary`, `--color-
 
 ---
 
-## 3. Interface Layout
+## 3. Typography & Font System
+- **UI Typography**: **IBM Plex Sans** loaded via Google Fonts with system fallback (`"IBM Plex Sans", system-ui, sans-serif`), assigned to `--font-family`.
+- **Code & Monospace Typography**: **IBM Plex Mono** loaded via Google Fonts with system fallback (`"IBM Plex Mono", monospace`), assigned to `--font-family-mono`. Applied across the Ace editor (`.ace_editor`), snippet output text fields (`input[type="text"]`), and error details (`.viewer-error-detail`).
+- Preconnected to Google Fonts CDN (`fonts.googleapis.com` and `fonts.gstatic.com`) with `display=swap` to avoid cross-platform layout shifts and inconsistent system font rendering.
+
+---
+
+## 4. Interface Layout
 
 The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page scroll (`overflow: hidden`), structured into 3 horizontal bands and **responsive across all screen sizes**:
 
@@ -65,7 +72,7 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 +-----------------------------------------------------------------------+
 ```
 
-### 3.1. Top Bar (Header)
+### 4.1. Top Bar (Header)
 1. **Left**:
    - Brand link (`#brand-link`) composed of the `favicon.svg` logo, the uppercase **`DISPERSE`** title in `--color-primary`, and a chain link icon (`link`), with caption `"Copy current page link (Alt+L)"`. Its `href` is always synchronized with the full current page URL (`window.location.href` including the diagram state). Clicking it (or pressing `Alt + L`) does not reload or reset the editor; instead, it automatically copies the current URL to the clipboard with visual confirmation (`✓`).
 2. **Center (Unified Segmented Toolbar, in order)**:
@@ -87,7 +94,7 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 4. **Captions / Tooltips (`[data-tooltip]`)**:
    - All icon buttons and controls across the header, splitter, editor/viewer toolbars, and publishing footer display instant hover/focus captions indicating their action and keyboard shortcut where applicable (e.g., `Refresh preview (Ctrl+R)`, `Download diagram (Alt+D)`, `Save local file (Ctrl+S)`).
 
-### 3.2. Main Area (Editor + Preview)
+### 4.2. Main Area (Editor + Preview)
 - Occupies all available vertical space between header and footer (`flex: 1`).
 - **Golden Ratio by default ($\varphi \approx 1.618$)**:
   - **Left Panel (Editor)**: $38.2\%$ of total width ($1 - 1/\varphi$).
@@ -121,7 +128,7 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 - Visual loading spinner during requests.
 - **Explicit rendering error display (`#viewer-error`)**: On syntax errors returned by Kroki (e.g., `HTTP 400`) or empty source code, it never fails silently. The previous diagram is cleared and a centered overlay card is displayed. The error border and alert icon are always rendered in **red** (`--color-error`, invariant to the user's color theme), while the inner `<pre>` error message block follows the active color scheme, uses a standard text cursor (`cursor: text`), and supports independent scrolling and text selection.
 
-### 3.3. Bottom Bar (Publishing, Sharing Snippets & Local Files)
+### 4.3. Bottom Bar (Publishing, Sharing Snippets & Local Files)
 Compact panel for obtaining ready-to-publish links, snippets, and managing local files:
 1. **Target types** (three rows identified by icons):
    - **Image (image icon)**: Points directly to the public Kroki API:
@@ -149,9 +156,9 @@ Compact panel for obtaining ready-to-publish links, snippets, and managing local
    - In reduced-size viewports (`<= 900px`), `#export-splitter` expands to `24px` and displays quick-action buttons inside its `.splitter-grip` (`#export-collapse` `▼` and `#export-restore` `▲`), matching `#splitter`.
    - Maximizing the preview (`Alt+Enter` / `#maximize-preview`) automatically collapses `#export-section` if it is expanded and restores its previous height when exiting maximized preview (unless manually adjusted in the meantime).
 5. **Footer credits**:
-   - Centered bottom credit line acknowledging the project, its license, and its dependencies: `Made with ❤️ in Betanzos · Copyleft 🄯 (GPLv3) by sleepinfinity.dev · Disperse was built on the shoulders of giants: Kroki, Ace, Panzoom, Pako, Lucide, and inspired by Niolesk.`
+   - Centered bottom credit line acknowledging the project, its license, and its dependencies: rendered with Lucide vector icons (`heart` tinted in `--color-tertiary` and horizontally flipped `copyright` icon representing copyleft) instead of native Unicode emojis/glyphs to avoid platform-specific rendering anomalies: `Made with <heart> in Betanzos · Copyleft <copyleft> (GPLv3) by sleepinfinity.dev · Disperse was built on the shoulders of giants: Kroki, Ace, Panzoom, Pako, Lucide, and inspired by Niolesk.`
 
-### 3.4. Responsive Design
+### 4.4. Responsive Design
 1. **Desktop & Wide Screens (`> 900px`)**:
    - Horizontal split (Editor left `38.2%` | Vertical splitter | Viewer right `61.8%`).
 2. **Tablets & Narrow Windows (`<= 900px`)**:
@@ -159,7 +166,7 @@ Compact panel for obtaining ready-to-publish links, snippets, and managing local
 3. **Mobile (`<= 600px`)**:
    - Compact wrapped header and touch-friendly controls (`>= 36px`).
 
-### 3.5. Keyboard Shortcuts & Focus Flow
+### 4.5. Keyboard Shortcuts & Focus Flow
 All keyboard shortcuts are reflected in their corresponding control tooltips (`data-tooltip`) and `aria-label` attributes, and support both main keyboard keys and numeric keypad (`Numpad`) keys across international layouts:
 
 | Shortcut | Action | Control |
@@ -191,7 +198,7 @@ All keyboard shortcuts are reflected in their corresponding control tooltips (`d
 
 ---
 
-## 4. Supported Kroki Engines
+## 5. Supported Kroki Engines
 
 The engine dropdown includes all 28 engines from the public Kroki API, each mapped to its corresponding Ace Editor syntax mode, official documentation URL, and default template in `examples/{engine}.txt`:
 
@@ -226,7 +233,7 @@ The engine dropdown includes all 28 engines from the public Kroki API, each mapp
 
 ---
 
-## 5. Encoding, Compression, and Kroki Communication
+## 6. Encoding, Compression, and Kroki Communication
 
 1. **Encoding Algorithm (Kroki Standard)**:
    - Encode editor text into UTF-8 (`TextEncoder`).
@@ -240,7 +247,7 @@ The engine dropdown includes all 28 engines from the public Kroki API, each mapp
 
 ---
 
-## 6. Technical Architecture and Libraries (Vanilla + CDN)
+## 7. Technical Architecture and Libraries (Vanilla + CDN)
 
 Clean file structure requiring no build step:
 - `index.html` — Semantic structure and CDN library imports.
@@ -261,7 +268,7 @@ Clean file structure requiring no build step:
 
 ---
 
-## 7. Deployment and Containerization
+## 8. Deployment and Containerization
 
 - **`Containerfile`**: Builds an OCI image based on `nginx:stable` (Debian), linked to the repository via `LABEL org.opencontainers.image.source`, copying only the required static assets (`index.html`, `favicon.svg`, `css/`, `js/`, and `examples/`). It configures Nginx to listen on port `8765` (`ENV PORT=8765`, `EXPOSE 8765 80`) and prints the server URL (`Starting server at http://localhost:8765 ...`) on startup.
 - **Running the Container**:
