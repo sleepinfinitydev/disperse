@@ -437,6 +437,7 @@ When `kroki.enabled: true`, disabling any sidecar (`kroki.sidecars.<name>.enable
    - The Pod mounts an `emptyDir` volume with isolated `subPath`s into `/tmp` and `/home/kroki` for each enabled container so CLI engines (D2, TikZ, GraphViz, PlantUML) and Chromium workers can write temporary files while keeping `readOnlyRootFilesystem: true`, `runAsNonRoot: true`, `allowPrivilegeEscalation: false`, and `capabilities.drop: ["ALL"]`.
 4. **URI & Payload Sizing**:
    - Complex diagrams (such as Excalidraw or large D2/Mermaid files) produce long Base64-encoded GET URLs. Both the Disperse Nginx proxy (`large_client_header_buffers 4 16k;`) and Kroki (`KROKI_MAX_URI_LENGTH=16384`) are pre-configured with sensible defaults to prevent `HTTP 414 Request-URI Too Long` errors.
+   - **Important for External Traffic**: When exposing Disperse via Ingress or Gateway API, the external controller or proxy must also be configured to accept large request URIs. For example, when using `ingress-nginx`, the deployer should set the annotation `nginx.ingress.kubernetes.io/large-client-header-buffers: "4 16k"` (or larger) in `ingress.annotations`.
 
 ---
 
