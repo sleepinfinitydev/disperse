@@ -923,6 +923,14 @@ async function loadFileIntoEditor(file, handle = null) {
         setEditorModeForEngine('excalidraw');
         if (splitterCtrl) splitterCtrl.collapseForWysiwyg();
       }
+    } else if (/\.bpmn$/i.test(fileState.name) && currentEngine !== 'bpmn') {
+      const engineSelect = document.getElementById('engine-select');
+      if (engineSelect) {
+        engineSelect.value = 'bpmn';
+        currentEngine = 'bpmn';
+        setEditorModeForEngine('bpmn');
+        if (splitterCtrl) splitterCtrl.collapseForWysiwyg();
+      }
     }
 
     setEditorCode(text, false);

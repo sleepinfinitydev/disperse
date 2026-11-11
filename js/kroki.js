@@ -1,5 +1,6 @@
 const ENGINES = [
   { id: 'excalidraw', label: 'Excalidraw (Editor)', mode: 'json', docs: 'https://docs.excalidraw.com/', featured: true, wysiwyg: true, krokiFormats: ['svg'] },
+  { id: 'bpmn', label: 'BPMN (Editor)', mode: 'xml', docs: 'https://www.omg.org/spec/BPMN/2.0/', featured: true, wysiwyg: true, krokiFormats: ['svg'] },
   { id: 'd2', label: 'd2', mode: 'yaml', docs: 'https://d2lang.com/tour/intro/', featured: true },
   { id: 'mermaid', label: 'mermaid', mode: 'yaml', docs: 'https://mermaid.js.org/intro/', featured: true },
   { id: 'dbml', label: 'dbml', mode: 'sql', docs: 'https://dbml.dbdiagram.io/docs/', featured: true },
@@ -10,7 +11,6 @@ const ENGINES = [
   { id: 'c4plantuml-deployment', label: 'c4plantuml (deployment)', krokiEngine: 'c4plantuml', mode: 'text', docs: 'https://github.com/plantuml-stdlib/C4-PlantUML', featured: true },
   { id: 'actdiag', label: 'actdiag', mode: 'dot', docs: 'http://blockdiag.com/en/actdiag/' },
   { id: 'blockdiag', label: 'blockdiag', mode: 'dot', docs: 'http://blockdiag.com/en/blockdiag/' },
-  { id: 'bpmn', label: 'bpmn', mode: 'xml', docs: 'https://www.omg.org/spec/BPMN/2.0/' },
   { id: 'bytefield', label: 'bytefield', mode: 'clojure', docs: 'https://bytefield-svg.deepsymmetry.org/' },
   { id: 'ditaa', label: 'ditaa', mode: 'text', docs: 'https://github.com/stathissideris/ditaa' },
   { id: 'erd', label: 'erd', mode: 'ini', docs: 'https://github.com/BurntSushi/erd' },

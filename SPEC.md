@@ -97,11 +97,11 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 ### 4.2. Main Area (Editor + Preview)
 - Occupies all available vertical space between header and footer (`flex: 1`).
 - **Golden Ratio by default ($\varphi \approx 1.618$)**:
-  - **Left Panel (Editor)**: $38.2\%$ of total width ($1 - 1/\varphi$) for text-first engines, and **collapsed ($0\%$) by default** when a graphical WYSIWYG engine (`excalidraw`) is active.
+  - **Left Panel (Editor)**: $38.2\%$ of total width ($1 - 1/\varphi$) for text-first engines, and **collapsed ($0\%$) by default** when a graphical WYSIWYG engine (`excalidraw`, `bpmn`) is active.
   - **Right Panel (Preview / WYSIWYG Editor)**: $61.8\%$ of total width ($1/\varphi$) for text-first engines, and **$100\%$ by default** when a graphical WYSIWYG engine is active.
 - **Resizable Splitter (`#splitter`)**:
   - Draggable bar via mouse/touch (`pointerdown` / `pointermove` with `setPointerCapture`) to resize both panels freely across the full range (`0%` - `100%`), allowing complete collapse of the editor or preview panel.
-  - **Automatic WYSIWYG Collapse & Restore**: Selecting a graphical WYSIWYG engine (`Excalidraw (Editor)`) or opening an `#excalidraw/...` URL automatically collapses the code editor panel to `0%` so the visual canvas occupies the entire workspace. Users can expand the code editor at any time (via dragging `#splitter`, double-clicking it, or pressing `Alt+2` / `Alt+Enter`) to inspect or edit the live synchronized code. Switching back to a text-based engine automatically restores the `38.2%` split.
+  - **Automatic WYSIWYG Collapse & Restore**: Selecting a graphical WYSIWYG engine (`Excalidraw (Editor)` or `BPMN (Editor)`) or opening an `#excalidraw/...` / `#bpmn/...` URL automatically collapses the code editor panel to `0%` so the visual canvas occupies the entire workspace. Users can expand the code editor at any time (via dragging `#splitter`, double-clicking it, or pressing `Alt+2` / `Alt+Enter`) to inspect or edit the live synchronized code. Switching back to a text-based engine automatically restores the `38.2%` split.
   - **Magnetic Snap**: When dragging near the default golden ratio ($38.2\% \pm 1.6\%$), the splitter snaps into place and highlights with `--color-tertiary`.
   - Double-clicking the splitter also restores the golden ratio ($38.2\% / 61.8\%$).
   - **Quick-Split Buttons**: Three quick-action buttons inside the splitter grip allow instant layout adjustments via click or keyboard shortcuts: Maximize editor (`#split-max-editor`, `Alt+1`), Reset split (`#split-reset`, `Alt+2`), and Maximize preview (`#split-max-viewer`, `Alt+3`).
@@ -122,13 +122,15 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
   - Full **Zoom** (mouse wheel, pinch gesture, `+` / `-` buttons) and **Pan** (canvas drag) support.
   - Works uniformly for both **SVG** and **PNG** outputs.
 - **Embedded WYSIWYG Visual Editor (`#wysiwyg-container`)**:
-  - Activated automatically when a graphical WYSIWYG engine (`Excalidraw (Editor)`) is selected or when a `.excalidraw` file is opened/dropped.
-  - Lazy-loads `@excalidraw/excalidraw` (`https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/excalidraw.production.min.js` with `window.EXCALIDRAW_ASSET_PATH = 'https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/'`) on demand without impacting initial page load for other languages.
+  - Activated automatically when a graphical WYSIWYG engine (`Excalidraw (Editor)` or `BPMN (Editor)`) is selected or when a `.excalidraw` / `.bpmn` file is opened/dropped.
+  - Lazy-loads each visual editor on demand into isolated panes (`#wysiwyg-excalidraw`, `#wysiwyg-bpmn`) without impacting initial page load for other languages:
+    - **Excalidraw**: `@excalidraw/excalidraw` (`https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/excalidraw.production.min.js` with `window.EXCALIDRAW_ASSET_PATH = 'https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/'`).
+    - **BPMN**: `bpmn-js` (`https://unpkg.com/bpmn-js@17.11.1/dist/bpmn-modeler.production.min.js` and its `diagram-js.css`, `bpmn-js.css`, and `bpmn-embedded.css` stylesheets).
   - **Bidirectional Real-Time Synchronization**:
-    - **Canvas → Code Editor & URLs**: Drawing or modifying elements on the Excalidraw canvas serializes the canonical `.excalidraw` JSON (`serializeAsJSON`), updates the Ace code editor, recalculates the compressed URL hash (`#excalidraw/...`) and Kroki/Disperse sharing snippets (`https://kroki.io/excalidraw/svg/...`), and triggers local file auto-save when active.
-    - **Code Editor / File → Canvas**: Editing the JSON in the Ace editor, loading a URL, or opening/dropping a `.excalidraw` file restores and updates the live Excalidraw scene (`updateScene`).
-  - **Payload Size Guard & Disabled Library**: Disables the Excalidraw image tool (`UIOptions.tools.image: false`), blocks pasting binary/image elements (`onPaste`), strips binary `files` during serialization so Base64 images cannot bloat the JSON or exceed Kroki's GET URL length limits, and disables Excalidraw's Library button, sidebar, and `"Add to library"` context menu item.
-  - **Theme & Native Controls**: Synchronizes natively with Disperse's light/dark mode (`Alt+T`) and hides Disperse's floating `.viewer-actions` toolbar (`#viewer-container.wysiwyg-active .viewer-actions { display: none }`) so Excalidraw's own built-in canvas controls and help UI are used without visual duplication (while global shortcuts such as `Alt+Enter` and `Alt+D` remain available).
+    - **Canvas → Code Editor & URLs**: Drawing or modifying elements on the Excalidraw canvas (`serializeAsJSON`) or BPMN modeler (`commandStack.changed` → `saveXML({ format: true })`) updates the Ace code editor, recalculates the compressed URL hash (`#excalidraw/...`, `#bpmn/...`) and Kroki/Disperse sharing snippets (`https://kroki.io/excalidraw/svg/...`, `https://kroki.io/bpmn/svg/...`), and triggers local file auto-save when active.
+    - **Code Editor / File → Canvas**: Editing the JSON/XML in the Ace editor, loading a URL, or opening/dropping a `.excalidraw` or `.bpmn` file restores and updates the live visual scene (`updateScene` / `importXML`).
+  - **Payload Size Guard & Disabled Library (Excalidraw)**: Disables the Excalidraw image tool (`UIOptions.tools.image: false`), blocks pasting binary/image elements (`onPaste`), strips binary `files` during serialization so Base64 images cannot bloat the JSON or exceed Kroki's GET URL length limits, and disables Excalidraw's Library button, sidebar, and `"Add to library"` context menu item.
+  - **Theme & Native Controls**: Synchronizes with Disperse's light/dark mode (`Alt+T`), hiding `.viewer-actions` when Excalidraw is active (`#viewer-container[data-wysiwyg-engine="excalidraw"] .viewer-actions { display: none }`) so Excalidraw's built-in zoom/help UI is used, while keeping `.viewer-actions` active in BPMN (`#zoom-in`, `#zoom-out`, `#zoom-fit`, `#maximize-preview`, and `#download-btn` exporting `.svg` or `.png` client-side via `saveSVG`).
 - Floating action bar (icon-only):
   - Zoom In (`#zoom-in`, `Alt++`)
   - Zoom Out (`#zoom-out`, `Alt+-`)
@@ -215,23 +217,23 @@ The engine dropdown covers all 28 engines from the public Kroki API (32 selectab
 ### 5.1. Embedded Visual Editors (Top of List)
 Displayed at the very top of `#engine-select` above the first disabled separator (`──────────────`):
 1. `excalidraw` (`Excalidraw (Editor)` — Embedded interactive Excalidraw WYSIWYG editor + JSON, `wysiwyg: true`)
+2. `bpmn` (`BPMN (Editor)` — Embedded interactive BPMN 2.0 WYSIWYG modeler via `bpmn-js` + XML, `wysiwyg: true`)
 
 ### 5.2. Featured Code Languages
 Displayed below the first separator and above the second disabled separator (`──────────────`):
-2. `d2` (`d2` — D2, **selected by default**)
-3. `mermaid` (`mermaid` — Mermaid)
-4. `dbml` (`dbml` — DBML / SQL Database Markup Language)
-5. `c4plantuml-context` (`c4plantuml (context)` — C4 System Context diagram via `c4plantuml` Kroki engine)
-6. `c4plantuml-container` (`c4plantuml (container)` — C4 Container diagram via `c4plantuml` Kroki engine)
-7. `c4plantuml-component` (`c4plantuml (component)` — C4 Component diagram via `c4plantuml` Kroki engine)
-8. `c4plantuml-dynamic` (`c4plantuml (dynamic)` — C4 Dynamic diagram via `c4plantuml` Kroki engine)
-9. `c4plantuml-deployment` (`c4plantuml (deployment)` — C4 Deployment diagram via `c4plantuml` Kroki engine)
+3. `d2` (`d2` — D2, **selected by default**)
+4. `mermaid` (`mermaid` — Mermaid)
+5. `dbml` (`dbml` — DBML / SQL Database Markup Language)
+6. `c4plantuml-context` (`c4plantuml (context)` — C4 System Context diagram via `c4plantuml` Kroki engine)
+7. `c4plantuml-container` (`c4plantuml (container)` — C4 Container diagram via `c4plantuml` Kroki engine)
+8. `c4plantuml-component` (`c4plantuml (component)` — C4 Component diagram via `c4plantuml` Kroki engine)
+9. `c4plantuml-dynamic` (`c4plantuml (dynamic)` — C4 Dynamic diagram via `c4plantuml` Kroki engine)
+10. `c4plantuml-deployment` (`c4plantuml (deployment)` — C4 Deployment diagram via `c4plantuml` Kroki engine)
 
 ### 5.3. Remaining Engines (Alphabetical Order)
 Displayed below the second separator:
-10. `actdiag` (ActDiag)
-11. `blockdiag` (BlockDiag)
-12. `bpmn` (BPMN - XML)
+11. `actdiag` (ActDiag)
+12. `blockdiag` (BlockDiag)
 13. `bytefield` (Bytefield - Clojure)
 14. `ditaa` (Ditaa)
 15. `erd` (Erd)
@@ -279,7 +281,7 @@ Clean file structure requiring no build step:
 - `js/theme.js` — `sRGB → Oklab → OKLCH` conversion, tetradic palette generation, dynamic brand icon coloring, and light/dark mode toggle.
 - `js/kroki.js` — Engine catalog, documentation links, cached lazy-loading of `examples/{engine}.txt`, compression/decompression, and Kroki URL builder.
 - `js/viewer.js` — Diagram viewer (SVG and PNG) with zoom, pan, error overlay, and file download.
-- `js/wysiwyg.js` — Lazy-loaded embedded WYSIWYG visual editor (`@excalidraw/excalidraw`) with bidirectional Ace Editor / URL synchronization and client-side SVG/PNG export.
+- `js/wysiwyg.js` — Lazy-loaded embedded WYSIWYG visual editors (`@excalidraw/excalidraw` and `bpmn-js`) with bidirectional Ace Editor / URL synchronization and client-side SVG/PNG export.
 - `examples/*.txt` — Individual default example files for each of the 32 selectable engine/template entries (28 Kroki engines including 5 C4-PlantUML diagram types).
 - `assets/screenshot.png` — Application screenshot referenced in `README.md`.
 
@@ -288,7 +290,9 @@ Clean file structure requiring no build step:
 - **Zoom & Pan**: **`@panzoom/panzoom`** (`panzoom.min.js`).
 - **Compression**: **`pako`** (`pako.min.js`).
 - **Iconography**: **`lucide`** (`lucide.min.js`).
-- **WYSIWYG Visual Editor (Lazy-Loaded on Demand)**: **`@excalidraw/excalidraw`** (`https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/excalidraw.production.min.js` with `react@18.3.1` and `react-dom@18.3.1`).
+- **WYSIWYG Visual Editors (Lazy-Loaded on Demand)**:
+  - **`@excalidraw/excalidraw`** (`https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/excalidraw.production.min.js` with `react@18.3.1` and `react-dom@18.3.1`).
+  - **`bpmn-js`** (`https://unpkg.com/bpmn-js@17.11.1/dist/bpmn-modeler.production.min.js` and stylesheets).
 
 ---
 
@@ -446,8 +450,8 @@ Each of these 4 companion containers embeds a **headless Chromium** browser cont
    - **Why Chromium is needed**: `mermaid.js` was architected as a browser DOM library that relies on real browser layout APIs (`SVGElement.getBBox()`, `getComputedTextLength()`, CSS font metrics, and `<foreignObject>`) to measure text and node dimensions before routing edges. Even the official `mermaid-cli` (`mmdc`) runs Puppeteer + headless Chromium under the hood. Because Kroki must return a self-contained static SVG/PNG at `GET /mermaid/svg/<payload>` (usable inside external `<img src="...">` tags where JS execution is blocked), server-side rendering requires headless Chromium.
    - **Use case in Disperse**: Primary **Diagrams-as-Code** authoring language written directly by hand in the code editor.
 2. **`bpmn` (`kroki.sidecars.bpmn.enabled`)**:
-   - **Why Chromium is needed**: Renders OMG **BPMN 2.0** XML workflow files using `bpmn-js` (from Camunda / bpmn.io), which also depends on a real browser DOM and SVG `getBBox()` engine to render process diagrams into static SVG/PNG.
-   - **Use case in Disperse**: Inspecting, tweaking labels/IDs, and publishing existing `.bpmn` XML files (typically exported from Camunda Modeler, bpmn.io, or enterprise workflow engines) into stateless shareable Kroki URLs and Markdown/HTML snippets.
+   - **Why Chromium is needed**: Renders OMG **BPMN 2.0** XML workflow files into static SVG images (`GET /bpmn/svg/<payload>`) using `bpmn-js` (from Camunda / bpmn.io), which depends on a real browser DOM and SVG `getBBox()` engine.
+   - **Use case in Disperse**: Disperse embeds the interactive `bpmn-js` (`BpmnModeler`) visual editor directly in the browser for creating and editing BPMN 2.0 workflows visually (synchronized bidirectionally with the XML code editor), while the Kroki `bpmn` endpoint serves **stateless static SVG image URLs** (`![](https://.../bpmn/svg/<payload>)`) for external documentation.
 3. **`excalidraw` (`kroki.sidecars.excalidraw.enabled`)**:
    - **Why Chromium is needed**: Renders `.excalidraw` JSON scene files into static SVG images (`GET /excalidraw/svg/<payload>`) using the official Excalidraw browser engine (HTML5 Canvas/SVG + Virgil hand-drawn font metrics) inside headless Chromium.
    - **Use case in Disperse**: While Disperse embeds the interactive `@excalidraw/excalidraw` WYSIWYG editor directly in the browser for creating and editing diagrams visually (synchronized bidirectionally with the JSON code editor), the Kroki `excalidraw` endpoint is used to serve **stateless static SVG image URLs** (`![](https://.../excalidraw/svg/<payload>)`) for embedding in external Markdown/HTML documentation. Operators who do not need self-hosted static image rendering for Excalidraw can set `kroki.sidecars.excalidraw.mode: "remote"` or `"disabled"` to save Chromium RAM.
@@ -655,8 +659,8 @@ Implementation of the runtime engine modes (`local` | `remote` | `disabled`) and
 5. **Phase 5 — Diagrams.net Engine & Full Tri-State Support (`local` | `remote` | `disabled`)**:
    - Add `diagramsnet` (`mode: 'xml'`, `examples/diagramsnet.txt`) to Disperse's engine catalog and integrate the `yuzutech/kroki-diagramsnet` sidecar container (`:8005`) when `kroki.sidecars.diagramsnet.mode == "local"`, supporting `local` sidecar, `remote` third-party fallback, and `disabled` (`ENGINE_MODE_DIAGRAMSNET`).
 6. **Bidirectional WYSIWYG Embedded Editors Track (`local` | `remote` | `disabled`)**:
-   - **Implemented (`Excalidraw (Editor)`)**: Replaces the right-hand preview panel with an embedded interactive `@excalidraw/excalidraw` visual editor (`#wysiwyg-container`, `js/wysiwyg.js`), auto-collapsing the left-hand Ace Editor (`0%`) by default while keeping both synchronized bidirectionally in real time alongside the compressed stateless URL and Kroki snippets.
-   - **Next Visual Formats (**BPMN** and **Diagrams.net / Draw.io**)**: Extend the same embedded WYSIWYG architecture to `bpmn-js` (`BpmnModeler`) and `embed.diagrams.net` (`postMessage` iframe).
+   - **Implemented (`Excalidraw (Editor)` and `BPMN (Editor)`)**: Replaces the right-hand preview panel with embedded interactive `@excalidraw/excalidraw` and `bpmn-js` (`BpmnModeler`) visual editors (`#wysiwyg-container`, `js/wysiwyg.js`), auto-collapsing the left-hand Ace Editor (`0%`) by default while keeping both synchronized bidirectionally in real time alongside the compressed stateless URL and Kroki snippets.
+   - **Next Visual Format (**Diagrams.net / Draw.io**)**: Extend the same embedded WYSIWYG architecture to `embed.diagrams.net` (`postMessage` iframe) alongside the `kroki-diagramsnet` sidecar in the Helm chart.
    - **Note on Mermaid**: Unlike Draw.io (`mxGraphModel` XML), Excalidraw (JSON scene), and BPMN (`<bpmndi:BPMNDiagram>` XML) which persist explicit `x`/`y` node coordinates in their source code, Mermaid is a declarative auto-layout text DSL (`dagre`/`elk`) that does not store manual canvas coordinates in its syntax; therefore, Mermaid remains a text-first engine rather than a freeform WYSIWYG canvas.
    - **Dual `remote` vs. `local` Deployment for Embedded Visual Editors**:
      - **`remote` editor mode**: Embeds the visual editor from public third-party hosts/CDNs (e.g., `https://embed.diagrams.net/?embed=1&proto=json`, ESM CDN for Excalidraw/`bpmn-js`) paired with `https://kroki.io` (or local Kroki) for stateless image URLs—requiring **zero extra editor containers** in the cluster while displaying the explicit external/non-confidential warning in the UI.

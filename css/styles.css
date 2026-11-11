@@ -611,8 +611,23 @@ main {
   overflow: hidden;
 }
 
-#viewer-container.wysiwyg-active .viewer-actions {
+.wysiwyg-pane {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  outline: none;
+}
+
+#viewer-container[data-wysiwyg-engine="excalidraw"] .viewer-actions {
   display: none !important;
+}
+
+#wysiwyg-bpmn .bjs-powered-by {
+  right: 72px !important;
+}
+
+[data-theme="dark"] #wysiwyg-bpmn {
+  filter: invert(0.92) hue-rotate(180deg);
 }
 
 .wysiwyg-container .excalidraw .default-sidebar-trigger,
