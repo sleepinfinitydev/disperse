@@ -25,12 +25,8 @@ function setEditorModeForEngine(engineId) {
   if (docsBtn && info && info.docs) {
     docsBtn.href = info.docs;
   }
-  const betaIcon = document.getElementById('engine-beta-icon');
   const engineWrap = document.getElementById('engine-select-wrap');
   const isBeta = Boolean(info && info.beta);
-  if (betaIcon) {
-    betaIcon.style.display = isBeta ? 'inline-flex' : 'none';
-  }
   if (engineWrap) {
     engineWrap.setAttribute(
       'data-tooltip',
