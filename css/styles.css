@@ -714,9 +714,10 @@ footer {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 8px 16px 6px;
+  padding: 8px 16px 6px 44px;
   gap: 6px;
   flex-shrink: 0;
+  position: relative;
 }
 
 .snippet-row {
@@ -820,6 +821,39 @@ input[type="text"]:focus {
   border-color: var(--color-tertiary);
 }
 
+.export-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow: hidden;
+  transition: max-height 0.25s ease, opacity 0.25s ease, margin 0.25s ease;
+}
+
+.export-section.collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+.export-toggle-btn {
+  position: absolute;
+  left: 10px;
+  top: 8px;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 0;
+}
+
+.footer-credits-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .footer-credits {
   text-align: center;
   font-size: 11px;
@@ -899,7 +933,11 @@ input[type="text"]:focus {
   }
 
   footer {
-    padding: 6px 10px;
+    padding: 6px 10px 6px 40px;
+  }
+  .export-toggle-btn {
+    left: 6px;
+    top: 6px;
   }
 }
 
