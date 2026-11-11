@@ -622,6 +622,14 @@ main {
   display: none !important;
 }
 
+#wysiwyg-bpmn,
+#wysiwyg-bpmn .djs-context-pad .entry,
+#wysiwyg-bpmn .djs-popup,
+#wysiwyg-bpmn .djs-popup .entry,
+#wysiwyg-bpmn .djs-direct-editing-parent {
+  color: hsl(225, 10%, 15%);
+}
+
 [data-theme="dark"] #wysiwyg-bpmn {
   filter: invert(0.92) hue-rotate(180deg);
 }
