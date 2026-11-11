@@ -188,13 +188,14 @@ function initSplitter() {
       applySplitPercentage(38.2);
     });
   }
-  let previousSplitPercentage = 38.2;
+  let previousSplitPercentage = GOLDEN_RATIO_PCT;
   if (btnMaximizePreview) {
     btnMaximizePreview.addEventListener('click', (e) => {
       e.stopPropagation();
       const isVertical = isVerticalLayout();
       const currentSizeStr = isVertical ? editorContainer.style.height : editorContainer.style.width;
-      const currentPct = parseFloat(currentSizeStr) || 38.2;
+      const parsedPct = parseFloat(currentSizeStr);
+      const currentPct = Number.isNaN(parsedPct) ? GOLDEN_RATIO_PCT : parsedPct;
       
       if (currentPct === 0) {
         applySplitPercentage(previousSplitPercentage);

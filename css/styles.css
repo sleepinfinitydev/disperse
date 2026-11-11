@@ -471,8 +471,9 @@ main {
 #editor-container {
   width: 38.2%;
   height: 100%;
-  min-width: 120px;
-  min-height: 100px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background-color: var(--bg-panel);
