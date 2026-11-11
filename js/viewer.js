@@ -26,7 +26,7 @@ function initViewer() {
       minScale: 0.1,
       step: 0.25,
       canvas: true,
-      excludeClass: 'viewer-error'
+      excludeClass: 'panzoom-exclude'
     });
 
     if (viewerContainer) {
@@ -230,6 +230,14 @@ window.viewer = {
   download: downloadDiagram,
   showError: showViewerError,
   hideError: hideViewerError,
+  setPanzoomEnabled(enabled) {
+    if (panzoomInstance && typeof panzoomInstance.setOptions === 'function') {
+      panzoomInstance.setOptions({
+        disablePan: !enabled,
+        disableZoom: !enabled
+      });
+    }
+  },
   cancelPending() {
     if (currentAbortController) {
       currentAbortController.abort();

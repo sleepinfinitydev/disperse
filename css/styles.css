@@ -618,12 +618,8 @@ main {
   outline: none;
 }
 
-#viewer-container[data-wysiwyg-engine="excalidraw"] .viewer-actions {
+#viewer-container.wysiwyg-active .viewer-actions {
   display: none !important;
-}
-
-#wysiwyg-bpmn .bjs-powered-by {
-  right: 72px !important;
 }
 
 [data-theme="dark"] #wysiwyg-bpmn {

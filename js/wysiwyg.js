@@ -504,6 +504,9 @@ async function activateWysiwyg(engine, code, options = {}) {
   activeWysiwygEngine = engine;
   viewerContainer.classList.add('wysiwyg-active');
   viewerContainer.dataset.wysiwygEngine = engine;
+  if (window.viewer && typeof window.viewer.setPanzoomEnabled === 'function') {
+    window.viewer.setPanzoomEnabled(false);
+  }
   if (viewer) viewer.style.display = 'none';
   wysiwygContainer.style.display = 'block';
 
@@ -610,6 +613,9 @@ function deactivateWysiwyg() {
   if (viewerContainer) {
     viewerContainer.classList.remove('wysiwyg-active');
     delete viewerContainer.dataset.wysiwygEngine;
+  }
+  if (window.viewer && typeof window.viewer.setPanzoomEnabled === 'function') {
+    window.viewer.setPanzoomEnabled(true);
   }
   if (wysiwygContainer) wysiwygContainer.style.display = 'none';
   if (viewer) viewer.style.display = 'flex';
