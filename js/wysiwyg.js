@@ -78,14 +78,17 @@ function ensureExcalidrawLoaded() {
 function computeSceneSignature(elements, appState) {
   const active = (elements || []).filter((el) => el && !el.isDeleted && el.type !== 'image');
   const elSig = active
-    .map((el) => `${el.id}:${el.version}:${el.versionNonce}:${el.x}:${el.y}:${el.width}:${el.height}:${el.text || ''}`)
+    .map(
+      (el) =>
+        `${el.id}:${el.version}:${el.versionNonce}:${el.x}:${el.y}:${el.width}:${el.height}:${el.strokeColor || ''}:${el.backgroundColor || ''}:${el.text || ''}:${el.originalText || ''}`
+    )
     .join('|');
   const bg = (appState && appState.viewBackgroundColor) || '#ffffff';
   const grid = (appState && appState.gridSize) || '';
   return `${bg}#${grid}#${elSig}`;
 }
 
-function parseExcalidrawCode(code) {
+function parseExcalidrawCode(code, currentElements = null) {
   const trimmed = (code || '').trim();
   if (!trimmed) {
     return { elements: [], appState: { viewBackgroundColor: '#ffffff' }, files: {} };
@@ -94,8 +97,33 @@ function parseExcalidrawCode(code) {
   if (!parsed || typeof parsed !== 'object') {
     throw new Error('Invalid Excalidraw JSON object');
   }
+  const prevMap = new Map();
+  if (Array.isArray(currentElements)) {
+    currentElements.forEach((el) => {
+      if (el && el.id) prevMap.set(el.id, el);
+    });
+  }
   const elements = Array.isArray(parsed.elements)
-    ? parsed.elements.filter((el) => el && el.type !== 'image')
+    ? parsed.elements
+        .filter((el) => el && el.type !== 'image')
+        .map((rawEl) => {
+          const el = { ...rawEl };
+          if (el.type === 'text') {
+            const prev = prevMap.get(el.id);
+            if (prev) {
+              if (el.text !== prev.text && el.originalText === prev.originalText) {
+                el.originalText = el.text;
+              } else if (el.originalText !== prev.originalText && el.text === prev.text) {
+                el.text = el.originalText;
+              } else if (typeof el.text === 'string') {
+                el.originalText = el.text;
+              }
+            } else if (typeof el.text === 'string') {
+              el.originalText = el.text;
+            }
+          }
+          return el;
+        })
     : [];
   const appState = parsed.appState && typeof parsed.appState === 'object' ? parsed.appState : {};
   return { elements, appState, files: {} };
@@ -241,9 +269,10 @@ function applyCodeToExcalidraw(code, centerView = false) {
   const ExcalidrawLib = window.ExcalidrawLib;
   if (!ExcalidrawLib) return;
 
+  const currentElements = excalidrawAPI ? excalidrawAPI.getSceneElements() : null;
   let parsed;
   try {
-    parsed = parseExcalidrawCode(code);
+    parsed = parseExcalidrawCode(code, currentElements);
   } catch (err) {
     if (window.viewer && typeof window.viewer.showError === 'function') {
       window.viewer.showError(`Excalidraw JSON error: ${err.message}`);
@@ -266,10 +295,18 @@ function applyCodeToExcalidraw(code, centerView = false) {
       files: parsed.files
     },
     currentAppState,
-    null
+    currentElements,
+    {
+      refreshDimensions: true,
+      repairBindings: true
+    }
   );
 
-  lastSyncedSignature = computeSceneSignature(restored.elements, restored.appState);
+  const bumpedElements = restored.elements.map((el) =>
+    typeof ExcalidrawLib.bumpVersion === 'function' ? ExcalidrawLib.bumpVersion(el) : el
+  );
+
+  lastSyncedSignature = computeSceneSignature(bumpedElements, restored.appState);
   lastSerializedJson = (code || '').trim();
 
   if (!excalidrawAPI) {
@@ -280,19 +317,16 @@ function applyCodeToExcalidraw(code, centerView = false) {
   isUpdatingFromEditor = true;
   try {
     excalidrawAPI.updateScene({
-      elements: restored.elements,
+      elements: bumpedElements,
       appState: {
         ...restored.appState,
         theme: getActiveTheme()
       }
     });
-    if (parsed.files && Object.keys(parsed.files).length > 0 && typeof excalidrawAPI.addFiles === 'function') {
-      excalidrawAPI.addFiles(Object.values(parsed.files));
-    }
-    if (centerView && restored.elements && restored.elements.length > 0) {
+    if (centerView && bumpedElements && bumpedElements.length > 0) {
       setTimeout(() => {
         if (excalidrawAPI) {
-          excalidrawAPI.scrollToContent(restored.elements, {
+          excalidrawAPI.scrollToContent(bumpedElements, {
             fitToViewport: false,
             animate: false
           });
