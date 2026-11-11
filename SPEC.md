@@ -79,7 +79,7 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
    - Contained within a single pill-shaped segmented bar (`.header-center`, `34px` uniform height with vertical dividers):
      1. **Refresh Button (`#refresh-btn`)**: Refresh icon (`refresh-cw`) with caption `"Refresh preview (Ctrl+R)"`.
         - **Keyboard shortcut**: `Ctrl + R` (or `Cmd + R`), intercepting the browser event (`e.preventDefault()`) to refresh the diagram without reloading the page.
-     2. **Kroki Engine Dropdown (`#engine-select`)**: Lists all 28 engines supported by Kroki (32 entries in total, grouped into Embedded Visual Editors at the top, followed by a visual separator, Featured Code Languages including 5 C4-PlantUML diagram types, a second visual separator, and the remaining engines in alphabetical order) with caption `"Diagram language"`. Switching engines updates:
+     2. **Kroki Engine Dropdown (`#engine-select`)**: Lists all 28 engines supported by Kroki (32 entries in total, grouped into Embedded Visual Editors marked as `Beta` at the top, followed by a visual separator, Featured Code Languages including 5 C4-PlantUML diagram types, a second visual separator, and the remaining engines in alphabetical order) with caption `"Diagram language"`. When a `Beta` visual editor (`excalidraw` or `bpmn`) is active, a laboratory flask icon (`flask-conical`, `#engine-beta-icon`) in `--color-tertiary` is displayed inside `#engine-select-wrap` with tooltip `"Diagram language (Experimental / Beta editor)"`. Switching engines updates:
         - The Kroki rendering endpoint (`c4plantuml-*` variants map to the `c4plantuml` Kroki endpoint).
         - The editor's syntax highlighting mode.
         - The **example code**: when the editor is empty or still displays the previous engine's stock template, switching engines loads the new engine's default example from `examples/{engine}.txt`; otherwise, user edits are preserved.
@@ -168,7 +168,7 @@ Compact panel for obtaining ready-to-publish links, snippets, and managing local
    - In reduced-size viewports (`<= 900px`), `#export-splitter` expands to `24px` and displays quick-action buttons inside its `.splitter-grip` (`#export-collapse` `▼` and `#export-restore` `▲`), matching `#splitter`.
    - Maximizing the preview (`Alt+Enter` / `#maximize-preview`) automatically collapses `#export-section` if it is expanded and restores its previous height when exiting maximized preview (unless manually adjusted in the meantime).
 5. **Footer credits**:
-   - Centered bottom credit line acknowledging the project, its license, and its dependencies: rendered with Lucide vector icons (`heart` tinted in `--color-tertiary` and horizontally flipped `copyright` icon representing copyleft) instead of native Unicode emojis/glyphs to avoid platform-specific rendering anomalies: `Made with <heart> in Betanzos · Copyleft <copyleft> (GPLv3) by sleepinfinity.dev · Disperse was built on the shoulders of giants: Kroki, Ace, Panzoom, Pako, Lucide, and inspired by Niolesk.`
+   - Centered bottom credit line acknowledging the project, its license, and its dependencies: rendered with Lucide vector icons (`heart` tinted in `--color-tertiary` and horizontally flipped `copyright` icon representing copyleft) instead of native Unicode emojis/glyphs to avoid platform-specific rendering anomalies: `Made with <heart> in Betanzos · Copyleft <copyleft> (GPLv3) by sleepinfinity.dev · Disperse was built on the shoulders of giants: Kroki, Excalidraw, bpmn.io, Ace, Panzoom, Pako, Lucide, and inspired by Niolesk.`
 
 ### 4.4. Responsive Design
 1. **Desktop & Wide Screens (`> 900px`)**:
@@ -216,8 +216,8 @@ The engine dropdown covers all 28 engines from the public Kroki API (32 selectab
 
 ### 5.1. Embedded Visual Editors (Top of List)
 Displayed at the very top of `#engine-select` above the first disabled separator (`──────────────`):
-1. `excalidraw` (`Excalidraw (Editor)` — Embedded interactive Excalidraw WYSIWYG editor + JSON, `wysiwyg: true`)
-2. `bpmn` (`BPMN (Editor)` — Embedded interactive BPMN 2.0 WYSIWYG modeler via `bpmn-js` + XML, `wysiwyg: true`)
+1. `excalidraw` (`Excalidraw (Editor · Beta)` — Embedded interactive Excalidraw WYSIWYG editor + JSON, `wysiwyg: true`, `beta: true`)
+2. `bpmn` (`BPMN (Editor · Beta)` — Embedded interactive BPMN 2.0 WYSIWYG modeler via `bpmn-js` + XML, `wysiwyg: true`, `beta: true`)
 
 ### 5.2. Featured Code Languages
 Displayed below the first separator and above the second disabled separator (`──────────────`):

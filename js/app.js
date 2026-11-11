@@ -25,6 +25,18 @@ function setEditorModeForEngine(engineId) {
   if (docsBtn && info && info.docs) {
     docsBtn.href = info.docs;
   }
+  const betaIcon = document.getElementById('engine-beta-icon');
+  const engineWrap = document.getElementById('engine-select-wrap');
+  const isBeta = Boolean(info && info.beta);
+  if (betaIcon) {
+    betaIcon.style.display = isBeta ? 'inline-flex' : 'none';
+  }
+  if (engineWrap) {
+    engineWrap.setAttribute(
+      'data-tooltip',
+      isBeta ? 'Diagram language (Experimental / Beta editor)' : 'Diagram language'
+    );
+  }
   const isD2 = engineId === 'd2';
   const layoutSelect = document.getElementById('layout-select');
   const themeSelect = document.getElementById('theme-select');

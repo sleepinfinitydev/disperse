@@ -6,6 +6,7 @@ Minimalist, icon-first single-page web application (SPA) for creating and sharin
 
 ## Features
 - **28 Diagram Engines**: Mermaid, GraphViz, PlantUML, C4, D2, Excalidraw, Vega-Lite, WaveDrom, BPMN, TikZ, and more.
+- **Embedded WYSIWYG Visual Editors (Beta)**: Interactive [Excalidraw](https://excalidraw.com) and [BPMN (`bpmn-js`)](https://bpmn.io) visual editors synchronized bidirectionally in real time with the code editor and stateless URLs.
 - **Zero-Text / Icon-First UI**: Clean icon-driven interface.
 - **Dynamic OKLCH Tetradic Theme**: Customizable base color with automatic light and dark modes.
 - **Stateless URL Sharing**: Diagrams are compressed (Zlib deflate + URL-safe Base64) directly into the URL hash and ready to export as Direct Links, Markdown, or HTML.
@@ -32,7 +33,7 @@ task push
 By default, it tags and pushes `ghcr.io/sleepinfinitydev/disperse:<git-short-hash>` and `ghcr.io/sleepinfinitydev/disperse:latest` (customizable via `IMAGE=...`).
 
 ## Acknowledgments
-Built on the shoulders of giants: [Kroki](https://kroki.io) (MIT), [Ace Editor](https://ace.c9.io) (BSD-3-Clause), [Panzoom](https://github.com/timmywil/panzoom) (MIT), [Pako](https://github.com/nodeca/pako) (MIT/Zlib), [Lucide](https://lucide.dev) (ISC/MIT), and inspired by [Niolesk](https://niolesk.top) (MIT).
+Built on the shoulders of giants: [Kroki](https://kroki.io) (MIT), [Excalidraw](https://excalidraw.com) (MIT), [bpmn.io / bpmn-js](https://bpmn.io) (bpmn.io License), [Ace Editor](https://ace.c9.io) (BSD-3-Clause), [Panzoom](https://github.com/timmywil/panzoom) (MIT), [Pako](https://github.com/nodeca/pako) (MIT/Zlib), [Lucide](https://lucide.dev) (ISC/MIT), and inspired by [Niolesk](https://niolesk.top) (MIT).
 
 ## License
 Licensed under the [GNU General Public License v3.0 (GPLv3)](LICENSE).

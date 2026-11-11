@@ -164,9 +164,21 @@ header {
 
 .toolbar-select-wrap {
   display: inline-flex;
-  align-items: stretch;
+  align-items: center;
   height: 100%;
   position: relative;
+}
+
+.engine-beta-icon {
+  padding-left: 8px;
+  margin-right: -4px;
+  color: var(--color-tertiary);
+  pointer-events: none;
+}
+
+.engine-beta-icon .lucide {
+  width: 15px;
+  height: 15px;
 }
 
 select:where(:not(#wysiwyg-container *)),

@@ -1,6 +1,6 @@
 const ENGINES = [
-  { id: 'excalidraw', label: 'Excalidraw (Editor)', mode: 'json', docs: 'https://docs.excalidraw.com/', featured: true, wysiwyg: true, krokiFormats: ['svg'] },
-  { id: 'bpmn', label: 'BPMN (Editor)', mode: 'xml', docs: 'https://www.omg.org/spec/BPMN/2.0/', featured: true, wysiwyg: true, krokiFormats: ['svg'] },
+  { id: 'excalidraw', label: 'Excalidraw (Editor · Beta)', mode: 'json', docs: 'https://docs.excalidraw.com/', featured: true, wysiwyg: true, beta: true, krokiFormats: ['svg'] },
+  { id: 'bpmn', label: 'BPMN (Editor · Beta)', mode: 'xml', docs: 'https://www.omg.org/spec/BPMN/2.0/', featured: true, wysiwyg: true, beta: true, krokiFormats: ['svg'] },
   { id: 'd2', label: 'd2', mode: 'yaml', docs: 'https://d2lang.com/tour/intro/', featured: true },
   { id: 'mermaid', label: 'mermaid', mode: 'yaml', docs: 'https://mermaid.js.org/intro/', featured: true },
   { id: 'dbml', label: 'dbml', mode: 'sql', docs: 'https://dbml.dbdiagram.io/docs/', featured: true },
