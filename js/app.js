@@ -115,6 +115,13 @@ function initSplitter() {
       editorContainer.style.height = '100%';
       editorContainer.style.width = `${targetPct}%`;
     }
+    const iconMaximize = document.getElementById('preview-icon-maximize');
+    const iconMinimize = document.getElementById('preview-icon-minimize');
+    if (iconMaximize && iconMinimize) {
+      const isMaximized = targetPct === 0;
+      iconMaximize.style.display = isMaximized ? 'none' : 'inline-flex';
+      iconMinimize.style.display = isMaximized ? 'inline-flex' : 'none';
+    }
     if (editor) editor.resize();
   };
 

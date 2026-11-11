@@ -113,7 +113,8 @@
           <i data-lucide="maximize-2"></i>
         </button>
         <button id="maximize-preview" type="button" aria-label="Maximize / Restore Preview (Alt+Enter)" data-tooltip="Maximize / Restore Preview (Alt+Enter)" data-tooltip-pos="left">
-          <i data-lucide="monitor"></i>
+          <span id="preview-icon-maximize" class="icon-wrap"><i data-lucide="maximize"></i></span>
+          <span id="preview-icon-minimize" class="icon-wrap" style="display:none"><i data-lucide="minimize"></i></span>
         </button>
         <div style="height: 1px; background-color: var(--border-color); margin: 2px 0;"></div>
         <button id="download-btn" type="button" aria-label="Download diagram (Alt+D)" data-tooltip="Download diagram (Alt+D)" data-tooltip-pos="left">
