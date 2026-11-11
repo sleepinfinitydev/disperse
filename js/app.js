@@ -809,6 +809,45 @@ async function toggleAutoSave() {
   }
 }
 
+function initFullscreen() {
+  const btn = document.getElementById('fullscreen-btn');
+  const iconMax = document.getElementById('fullscreen-icon-maximize');
+  const iconMin = document.getElementById('fullscreen-icon-minimize');
+  if (!btn) return;
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
+
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    toggleFullscreen();
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'F11') {
+      e.preventDefault();
+      toggleFullscreen();
+    }
+  });
+
+  const updateIcons = () => {
+    if (document.fullscreenElement) {
+      if (iconMax) iconMax.style.display = 'none';
+      if (iconMin) iconMin.style.display = 'inline-block';
+    } else {
+      if (iconMax) iconMax.style.display = 'inline-block';
+      if (iconMin) iconMin.style.display = 'none';
+    }
+  };
+
+  document.addEventListener('fullscreenchange', updateIcons);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   if (window.lucide && typeof window.lucide.createIcons === 'function') {
     window.lucide.createIcons();
@@ -834,6 +873,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (window.themeManager) {
     window.themeManager.init();
   }
+  initFullscreen();
   initSelects();
   initEditor();
   initSplitter();
