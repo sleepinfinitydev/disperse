@@ -56,7 +56,7 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 |                           |                                           |
 |        CODE EDITOR        |            VIEWER (SVG / PNG)             |
 |         (~38.2%)          |                 (~61.8%)                  |  <- Main Area
-|                  [+][-][↺]|                                    [+][-] |
+|                  [+][-][=]|                                    [+][-] |
 |                           |                                           |
 +---------------------------+-------------------------------------------+
 | [🖼] [🔗] [M↓] [</>]  https://kroki.io/...                        [📋] |  <- Publishing Footer
@@ -93,7 +93,7 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
   - **Left Panel (Editor)**: $38.2\%$ of total width ($1 - 1/\varphi$).
   - **Right Panel (Preview)**: $61.8\%$ of total width ($1/\varphi$).
 - **Resizable Splitter (`#splitter`)**:
-  - Draggable bar via mouse/touch (`pointerdown` / `pointermove` with `setPointerCapture`) to resize both panels freely within bounds (`15%` - `85%`).
+  - Draggable bar via mouse/touch (`pointerdown` / `pointermove` with `setPointerCapture`) to resize both panels freely across the full range (`0%` - `100%`), allowing complete collapse of the editor or preview panel.
   - **Magnetic Snap**: When dragging near the default golden ratio ($38.2\% \pm 1.6\%$), the splitter snaps into place and highlights with `--color-tertiary`.
   - Double-clicking the splitter also restores the golden ratio ($38.2\% / 61.8\%$).
   - **Quick-Split Buttons**: Three quick-action buttons inside the splitter grip allow instant layout adjustments via click or keyboard shortcuts: Maximize editor (`#split-max-editor`, `Alt+1`), Reset split (`#split-reset`, `Alt+2`), and Maximize preview (`#split-max-viewer`, `Alt+3`).
@@ -104,9 +104,9 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 - Editor theme synchronized with the `oklch` color system and light/dark mode.
 - Debounced preview update (`500ms` after typing stops) in addition to manual refresh via `Ctrl + R` or the refresh button.
 - Floating action bar for text zoom and editing mode:
-  - Increase font size (`#editor-font-in`, `Alt+Shift++`)
-  - Decrease font size (`#editor-font-out`, `Alt+Shift+-`)
-  - Reset font size (`#editor-font-fit`, `Alt+Shift+0`)
+  - Increase font size (`#editor-font-in`, `plus` icon, `Alt+Shift++`)
+  - Decrease font size (`#editor-font-out`, `minus` icon, `Alt+Shift+-`)
+  - Reset font size (`#editor-font-fit`, `equal` icon, `Alt+Shift+0`)
   - Toggle Vim keybindings mode (`#editor-vim-mode`, `Alt+V`, persisted in `localStorage` with an animated glider icon when active)
 
 #### Right Panel: Diagram Viewer (SVG / PNG)
@@ -116,6 +116,7 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
   - Zoom In (`#zoom-in`, `Alt++`)
   - Zoom Out (`#zoom-out`, `Alt+-`)
   - Fit / Reset View (`#zoom-fit`, `Alt+0`)
+  - Maximize / Restore Preview (`#maximize-preview`, toggling `maximize`/`minimize` icons, `Alt+Enter`): Collapses the editor panel to `0%` and fits the diagram to the full preview area, or restores the previous split percentage when clicked again.
   - Download file (`#download-btn`, `.svg` or `.png`, `Alt+D`)
 - Visual loading spinner during requests.
 - **Explicit rendering error display (`#viewer-error`)**: On syntax errors returned by Kroki (e.g., `HTTP 400`) or empty source code, it never fails silently. The previous diagram is cleared and a centered overlay card is displayed. The error border and alert icon are always rendered in **red** (`--color-error`, invariant to the user's color theme), while the inner `<pre>` error message block follows the active color scheme, uses a standard text cursor (`cursor: text`), and supports independent scrolling and text selection.
@@ -171,6 +172,7 @@ All keyboard shortcuts are reflected in their corresponding control tooltips (`d
 | `Alt + +` | Zoom in diagram preview | `#zoom-in` |
 | `Alt + -` | Zoom out diagram preview | `#zoom-out` |
 | `Alt + 0` | Fit / Reset diagram view | `#zoom-fit` |
+| `Alt + Enter` | Maximize / Restore diagram preview | `#maximize-preview` |
 | `Alt + D` | Download rendered diagram | `#download-btn` |
 | `Alt + Shift + +` | Increase editor font size | `#editor-font-in` |
 | `Alt + Shift + -` | Decrease editor font size | `#editor-font-out` |
