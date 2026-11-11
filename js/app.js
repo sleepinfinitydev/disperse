@@ -937,6 +937,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             case 'l': e.preventDefault(); document.getElementById('brand-link')?.click(); break;
             case 'i': e.preventDefault(); document.querySelector('button[data-input="out-image-text"]')?.click(); break;
             case 'e': e.preventDefault(); document.querySelector('button[data-input="out-editor-text"]')?.click(); break;
+            case 'x': e.preventDefault(); document.getElementById('toggle-export-btn')?.click(); break;
           }
         } else { // Alt + Shift
           if (isShiftedNumpad0 || e.code === 'Digit0' || e.code === 'Numpad0' || e.keyCode === 48 || e.keyCode === 96 || e.keyCode === 45 || e.key === '0' || e.key === ')' || e.key === '=' || key === 'insert') {
