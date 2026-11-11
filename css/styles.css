@@ -893,6 +893,13 @@ input[type="text"]:focus {
   vertical-align: -2px;
 }
 
+.lucide.copyleft-icon {
+  width: 14px;
+  height: 14px;
+  transform: scaleX(-1);
+  vertical-align: -2px;
+}
+
 @media (max-width: 900px) {
   main {
     flex-direction: column;
