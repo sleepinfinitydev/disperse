@@ -127,6 +127,7 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
   - **Bidirectional Real-Time Synchronization**:
     - **Canvas → Code Editor & URLs**: Drawing or modifying elements on the Excalidraw canvas serializes the canonical `.excalidraw` JSON (`serializeAsJSON`), updates the Ace code editor, recalculates the compressed URL hash (`#excalidraw/...`) and Kroki/Disperse sharing snippets (`https://kroki.io/excalidraw/svg/...`), and triggers local file auto-save when active.
     - **Code Editor / File → Canvas**: Editing the JSON in the Ace editor, loading a URL, or opening/dropping a `.excalidraw` file restores and updates the live Excalidraw scene (`updateScene`).
+  - **Payload Size Guard (No Embedded Bitmap Images)**: Disables the Excalidraw image tool (`UIOptions.tools.image: false`), blocks pasting binary/image elements (`onPaste`), and strips binary `files` during serialization so Base64 images cannot bloat the JSON or exceed Kroki's GET URL length limits.
   - **Theme & Action Integration**: Synchronizes natively with Disperse's light/dark mode (`Alt+T`) and wires the floating viewer action buttons (`#zoom-in`, `#zoom-out`, `#zoom-fit`, `#maximize-preview`, and `#download-btn` exporting `.svg` or `.png` client-side via `exportToSvg` / `exportToBlob`).
 - Floating action bar (icon-only):
   - Zoom In (`#zoom-in`, `Alt++`)

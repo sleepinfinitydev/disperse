@@ -76,7 +76,7 @@ function ensureExcalidrawLoaded() {
 }
 
 function computeSceneSignature(elements, appState) {
-  const active = (elements || []).filter((el) => el && !el.isDeleted);
+  const active = (elements || []).filter((el) => el && !el.isDeleted && el.type !== 'image');
   const elSig = active
     .map((el) => `${el.id}:${el.version}:${el.versionNonce}:${el.x}:${el.y}:${el.width}:${el.height}:${el.text || ''}`)
     .join('|');
@@ -94,10 +94,11 @@ function parseExcalidrawCode(code) {
   if (!parsed || typeof parsed !== 'object') {
     throw new Error('Invalid Excalidraw JSON object');
   }
-  const elements = Array.isArray(parsed.elements) ? parsed.elements : [];
+  const elements = Array.isArray(parsed.elements)
+    ? parsed.elements.filter((el) => el && el.type !== 'image')
+    : [];
   const appState = parsed.appState && typeof parsed.appState === 'object' ? parsed.appState : {};
-  const files = parsed.files && typeof parsed.files === 'object' ? parsed.files : {};
-  return { elements, appState, files };
+  return { elements, appState, files: {} };
 }
 
 function flushPendingSceneChange() {
@@ -105,16 +106,17 @@ function flushPendingSceneChange() {
     pendingSceneChange = null;
     return;
   }
-  const { elements, appState, files } = pendingSceneChange;
+  const { elements, appState } = pendingSceneChange;
   pendingSceneChange = null;
 
   try {
-    const sig = computeSceneSignature(elements, appState);
+    const cleanElements = (elements || []).filter((el) => el && el.type !== 'image');
+    const sig = computeSceneSignature(cleanElements, appState);
     if (sig === lastSyncedSignature) {
       return;
     }
     lastSyncedSignature = sig;
-    const json = window.ExcalidrawLib.serializeAsJSON(elements, appState, files || {}, 'local');
+    const json = window.ExcalidrawLib.serializeAsJSON(cleanElements, appState, {}, 'local');
     if (json && json !== lastSerializedJson) {
       lastSerializedJson = json;
       if (typeof onCodeChangeCallback === 'function') {
@@ -172,6 +174,24 @@ function renderExcalidrawComponent(container, initialData) {
       tools: {
         image: false
       }
+    },
+    onPaste: (data, event) => {
+      const hasClipboardFiles =
+        (event && event.clipboardData && event.clipboardData.files && event.clipboardData.files.length > 0) ||
+        (data && data.files && Object.keys(data.files).length > 0);
+      const hasImageElements =
+        data && Array.isArray(data.elements) && data.elements.some((el) => el && el.type === 'image');
+      if (hasClipboardFiles || hasImageElements) {
+        if (excalidrawAPI && typeof excalidrawAPI.setToast === 'function') {
+          excalidrawAPI.setToast({
+            message: 'Embedded images are disabled to keep diagram URLs compact',
+            duration: 3200,
+            closable: true
+          });
+        }
+        return false;
+      }
+      return true;
     },
     excalidrawAPI: (api) => {
       excalidrawAPI = api;
