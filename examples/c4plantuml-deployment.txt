@@ -1,0 +1,22 @@
+@startuml
+!include <C4/C4_Deployment>
+
+Deployment_Node(client, "User Device", "Desktop / Mobile OS") {
+  Deployment_Node(browser, "Web Browser", "Modern Browser") {
+    Container(spa, "Disperse SPA", "Vanilla JS", "Runs entirely in the client browser")
+  }
+}
+
+Deployment_Node(host, "Container Host", "Docker / Podman") {
+  Deployment_Node(oci, "Disperse Container", "nginx:stable") {
+    Container(static, "Static Web Server", "Nginx :8765", "Serves static HTML, CSS, JS, and examples")
+  }
+}
+
+Deployment_Node(krokiCloud, "Kroki Cloud", "kroki.io") {
+  Container(krokiApi, "Kroki Gateway", "HTTP API", "Renders diagrams from encoded URLs")
+}
+
+Rel(spa, static, "Loads static assets", "HTTPS")
+Rel(spa, krokiApi, "Fetches rendered SVG/PNG", "HTTPS")
+@enduml

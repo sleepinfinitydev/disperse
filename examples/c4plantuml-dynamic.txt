@@ -1,0 +1,18 @@
+@startuml
+!include <C4/C4_Dynamic>
+
+Person(user, "User")
+Container_Boundary(spa, "Disperse Web SPA") {
+  Component(editor, "Code Editor", "Ace Editor", "Edits diagram source")
+  Component(app, "App Controller", "js/app.js", "Debounces changes and syncs URL hash")
+  Component(krokiClient, "Kroki Client", "js/kroki.js", "Deflates and Base64-encodes payload")
+  Component(viewer, "Diagram Viewer", "js/viewer.js", "Displays rendered diagram")
+}
+System_Ext(kroki, "Kroki API", "Rendering engine")
+
+RelIndex(1, user, editor, "Types diagram code")
+RelIndex(2, editor, app, "Triggers change event (500ms debounce)")
+RelIndex(3, app, krokiClient, "Compresses and encodes source")
+RelIndex(4, app, viewer, "Requests preview update")
+RelIndex(5, viewer, kroki, "GET /{engine}/{format}/{payload}")
+@enduml

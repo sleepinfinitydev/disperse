@@ -1,16 +1,20 @@
 const ENGINES = [
+  { id: 'd2', label: 'd2', mode: 'yaml', docs: 'https://d2lang.com/tour/intro/', featured: true },
+  { id: 'mermaid', label: 'mermaid', mode: 'yaml', docs: 'https://mermaid.js.org/intro/', featured: true },
+  { id: 'dbml', label: 'dbml', mode: 'sql', docs: 'https://dbml.dbdiagram.io/docs/', featured: true },
+  { id: 'c4plantuml-context', label: 'c4plantuml (context)', krokiEngine: 'c4plantuml', mode: 'text', docs: 'https://github.com/plantuml-stdlib/C4-PlantUML', featured: true },
+  { id: 'c4plantuml-container', label: 'c4plantuml (container)', krokiEngine: 'c4plantuml', mode: 'text', docs: 'https://github.com/plantuml-stdlib/C4-PlantUML', featured: true },
+  { id: 'c4plantuml-component', label: 'c4plantuml (component)', krokiEngine: 'c4plantuml', mode: 'text', docs: 'https://github.com/plantuml-stdlib/C4-PlantUML', featured: true },
+  { id: 'c4plantuml-dynamic', label: 'c4plantuml (dynamic)', krokiEngine: 'c4plantuml', mode: 'text', docs: 'https://github.com/plantuml-stdlib/C4-PlantUML', featured: true },
+  { id: 'c4plantuml-deployment', label: 'c4plantuml (deployment)', krokiEngine: 'c4plantuml', mode: 'text', docs: 'https://github.com/plantuml-stdlib/C4-PlantUML', featured: true },
   { id: 'actdiag', label: 'actdiag', mode: 'dot', docs: 'http://blockdiag.com/en/actdiag/' },
   { id: 'blockdiag', label: 'blockdiag', mode: 'dot', docs: 'http://blockdiag.com/en/blockdiag/' },
   { id: 'bpmn', label: 'bpmn', mode: 'xml', docs: 'https://www.omg.org/spec/BPMN/2.0/' },
   { id: 'bytefield', label: 'bytefield', mode: 'clojure', docs: 'https://bytefield-svg.deepsymmetry.org/' },
-  { id: 'c4plantuml', label: 'c4plantuml', mode: 'text', docs: 'https://github.com/plantuml-stdlib/C4-PlantUML' },
-  { id: 'd2', label: 'd2', mode: 'yaml', docs: 'https://d2lang.com/tour/intro/' },
-  { id: 'dbml', label: 'dbml', mode: 'sql', docs: 'https://dbml.dbdiagram.io/docs/' },
   { id: 'ditaa', label: 'ditaa', mode: 'text', docs: 'https://github.com/stathissideris/ditaa' },
   { id: 'erd', label: 'erd', mode: 'ini', docs: 'https://github.com/BurntSushi/erd' },
   { id: 'excalidraw', label: 'excalidraw', mode: 'json', docs: 'https://docs.excalidraw.com/' },
   { id: 'graphviz', label: 'graphviz', mode: 'dot', docs: 'https://graphviz.org/documentation/' },
-  { id: 'mermaid', label: 'mermaid', mode: 'yaml', docs: 'https://mermaid.js.org/intro/' },
   { id: 'nomnoml', label: 'nomnoml', mode: 'text', docs: 'https://nomnoml.com/' },
   { id: 'nwdiag', label: 'nwdiag', mode: 'dot', docs: 'http://blockdiag.com/en/nwdiag/' },
   { id: 'packetdiag', label: 'packetdiag', mode: 'dot', docs: 'http://blockdiag.com/en/nwdiag/packetdiag-examples.html' },
@@ -116,8 +120,37 @@ const ENGINE_EXTENSIONS = {
   wireviz: 'yml'
 };
 
+function getEngineInfo(engineId) {
+  const exact = ENGINES.find((e) => e.id === engineId);
+  if (exact) return exact;
+  if (engineId === 'c4plantuml') {
+    return ENGINES.find((e) => e.id === 'c4plantuml-context') || { id: 'c4plantuml', krokiEngine: 'c4plantuml', label: 'c4plantuml', mode: 'text' };
+  }
+  return { id: engineId, krokiEngine: engineId, label: engineId, mode: 'text' };
+}
+
+function getKrokiEngine(engineId) {
+  const info = getEngineInfo(engineId);
+  return info.krokiEngine || info.id || engineId;
+}
+
+function resolveEngineId(engineId, code = '') {
+  if (ENGINES.some((e) => e.id === engineId)) {
+    return engineId;
+  }
+  if (engineId === 'c4plantuml') {
+    if (/C4_Container/i.test(code)) return 'c4plantuml-container';
+    if (/C4_Component/i.test(code)) return 'c4plantuml-component';
+    if (/C4_Dynamic/i.test(code)) return 'c4plantuml-dynamic';
+    if (/C4_Deployment/i.test(code)) return 'c4plantuml-deployment';
+    return 'c4plantuml-context';
+  }
+  return null;
+}
+
 function getEngineExtension(engineId) {
-  return ENGINE_EXTENSIONS[engineId] || 'txt';
+  const krokiEngine = getKrokiEngine(engineId);
+  return ENGINE_EXTENSIONS[engineId] || ENGINE_EXTENSIONS[krokiEngine] || 'txt';
 }
 
 function textToBase64UrlSafe(text) {
@@ -169,12 +202,13 @@ window.kroki = {
   getEngineExtension,
   encode: textToBase64UrlSafe,
   decode: base64UrlSafeToText,
-  getEngineInfo(engineId) {
-    return ENGINES.find((e) => e.id === engineId) || { id: engineId, label: engineId, mode: 'text' };
-  },
+  getEngineInfo,
+  getKrokiEngine,
+  resolveEngineId,
   buildOptionsQuery,
   buildUrl(engine, format, payload, options = {}) {
-    const query = buildOptionsQuery(engine, options);
-    return `https://kroki.io/${engine}/${format}/${payload}${query}`;
+    const krokiEngine = getKrokiEngine(engine);
+    const query = buildOptionsQuery(krokiEngine, options);
+    return `https://kroki.io/${krokiEngine}/${format}/${payload}${query}`;
   }
 };

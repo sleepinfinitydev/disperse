@@ -1,0 +1,10 @@
+@startuml
+!include <C4/C4_Context>
+
+Person(user, "User", "Authors and shares diagrams as code")
+System(disperse, "Disperse", "Stateless web application for editing and previewing diagrams")
+System_Ext(kroki, "Kroki API", "Public rendering engine for 28 diagram languages")
+
+Rel(user, disperse, "Writes code and previews diagrams", "HTTPS")
+Rel(disperse, kroki, "Requests rendered diagrams", "HTTPS / GET")
+@enduml

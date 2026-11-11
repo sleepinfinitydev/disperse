@@ -427,11 +427,20 @@ function initSelects() {
   if (!engineSelect || !formatSelect) return;
 
   engineSelect.innerHTML = '';
+  let lastWasFeatured = false;
   window.kroki.ENGINES.forEach((engine) => {
+    if (lastWasFeatured && !engine.featured) {
+      const sep = document.createElement('option');
+      sep.disabled = true;
+      sep.value = '';
+      sep.textContent = '──────────────';
+      engineSelect.appendChild(sep);
+    }
     const opt = document.createElement('option');
     opt.value = engine.id;
     opt.textContent = engine.label;
     engineSelect.appendChild(opt);
+    lastWasFeatured = Boolean(engine.featured);
   });
   engineSelect.value = 'd2';
   currentEngine = 'd2';
@@ -617,19 +626,28 @@ async function loadFromUrl() {
       const format = parts[1];
       const payload = parts.slice(2).join('/');
 
-      const validEngine = window.kroki.ENGINES.some((e) => e.id === engine);
       const validFormat = format === 'svg' || format === 'png';
+      let decoded = null;
+      try {
+        decoded = window.kroki.decode(payload);
+      } catch (err) {
+        console.error('Failed to decode URL state:', err);
+      }
 
-      if (validEngine && engineSelect) {
-        engineSelect.value = engine;
-        currentEngine = engine;
-        setEditorModeForEngine(engine);
+      const resolvedEngine = window.kroki.resolveEngineId
+        ? window.kroki.resolveEngineId(engine, decoded || '')
+        : (window.kroki.ENGINES.some((e) => e.id === engine) ? engine : null);
+
+      if (resolvedEngine && engineSelect) {
+        engineSelect.value = resolvedEngine;
+        currentEngine = resolvedEngine;
+        setEditorModeForEngine(resolvedEngine);
       }
       if (validFormat && formatSelect) {
         formatSelect.value = format;
       }
 
-      if (queryPart && engine === 'd2') {
+      if (queryPart && resolvedEngine === 'd2') {
         const params = new URLSearchParams(queryPart);
         const layout = params.get('layout');
         const theme = params.get('theme');
@@ -641,12 +659,9 @@ async function loadFromUrl() {
         }
       }
 
-      try {
-        const decoded = window.kroki.decode(payload);
+      if (decoded !== null) {
         setEditorCode(decoded, true);
         return;
-      } catch (err) {
-        console.error('Failed to decode URL state:', err);
       }
     }
   }

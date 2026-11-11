@@ -79,10 +79,10 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
    - Contained within a single pill-shaped segmented bar (`.header-center`, `34px` uniform height with vertical dividers):
      1. **Refresh Button (`#refresh-btn`)**: Refresh icon (`refresh-cw`) with caption `"Refresh preview (Ctrl+R)"`.
         - **Keyboard shortcut**: `Ctrl + R` (or `Cmd + R`), intercepting the browser event (`e.preventDefault()`) to refresh the diagram without reloading the page.
-     2. **Kroki Engine Dropdown (`#engine-select`)**: Lists all 28 engines supported by Kroki with caption `"Diagram language"`. Switching engines updates:
-        - The Kroki rendering endpoint.
+     2. **Kroki Engine Dropdown (`#engine-select`)**: Lists all 28 engines supported by Kroki (32 entries in total, with featured languages and 5 C4-PlantUML diagram types at the top, followed by a visual separator and the remaining engines in alphabetical order) with caption `"Diagram language"`. Switching engines updates:
+        - The Kroki rendering endpoint (`c4plantuml-*` variants map to the `c4plantuml` Kroki endpoint).
         - The editor's syntax highlighting mode.
-        - The **per-engine code state**: the application preserves source code independently for each engine (`codeByEngine`), loading each engine's default example from `examples/{engine}.txt` on first use and retaining user edits when switching back and forth between languages.
+        - The **example code**: when the editor is empty or still displays the previous engine's stock template, switching engines loads the new engine's default example from `examples/{engine}.txt`; otherwise, user edits are preserved.
         - The documentation link (`#docs-btn`) `href` to point to the active language's official documentation.
      3. **Language Documentation Link (`#docs-btn`)**: Anchor with an open-book icon (`book-open`) and caption `"Language documentation"`, opening the selected language's official documentation in a new tab (`target="_blank"`).
      4. **Layout Engine Dropdown (`#layout-select`)**: Selectable layout engines for D2 (`dagre`, `elk`, `tala`), with caption `"Layout engine (D2)"`. Enabled only when `d2` is selected and disabled for all other engines.
@@ -200,36 +200,45 @@ All keyboard shortcuts are reflected in their corresponding control tooltips (`d
 
 ## 5. Supported Kroki Engines
 
-The engine dropdown includes all 28 engines from the public Kroki API, each mapped to its corresponding Ace Editor syntax mode, official documentation URL, and default template in `examples/{engine}.txt`:
+The engine dropdown covers all 28 engines from the public Kroki API (32 selectable entries in total), each mapped to its corresponding Ace Editor syntax mode, official documentation URL, and default template in `examples/{id}.txt`.
 
-1. `actdiag` (ActDiag)
-2. `blockdiag` (BlockDiag)
-3. `bpmn` (BPMN - XML)
-4. `bytefield` (Bytefield - Clojure)
-5. `c4plantuml` (C4 with PlantUML)
-6. `d2` (D2 - **selected by default**)
-7. `dbml` (DBML)
-8. `ditaa` (Ditaa)
-9. `erd` (Erd)
-10. `excalidraw` (Excalidraw - JSON)
-11. `graphviz` (GraphViz / DOT)
-12. `mermaid` (Mermaid)
-13. `nomnoml` (Nomnoml)
-14. `nwdiag` (NwDiag)
-15. `packetdiag` (PacketDiag)
-16. `pikchr` (Pikchr)
-17. `plantuml` (PlantUML)
-18. `rackdiag` (RackDiag)
-19. `seqdiag` (SeqDiag)
-20. `structurizr` (Structurizr)
-21. `svgbob` (Svgbob)
-22. `symbolator` (Symbolator - VHDL/Verilog)
-23. `tikz` (TikZ - LaTeX)
-24. `umlet` (UMLet - XML)
-25. `vega` (Vega - JSON)
-26. `vegalite` (Vega-Lite - JSON)
-27. `wavedrom` (WaveDrom - JSON)
-28. `wireviz` (WireViz - YAML)
+### 5.1. Featured Languages (Top of List)
+Displayed at the top of `#engine-select` above a disabled separator (`──────────────`):
+1. `d2` (`d2` — D2, **selected by default**)
+2. `mermaid` (`mermaid` — Mermaid)
+3. `dbml` (`dbml` — DBML / SQL Database Markup Language)
+4. `c4plantuml-context` (`c4plantuml (context)` — C4 System Context diagram via `c4plantuml` Kroki engine)
+5. `c4plantuml-container` (`c4plantuml (container)` — C4 Container diagram via `c4plantuml` Kroki engine)
+6. `c4plantuml-component` (`c4plantuml (component)` — C4 Component diagram via `c4plantuml` Kroki engine)
+7. `c4plantuml-dynamic` (`c4plantuml (dynamic)` — C4 Dynamic diagram via `c4plantuml` Kroki engine)
+8. `c4plantuml-deployment` (`c4plantuml (deployment)` — C4 Deployment diagram via `c4plantuml` Kroki engine)
+
+### 5.2. Remaining Engines (Alphabetical Order)
+Displayed below the separator:
+9. `actdiag` (ActDiag)
+10. `blockdiag` (BlockDiag)
+11. `bpmn` (BPMN - XML)
+12. `bytefield` (Bytefield - Clojure)
+13. `ditaa` (Ditaa)
+14. `erd` (Erd)
+15. `excalidraw` (Excalidraw - JSON)
+16. `graphviz` (GraphViz / DOT)
+17. `nomnoml` (Nomnoml)
+18. `nwdiag` (NwDiag)
+19. `packetdiag` (PacketDiag)
+20. `pikchr` (Pikchr)
+21. `plantuml` (PlantUML)
+22. `rackdiag` (RackDiag)
+23. `seqdiag` (SeqDiag)
+24. `structurizr` (Structurizr)
+25. `svgbob` (Svgbob)
+26. `symbolator` (Symbolator - VHDL/Verilog)
+27. `tikz` (TikZ - LaTeX)
+28. `umlet` (UMLet - XML)
+29. `vega` (Vega - JSON)
+30. `vegalite` (Vega-Lite - JSON)
+31. `wavedrom` (WaveDrom - JSON)
+32. `wireviz` (WireViz - YAML)
 
 ---
 
@@ -257,7 +266,7 @@ Clean file structure requiring no build step:
 - `js/theme.js` — `sRGB → Oklab → OKLCH` conversion, tetradic palette generation, dynamic brand icon coloring, and light/dark mode toggle.
 - `js/kroki.js` — Engine catalog, documentation links, cached lazy-loading of `examples/{engine}.txt`, compression/decompression, and Kroki URL builder.
 - `js/viewer.js` — Diagram viewer (SVG and PNG) with zoom, pan, error overlay, and file download.
-- `examples/*.txt` — Individual default example files for each of the 28 supported engines.
+- `examples/*.txt` — Individual default example files for each of the 32 selectable engine/template entries (28 Kroki engines including 5 C4-PlantUML diagram types).
 - `assets/screenshot.png` — Application screenshot referenced in `README.md`.
 
 ### External Libraries (via CDN)

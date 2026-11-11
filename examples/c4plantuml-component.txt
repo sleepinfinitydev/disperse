@@ -1,0 +1,16 @@
+@startuml
+!include <C4/C4_Component>
+
+Container_Boundary(spa, "Disperse Web SPA") {
+  Component(app, "App Controller", "js/app.js", "Manages UI state, shortcuts, and local file workflow")
+  Component(editor, "Code Editor", "Ace Editor", "Provides syntax highlighting and Vim keybindings")
+  Component(krokiClient, "Kroki Client", "js/kroki.js + Pako", "Compresses source with Zlib and encodes URL-safe Base64")
+  Component(viewer, "Diagram Viewer", "js/viewer.js + Panzoom", "Renders SVG/PNG with interactive zoom and pan")
+}
+System_Ext(kroki, "Kroki API", "Rendering engine")
+
+Rel(editor, app, "Notifies code changes")
+Rel(app, krokiClient, "Encodes diagram payload")
+Rel(app, viewer, "Updates preview URL")
+Rel(viewer, kroki, "Fetches SVG/PNG", "HTTPS")
+@enduml
