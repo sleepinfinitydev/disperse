@@ -611,7 +611,15 @@ main {
   overflow: hidden;
 }
 
-.wysiwyg-container .excalidraw .layer-ui__wrapper__footer-right {
+#viewer-container.wysiwyg-active .viewer-actions {
+  display: none !important;
+}
+
+.wysiwyg-container .excalidraw .default-sidebar-trigger,
+.wysiwyg-container .excalidraw .sidebar-trigger,
+.wysiwyg-container .excalidraw .default-sidebar,
+.wysiwyg-container .excalidraw .layer-ui__library,
+.wysiwyg-container .excalidraw .context-menu li[data-testid="addToLibrary"] {
   display: none !important;
 }
 

@@ -129,6 +129,9 @@ function flushPendingSceneChange() {
 }
 
 function handleExcalidrawChange(elements, appState, files) {
+  if (appState && appState.openSidebar && excalidrawAPI && typeof excalidrawAPI.toggleSidebar === 'function') {
+    excalidrawAPI.toggleSidebar({ name: appState.openSidebar.name, force: false });
+  }
   if (isUpdatingFromEditor || activeWysiwygEngine !== 'excalidraw') return;
   const sig = computeSceneSignature(elements, appState);
   if (sig === lastSyncedSignature) return;
