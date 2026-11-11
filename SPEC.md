@@ -257,10 +257,11 @@ Clean file structure requiring no build step:
 ## 7. Deployment and Containerization
 
 - **`Containerfile`**: Builds an OCI image based on `nginx:stable` (Debian), linked to the repository via `LABEL org.opencontainers.image.source`, copying only the required static assets (`index.html`, `favicon.svg`, `css/`, `js/`, and `examples/`). It configures Nginx to listen on port `8765` (`ENV PORT=8765`, `EXPOSE 8765 80`) and prints the server URL (`Starting server at http://localhost:8765 ...`) on startup.
-  - **Runtime Backend, Engine Flags & Reverse-Proxy Configuration**: The entrypoint script (`/docker-entrypoint.d/40-disperse.sh`) also supports:
+  - **Runtime Backend, Engine Modes & Reverse-Proxy Configuration**: The entrypoint script (`/docker-entrypoint.d/40-disperse.sh`) also supports:
     - `PORT` (default: `8765`): Configures the container HTTP listening port alongside port `80` (no code changes required for port binding).
-    - `KROKI_BASE_URL` (default: `https://kroki.io`): Injects the runtime Kroki base URL (`window.DISPERSE_CONFIG.krokiBaseUrl`) consumed by `js/kroki.js` without requiring a build step.
-    - `ENABLE_MERMAID`, `ENABLE_BPMN`, `ENABLE_EXCALIDRAW`, `ENABLE_DIAGRAMSNET` (`true` / `false`): Dedicated boolean environment variables to individually enable or disable each of the 4 Chromium-backed companion engines in Disperse's UI selector (`#engine-select`), mapped 1:1 to the Helm chart's sidecar flags (`kroki.sidecars.<engine>.enabled`).
+    - `KROKI_BASE_URL` (default: `https://kroki.io`): Injects the primary runtime Kroki base URL (`window.DISPERSE_CONFIG.krokiBaseUrl`) consumed by `js/kroki.js` without requiring a build step.
+    - `KROKI_REMOTE_URL` (default: `https://kroki.io`): Injects the fallback public/third-party Kroki base URL (`window.DISPERSE_CONFIG.krokiRemoteUrl`) used by any companion engine configured in `remote` mode.
+    - `ENGINE_MODE_MERMAID`, `ENGINE_MODE_BPMN`, `ENGINE_MODE_EXCALIDRAW`, `ENGINE_MODE_DIAGRAMSNET` (`local` | `remote` | `disabled`, also accepting `true`/`false` aliases via `ENABLE_<ENGINE>`): Configures per-engine routing and visibility in Disperse's UI selector (`#engine-select`), mapped 1:1 to the Helm chart's sidecar mode (`kroki.sidecars.<engine>.mode`).
     - `KROKI_DISABLED_ENGINES` (default: `""`, comma-separated list): Optional override list injected into `window.DISPERSE_CONFIG.disabledEngines` to disable any arbitrary engine IDs.
     - `KROKI_INTERNAL_UPSTREAM` (optional, e.g., `http://disperse-kroki:8000`): When set, configures an Nginx `location /kroki/` reverse-proxy block in `/etc/nginx/conf.d/default.conf` that strips the `/kroki/` prefix and forwards requests to the internal Kroki server.
 - **Running the Container**:
@@ -366,25 +367,38 @@ To support the Helm chart's deployment modes without breaking standalone or loca
 2. **Dynamic `krokiBaseUrl` in `js/kroki.js`**:
    - Replace the hardcoded `https://kroki.io` in `window.kroki.buildUrl()` with a dynamic resolver reading `window.DISPERSE_CONFIG?.krokiBaseUrl` (defaulting to `'https://kroki.io'`).
    - When `krokiBaseUrl` is a relative path (such as `'/kroki'`), resolve it against `window.location.origin` (`${window.location.origin}/kroki/...`) so both the live preview (`fetch`) and the shareable Markdown/HTML image snippets in the footer always produce valid absolute URLs.
-3. **Dynamic Engine Filtering (`ENABLE_*` / `disabledEngines`) in `js/kroki.js` / `js/app.js`**:
-   - Support runtime flags in `window.DISPERSE_CONFIG` generated from container environment variables (`ENABLE_MERMAID`, `ENABLE_BPMN`, `ENABLE_EXCALIDRAW`, `ENABLE_DIAGRAMSNET`, plus optional `KROKI_DISABLED_ENGINES`) or Helm chart flags (`kroki.sidecars.<engine>.enabled`).
-   - When self-hosted Kroki is enabled (`kroki.enabled: true`), each companion engine (`mermaid`, `bpmn`, `excalidraw`, `diagramsnet`) appears in `#engine-select` if and only if its corresponding flag is enabled, ensuring the UI never offers an engine whose sidecar container is not deployed.
+3. **Dynamic Tri-State Engine Modes (`local` | `remote` | `disabled`) & Confidentiality Indicators in `js/kroki.js` / `js/app.js`**:
+   - Support per-engine mode configuration in `window.DISPERSE_CONFIG.engineModes` (`{ mermaid, bpmn, excalidraw, diagramsnet }`), where each of the 4 companion engines can be set to:
+     - **`disabled`**: Hidden/omitted from `#engine-select`.
+     - **`local`**: Rendered via the primary self-hosted backend (`krokiBaseUrl`, e.g., `/kroki/{engine}/...`).
+     - **`remote`**: Rendered directly via the external third-party backend (`krokiRemoteUrl`, defaulting to `https://kroki.io/{engine}/...`), bypassing the need to deploy the local Chromium sidecar container.
+   - **Explicit UI Confidentiality Notice for `remote` Engines**:
+     - Whenever Disperse uses a self-hosted primary backend (`krokiBaseUrl` is `/kroki` or a custom internal host) and an engine is configured in `remote` mode:
+       1. Its `<option>` label in `#engine-select` explicitly displays an external indicator and target host: e.g., `mermaid 🌐 (kroki.io)`.
+       2. When a `remote` engine is active, `#engine-select` displays a distinct visual warning state (using `--color-tertiary`) and updates its `data-tooltip` to `"Diagram language — ⚠️ External service (kroki.io, non-confidential)"` so users are unambiguously informed before typing sensitive architecture data.
+       3. The Publishing Footer's Image URL (`#out-image-text`) explicitly shows `https://kroki.io/{engine}/...`, reinforcing that the diagram is served externally.
 4. **Runtime Configuration & Nginx Reverse Proxy (`Containerfile` / `ConfigMap`)**:
-   - Load an optional `js/config.js` (defining `window.DISPERSE_CONFIG`) generated at container startup from environment variables (`KROKI_BASE_URL`, `ENABLE_MERMAID`, `ENABLE_BPMN`, `ENABLE_EXCALIDRAW`, `ENABLE_DIAGRAMSNET`, `KROKI_DISABLED_ENGINES`) or mounted via the Helm chart's `ConfigMap`, alongside the Nginx `location /kroki/` reverse-proxy block when `kroki.enabled: true`.
+   - Load an optional `js/config.js` (defining `window.DISPERSE_CONFIG`) generated at container startup from environment variables (`KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `ENGINE_MODE_*`, `KROKI_DISABLED_ENGINES`) or mounted via the Helm chart's `ConfigMap`, alongside the Nginx `location /kroki/` reverse-proxy block when `kroki.enabled: true`.
 
 ---
 
-### 8.4. Kroki Deployment, Sidecar Containers & Individual Feature Flags
+### 8.4. Kroki Deployment, Sidecar Containers & Hybrid (`local` / `remote` / `disabled`) Modes
 
-To render all **28 diagram engines** supported by Disperse (Section 4) plus optional `diagramsnet`, the `<fullname>-kroki` `Deployment` combines the core Kroki gateway container with up to **4 individually toggleable companion sidecars** over the shared Pod loopback network (`127.0.0.1`):
+To render all **28 diagram engines** supported by Disperse (Section 4) plus optional `diagramsnet`, the `<fullname>-kroki` `Deployment` combines the core Kroki gateway container with up to **4 individually configurable companion engines**:
 
-| Container Name | Helm Flag | Disperse Container Env Var | Image | Port | Disperse Engine(s) |
+| Container / Engine | Helm Setting | Disperse Container Env Var | Supported Modes | Image (when `mode: local`) | Port |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`kroki`** | `kroki.enabled` | `KROKI_INTERNAL_UPSTREAM` | `docker.io/yuzutech/kroki` | `8000` | `actdiag`, `blockdiag`, `bytefield`, `c4plantuml`, `d2`, `dbml`, `ditaa`, `erd`, `graphviz`, `nomnoml`, `nwdiag`, `packetdiag`, `pikchr`, `plantuml`, `rackdiag`, `seqdiag`, `structurizr`, `svgbob`, `symbolator`, `tikz`, `umlet`, `vega`, `vegalite`, `wavedrom`, `wireviz` (25 core engines) |
-| **`mermaid`** | `kroki.sidecars.mermaid.enabled` | `ENABLE_MERMAID` | `docker.io/yuzutech/kroki-mermaid` | `8002` | `mermaid` |
-| **`bpmn`** | `kroki.sidecars.bpmn.enabled` | `ENABLE_BPMN` | `docker.io/yuzutech/kroki-bpmn` | `8003` | `bpmn` |
-| **`excalidraw`** | `kroki.sidecars.excalidraw.enabled` | `ENABLE_EXCALIDRAW` | `docker.io/yuzutech/kroki-excalidraw` | `8004` | `excalidraw` |
-| **`diagramsnet`** | `kroki.sidecars.diagramsnet.enabled` | `ENABLE_DIAGRAMSNET` | `docker.io/yuzutech/kroki-diagramsnet` | `8005` | `diagramsnet` |
+| **`kroki` (25 core engines)** | `kroki.enabled` | `KROKI_INTERNAL_UPSTREAM` | `true` / `false` | `docker.io/yuzutech/kroki` | `8000` |
+| **`mermaid`** | `kroki.sidecars.mermaid.mode` | `ENGINE_MODE_MERMAID` | `local` \| `remote` \| `disabled` | `docker.io/yuzutech/kroki-mermaid` | `8002` |
+| **`bpmn`** | `kroki.sidecars.bpmn.mode` | `ENGINE_MODE_BPMN` | `local` \| `remote` \| `disabled` | `docker.io/yuzutech/kroki-bpmn` | `8003` |
+| **`excalidraw`** | `kroki.sidecars.excalidraw.mode` | `ENGINE_MODE_EXCALIDRAW` | `local` \| `remote` \| `disabled` | `docker.io/yuzutech/kroki-excalidraw` | `8004` |
+| **`diagramsnet`** | `kroki.sidecars.diagramsnet.mode` | `ENGINE_MODE_DIAGRAMSNET` | `local` \| `remote` \| `disabled` | `docker.io/yuzutech/kroki-diagramsnet` | `8005` |
+
+#### Tri-State Mode Semantics (`local` vs. `remote` vs. `disabled`)
+When `kroki.enabled: true`, each of the 4 Chromium-based engines can be independently configured:
+- **`mode: "local"`**: Deploys the corresponding `yuzutech/kroki-<engine>` sidecar container inside the `<fullname>-kroki` Pod (communicating over `127.0.0.1`) and routes requests through the internal `/kroki/<engine>/...` endpoint. Guarantees **100% data privacy / on-premise confidentiality**, at the cost of the sidecar's Chromium RAM/CPU footprint.
+- **`mode: "remote"`**: Does **not** deploy the sidecar container in Kubernetes (zero Chromium resource usage in-cluster). Instead, Disperse keeps the engine available in `#engine-select` with an explicit external/non-confidential label (`<engine> 🌐 (kroki.io)`) and routes its rendering requests directly from the user's browser to `kroki.remoteFallbackUrl` (`https://kroki.io` by default). Because the browser calls `https://kroki.io` directly (via CORS), the Kubernetes cluster itself does not even require outbound internet egress from Pods.
+- **`mode: "disabled"`**: Does **not** deploy the sidecar container and removes the engine from Disperse's `#engine-select` dropdown. Ideal for air-gapped or strict-compliance environments that do not wish to allocate Chromium sidecar resources for that format.
 
 #### Why the 4 Companion Sidecars Require Headless Chromium & Their Use Cases in Disperse
 
@@ -506,6 +520,7 @@ service:
 kroki:
   enabled: false
   replicaCount: 1
+  remoteFallbackUrl: "https://kroki.io" # Used by sidecars configured with mode: "remote"
   image:
     registry: docker.io
     repository: yuzutech/kroki
@@ -515,9 +530,10 @@ kroki:
   maxUriLength: 16384
   env: []
   resources: {}
+  # Sidecar modes: "local" (deploy container in-cluster), "remote" (use remoteFallbackUrl with UI warning), or "disabled"
   sidecars:
     mermaid:
-      enabled: true
+      mode: "local"
       image:
         registry: docker.io
         repository: yuzutech/kroki-mermaid
@@ -525,7 +541,7 @@ kroki:
       port: 8002
       resources: {}
     bpmn:
-      enabled: true
+      mode: "remote"
       image:
         registry: docker.io
         repository: yuzutech/kroki-bpmn
@@ -533,7 +549,7 @@ kroki:
       port: 8003
       resources: {}
     excalidraw:
-      enabled: true
+      mode: "remote"
       image:
         registry: docker.io
         repository: yuzutech/kroki-excalidraw
@@ -541,7 +557,7 @@ kroki:
       port: 8004
       resources: {}
     diagramsnet:
-      enabled: false
+      mode: "disabled"
       image:
         registry: docker.io
         repository: yuzutech/kroki-diagramsnet
@@ -586,21 +602,24 @@ extraManifests: []
 
 ### 8.8. Phased Implementation Roadmap & Future WYSIWYG Experiment
 
-Implementation of the runtime engine flags and Helm chart will proceed incrementally in 5 phases, followed by an experimental interactive visual mode:
+Implementation of the runtime engine modes (`local` | `remote` | `disabled`) and the Helm chart will proceed incrementally across 5 phases, followed by the experimental interactive WYSIWYG track:
 
-1. **Phase 1 — Core Stack & 25 Built-In Engines (Excluding the 4 Chromium Sidecars)**:
-   - Implement runtime configuration in Disperse (`KROKI_BASE_URL`, `KROKI_INTERNAL_UPSTREAM`, `ENABLE_MERMAID`, `ENABLE_BPMN`, `ENABLE_EXCALIDRAW`, `ENABLE_DIAGRAMSNET`, `KROKI_DISABLED_ENGINES`).
-   - Build the Helm chart (`charts/disperse`) supporting standalone mode (`kroki.enabled: false` -> `https://kroki.io`) and self-hosted mode (`kroki.enabled: true`) with the core `yuzutech/kroki` container serving the 25 built-in engines, single `Service` + Nginx `/kroki/` reverse-proxy path policy, `Ingress`, `Gateway API (HTTPRoute)`, and `extraManifests`.
-2. **Phase 2 — Add Mermaid Sidecar**:
-   - Integrate the `yuzutech/kroki-mermaid` sidecar container (`:8002`) in `kroki-deployment.yaml` gated by `kroki.sidecars.mermaid.enabled` and synchronized with `ENABLE_MERMAID`.
-3. **Phase 3 — Add BPMN Sidecar**:
-   - Integrate the `yuzutech/kroki-bpmn` sidecar container (`:8003`) gated by `kroki.sidecars.bpmn.enabled` and synchronized with `ENABLE_BPMN`.
-4. **Phase 4 — Add Excalidraw Sidecar**:
-   - Integrate the `yuzutech/kroki-excalidraw` sidecar container (`:8004`) gated by `kroki.sidecars.excalidraw.enabled` and synchronized with `ENABLE_EXCALIDRAW`.
-5. **Phase 5 — Add Diagrams.net Sidecar & Engine**:
-   - Add `diagramsnet` (`mode: 'xml'`, `examples/diagramsnet.txt`) to Disperse's engine catalog and integrate the `yuzutech/kroki-diagramsnet` sidecar container (`:8005`) gated by `kroki.sidecars.diagramsnet.enabled` and synchronized with `ENABLE_DIAGRAMSNET`.
-6. **Future Experimental Track — Bidirectional WYSIWYG Canvas + Live Code + Stateless URL**:
-   - Explore replacing or toggling the right-hand preview panel with an embedded visual editor for visual-first formats (`@excalidraw/excalidraw` canvas for Excalidraw, `embed.diagrams.net` `postMessage` iframe for Diagrams.net, and `bpmn-js` modeler for BPMN).
-   - Drawing on the right-hand visual canvas updates the JSON/XML source in the left-hand Ace Editor in real time (and vice versa), while continuously updating the compressed stateless URL hash (`#<engine>/svg/<payload>`) and Kroki publishing snippets in the footer.
+1. **Phase 1 — Core Stack, 25 Built-In Engines & Tri-State Mode Infrastructure (`local` | `remote` | `disabled`)**:
+   - Implement runtime configuration in Disperse (`KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `KROKI_INTERNAL_UPSTREAM`, `ENGINE_MODE_MERMAID`, `ENGINE_MODE_BPMN`, `ENGINE_MODE_EXCALIDRAW`, `ENGINE_MODE_DIAGRAMSNET`, `KROKI_DISABLED_ENGINES`) so any of the 4 companion engines can be configured as `disabled`, `remote` (pointing to `https://kroki.io` or a custom third-party URL with explicit `🌐 (kroki.io)` label and non-confidential warning tooltip in `#engine-select`), or `local`.
+   - Build the base Helm chart (`charts/disperse`) supporting standalone mode (`kroki.enabled: false` -> `https://kroki.io`) and self-hosted mode (`kroki.enabled: true`) with the core `yuzutech/kroki` Deployment serving all 25 built-in engines, single `Service` + Nginx `/kroki/` reverse-proxy path policy, `Ingress`, `Gateway API (HTTPRoute)`, and `extraManifests`.
+2. **Phase 2 — Mermaid Full Tri-State Support (`local` | `remote` | `disabled`)**:
+   - Integrate the `yuzutech/kroki-mermaid` sidecar container (`:8002`) in `kroki-deployment.yaml` when `kroki.sidecars.mermaid.mode == "local"`, allowing deployers to switch Mermaid seamlessly between `local` (in-cluster sidecar), `remote` (`kroki.io` third-party fallback), and `disabled` (`ENGINE_MODE_MERMAID`).
+3. **Phase 3 — BPMN Full Tri-State Support (`local` | `remote` | `disabled`)**:
+   - Integrate the `yuzutech/kroki-bpmn` sidecar container (`:8003`) when `kroki.sidecars.bpmn.mode == "local"`, supporting `local` sidecar, `remote` third-party fallback, and `disabled` (`ENGINE_MODE_BPMN`).
+4. **Phase 4 — Excalidraw Full Tri-State Support (`local` | `remote` | `disabled`)**:
+   - Integrate the `yuzutech/kroki-excalidraw` sidecar container (`:8004`) when `kroki.sidecars.excalidraw.mode == "local"`, supporting `local` sidecar, `remote` third-party fallback, and `disabled` (`ENGINE_MODE_EXCALIDRAW`).
+5. **Phase 5 — Diagrams.net Engine & Full Tri-State Support (`local` | `remote` | `disabled`)**:
+   - Add `diagramsnet` (`mode: 'xml'`, `examples/diagramsnet.txt`) to Disperse's engine catalog and integrate the `yuzutech/kroki-diagramsnet` sidecar container (`:8005`) when `kroki.sidecars.diagramsnet.mode == "local"`, supporting `local` sidecar, `remote` third-party fallback, and `disabled` (`ENGINE_MODE_DIAGRAMSNET`).
+6. **Future Experimental Track — Bidirectional WYSIWYG Embedded Editors (`local` | `remote` | `disabled`)**:
+   - For the 3 coordinate-based visual formats (**Diagrams.net / Draw.io**, **Excalidraw**, and **BPMN**), support replacing or toggling the right-hand preview panel with an embedded interactive visual editor (`embed.diagrams.net` `postMessage` iframe, `@excalidraw/excalidraw` canvas, and `bpmn-js` modeler) synchronized bidirectionally in real time with the left-hand Ace Editor and the compressed stateless URL / Kroki snippets.
+   - **Note on Mermaid**: Unlike Draw.io (`mxGraphModel` XML), Excalidraw (JSON scene), and BPMN (`<bpmndi:BPMNDiagram>` XML) which persist explicit `x`/`y` node coordinates in their source code, Mermaid is a declarative auto-layout text DSL (`dagre`/`elk`) that does not store manual canvas coordinates in its syntax; therefore, Mermaid remains a text-first engine rather than a freeform WYSIWYG canvas.
+   - **Dual `remote` vs. `local` Deployment for Embedded Visual Editors**:
+     - **`remote` editor mode**: Embeds the visual editor from public third-party hosts/CDNs (e.g., `https://embed.diagrams.net/?embed=1&proto=json`, ESM CDN for Excalidraw/`bpmn-js`) paired with `https://kroki.io` (or local Kroki) for stateless image URLs—requiring **zero extra editor containers** in the cluster while displaying the explicit external/non-confidential warning in the UI.
+     - **`local` editor mode**: Supports self-hosted in-cluster deployments of the visual editors in the Helm chart (e.g., deploying the official `jgraph/drawio` container or serving local static bundles for Excalidraw and `bpmn-js` behind the same unified Service/path policy) so air-gapped and high-confidentiality environments get full WYSIWYG editing without external network dependencies.
 
 
