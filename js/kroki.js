@@ -1,6 +1,4 @@
 const ENGINES = [
-  { id: 'excalidraw', label: 'Excalidraw (Editor · Beta)', mode: 'json', docs: 'https://docs.excalidraw.com/', featured: true, wysiwyg: true, beta: true, krokiFormats: ['svg'] },
-  { id: 'bpmn', label: 'BPMN (Editor · Beta)', mode: 'xml', docs: 'https://www.omg.org/spec/BPMN/2.0/', featured: true, wysiwyg: true, beta: true, krokiFormats: ['svg'] },
   { id: 'd2', label: 'd2', mode: 'yaml', docs: 'https://d2lang.com/tour/intro/', featured: true },
   { id: 'mermaid', label: 'mermaid', mode: 'yaml', docs: 'https://mermaid.js.org/intro/', featured: true },
   { id: 'dbml', label: 'dbml', mode: 'sql', docs: 'https://dbml.dbdiagram.io/docs/', featured: true },
@@ -30,7 +28,9 @@ const ENGINES = [
   { id: 'vega', label: 'vega', mode: 'json', docs: 'https://vega.github.io/vega/docs/' },
   { id: 'vegalite', label: 'vegalite', mode: 'json', docs: 'https://vega.github.io/vega-lite/docs/' },
   { id: 'wavedrom', label: 'wavedrom', mode: 'json', docs: 'https://wavedrom.com/tutorial.html' },
-  { id: 'wireviz', label: 'wireviz', mode: 'yaml', docs: 'https://github.com/wireviz/WireViz' }
+  { id: 'wireviz', label: 'wireviz', mode: 'yaml', docs: 'https://github.com/wireviz/WireViz' },
+  { id: 'excalidraw', label: 'Excalidraw (Editor · Beta)', mode: 'json', docs: 'https://docs.excalidraw.com/', wysiwyg: true, beta: true, krokiFormats: ['svg'] },
+  { id: 'bpmn', label: 'BPMN (Editor · Beta)', mode: 'xml', docs: 'https://www.omg.org/spec/BPMN/2.0/', wysiwyg: true, beta: true, krokiFormats: ['svg'] }
 ];
 
 const D2_LAYOUTS = [

@@ -79,7 +79,7 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
    - Contained within a single pill-shaped segmented bar (`.header-center`, `34px` uniform height with vertical dividers):
      1. **Refresh Button (`#refresh-btn`)**: Refresh icon (`refresh-cw`) with caption `"Refresh preview (Ctrl+R)"`.
         - **Keyboard shortcut**: `Ctrl + R` (or `Cmd + R`), intercepting the browser event (`e.preventDefault()`) to refresh the diagram without reloading the page.
-     2. **Kroki Engine Dropdown (`#engine-select`)**: Lists all 28 engines supported by Kroki (32 entries in total, grouped into Embedded Visual Editors marked as `Beta` at the top, followed by a visual separator, Featured Code Languages including 5 C4-PlantUML diagram types, a second visual separator, and the remaining engines in alphabetical order) with caption `"Diagram language"`. When a `Beta` visual editor (`excalidraw` or `bpmn`) is active, a laboratory flask icon (`flask-conical`, `#engine-beta-icon`) in `--color-tertiary` is displayed inside `#engine-select-wrap` with tooltip `"Diagram language (Experimental / Beta editor)"`. Switching engines updates:
+     2. **Kroki Engine Dropdown (`#engine-select`)**: Lists all 28 engines supported by Kroki (32 entries in total, grouped into Featured Code Languages including 5 C4-PlantUML diagram types at the top, followed by a visual separator, the remaining code engines in alphabetical order, a second visual separator, and Embedded Visual Editors marked as `Beta` at the bottom) with caption `"Diagram language"`. When a `Beta` visual editor (`excalidraw` or `bpmn`) is active, a laboratory flask icon (`flask-conical`, `#engine-beta-icon`) in `--color-tertiary` is displayed inside `#engine-select-wrap` with tooltip `"Diagram language (Experimental / Beta editor)"`. Switching engines updates:
         - The Kroki rendering endpoint (`c4plantuml-*` variants map to the `c4plantuml` Kroki endpoint).
         - The editor's syntax highlighting mode.
         - The **example code**: when the editor is empty or still displays the previous engine's stock template, switching engines loads the new engine's default example from `examples/{engine}.txt`; otherwise, user edits are preserved.
@@ -214,46 +214,46 @@ All keyboard shortcuts are reflected in their corresponding control tooltips (`d
 
 The engine dropdown covers all 28 engines from the public Kroki API (32 selectable entries in total), each mapped to its corresponding Ace Editor syntax mode, official documentation URL, and default template in `examples/{id}.txt`.
 
-### 5.1. Embedded Visual Editors (Top of List)
-Displayed at the very top of `#engine-select` above the first disabled separator (`──────────────`):
-1. `excalidraw` (`Excalidraw (Editor · Beta)` — Embedded interactive Excalidraw WYSIWYG editor + JSON, `wysiwyg: true`, `beta: true`)
-2. `bpmn` (`BPMN (Editor · Beta)` — Embedded interactive BPMN 2.0 WYSIWYG modeler via `bpmn-js` + XML, `wysiwyg: true`, `beta: true`)
+### 5.1. Featured Code Languages (Top of List)
+Displayed at the top of `#engine-select` above the first disabled separator (`──────────────`):
+1. `d2` (`d2` — D2, **selected by default**)
+2. `mermaid` (`mermaid` — Mermaid)
+3. `dbml` (`dbml` — DBML / SQL Database Markup Language)
+4. `c4plantuml-context` (`c4plantuml (context)` — C4 System Context diagram via `c4plantuml` Kroki engine)
+5. `c4plantuml-container` (`c4plantuml (container)` — C4 Container diagram via `c4plantuml` Kroki engine)
+6. `c4plantuml-component` (`c4plantuml (component)` — C4 Component diagram via `c4plantuml` Kroki engine)
+7. `c4plantuml-dynamic` (`c4plantuml (dynamic)` — C4 Dynamic diagram via `c4plantuml` Kroki engine)
+8. `c4plantuml-deployment` (`c4plantuml (deployment)` — C4 Deployment diagram via `c4plantuml` Kroki engine)
 
-### 5.2. Featured Code Languages
+### 5.2. Remaining Code Engines (Alphabetical Order)
 Displayed below the first separator and above the second disabled separator (`──────────────`):
-3. `d2` (`d2` — D2, **selected by default**)
-4. `mermaid` (`mermaid` — Mermaid)
-5. `dbml` (`dbml` — DBML / SQL Database Markup Language)
-6. `c4plantuml-context` (`c4plantuml (context)` — C4 System Context diagram via `c4plantuml` Kroki engine)
-7. `c4plantuml-container` (`c4plantuml (container)` — C4 Container diagram via `c4plantuml` Kroki engine)
-8. `c4plantuml-component` (`c4plantuml (component)` — C4 Component diagram via `c4plantuml` Kroki engine)
-9. `c4plantuml-dynamic` (`c4plantuml (dynamic)` — C4 Dynamic diagram via `c4plantuml` Kroki engine)
-10. `c4plantuml-deployment` (`c4plantuml (deployment)` — C4 Deployment diagram via `c4plantuml` Kroki engine)
+9. `actdiag` (ActDiag)
+10. `blockdiag` (BlockDiag)
+11. `bytefield` (Bytefield - Clojure)
+12. `ditaa` (Ditaa)
+13. `erd` (Erd)
+14. `graphviz` (GraphViz / DOT)
+15. `nomnoml` (Nomnoml)
+16. `nwdiag` (NwDiag)
+17. `packetdiag` (PacketDiag)
+18. `pikchr` (Pikchr)
+19. `plantuml` (PlantUML)
+20. `rackdiag` (RackDiag)
+21. `seqdiag` (SeqDiag)
+22. `structurizr` (Structurizr)
+23. `svgbob` (Svgbob)
+24. `symbolator` (Symbolator - VHDL/Verilog)
+25. `tikz` (TikZ - LaTeX)
+26. `umlet` (UMLet - XML)
+27. `vega` (Vega - JSON)
+28. `vegalite` (Vega-Lite - JSON)
+29. `wavedrom` (WaveDrom - JSON)
+30. `wireviz` (WireViz - YAML)
 
-### 5.3. Remaining Engines (Alphabetical Order)
-Displayed below the second separator:
-11. `actdiag` (ActDiag)
-12. `blockdiag` (BlockDiag)
-13. `bytefield` (Bytefield - Clojure)
-14. `ditaa` (Ditaa)
-15. `erd` (Erd)
-16. `graphviz` (GraphViz / DOT)
-17. `nomnoml` (Nomnoml)
-18. `nwdiag` (NwDiag)
-19. `packetdiag` (PacketDiag)
-20. `pikchr` (Pikchr)
-21. `plantuml` (PlantUML)
-22. `rackdiag` (RackDiag)
-23. `seqdiag` (SeqDiag)
-24. `structurizr` (Structurizr)
-25. `svgbob` (Svgbob)
-26. `symbolator` (Symbolator - VHDL/Verilog)
-27. `tikz` (TikZ - LaTeX)
-28. `umlet` (UMLet - XML)
-29. `vega` (Vega - JSON)
-30. `vegalite` (Vega-Lite - JSON)
-31. `wavedrom` (WaveDrom - JSON)
-32. `wireviz` (WireViz - YAML)
+### 5.3. Embedded Visual Editors (Experimental / Beta — Bottom of List)
+Displayed at the bottom of `#engine-select` below the second disabled separator (`──────────────`):
+31. `excalidraw` (`Excalidraw (Editor · Beta)` — Embedded interactive Excalidraw WYSIWYG editor + JSON, `wysiwyg: true`, `beta: true`)
+32. `bpmn` (`BPMN (Editor · Beta)` — Embedded interactive BPMN 2.0 WYSIWYG modeler via `bpmn-js` + XML, `wysiwyg: true`, `beta: true`)
 
 ---
 
