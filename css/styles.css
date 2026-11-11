@@ -64,7 +64,7 @@ body {
   flex-direction: column;
 }
 
-header {
+body > header {
   min-height: var(--header-height);
   display: flex;
   justify-content: space-between;
@@ -481,7 +481,7 @@ button:where(:not(#wysiwyg-container *)):disabled:hover,
   border: none;
 }
 
-main {
+body > main {
   flex: 1;
   min-height: 0;
   min-width: 0;
@@ -793,7 +793,7 @@ main {
   border-color: var(--color-primary);
 }
 
-footer {
+body > footer {
   background-color: var(--bg-panel);
   display: flex;
   flex-direction: column;
@@ -874,7 +874,7 @@ footer {
   border-color: var(--color-tertiary);
 }
 
-footer input[type="text"] {
+body > footer input[type="text"] {
   flex: 1;
   min-width: 0;
   background-color: var(--bg-main);
@@ -887,7 +887,7 @@ footer input[type="text"] {
   outline: none;
 }
 
-footer input[type="text"]:focus {
+body > footer input[type="text"]:focus {
   border-color: var(--color-primary);
 }
 
@@ -962,7 +962,7 @@ footer input[type="text"]:focus {
 }
 
 @media (max-width: 900px) {
-  main {
+  body > main {
     flex-direction: column;
   }
 
@@ -998,7 +998,7 @@ footer input[type="text"]:focus {
 }
 
 @media (max-width: 600px) {
-  header {
+  body > header {
     flex-wrap: wrap;
     padding: 6px 10px;
     gap: 6px;
@@ -1028,7 +1028,7 @@ footer input[type="text"]:focus {
     min-height: 36px;
   }
 
-  footer {
+  body > footer {
     padding: 0 10px;
   }
 
