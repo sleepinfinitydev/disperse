@@ -51,6 +51,10 @@
         <button id="color-swatch" class="circle-btn" type="button" aria-label="Preferred theme color"></button>
         <input type="color" id="color-picker" value="#0080c0" aria-label="Color Picker" tabindex="-1">
       </div>
+      <button id="fullscreen-btn" class="circle-btn" type="button" aria-label="Toggle fullscreen (F11)" data-tooltip="Toggle fullscreen (F11)" data-tooltip-align="right">
+        <span id="fullscreen-icon-maximize" class="icon-wrap"><i data-lucide="maximize"></i></span>
+        <span id="fullscreen-icon-minimize" class="icon-wrap" style="display:none"><i data-lucide="minimize"></i></span>
+      </button>
     </div>
   </header>
 
@@ -127,73 +131,88 @@
     </section>
   </main>
 
+  <div id="export-splitter" role="separator" aria-orientation="horizontal" aria-label="Resize export section (Alt+X)" title="Drag to resize · Double-click to restore (Alt+X)">
+    <div class="splitter-grip">
+      <button id="export-collapse" class="splitter-quick-btn" type="button" aria-label="Collapse export section (Alt+X)" data-tooltip="Collapse export section (Alt+X)" data-tooltip-pos="top">
+        <i data-lucide="chevron-down"></i>
+      </button>
+      <button id="export-restore" class="splitter-quick-btn" type="button" aria-label="Restore export section (Alt+X)" data-tooltip="Restore export section (Alt+X)" data-tooltip-pos="top">
+        <i data-lucide="chevron-up"></i>
+      </button>
+    </div>
+  </div>
+
   <footer>
-    <div class="snippet-row">
-      <div class="target-icon" data-tooltip="Direct Kroki image" data-tooltip-pos="top" data-tooltip-align="left">
-        <i data-lucide="image"></i>
-      </div>
-      <div class="format-icons">
-        <button class="format-btn active" type="button" data-fmt="url" data-target="image" aria-label="Direct image URL" data-tooltip="Direct image URL" data-tooltip-pos="top">
-          <i data-lucide="link"></i>
-        </button>
-        <button class="format-btn" type="button" data-fmt="md" data-target="image" aria-label="Markdown image" data-tooltip="Markdown image" data-tooltip-pos="top">
-          <i data-lucide="file-down"></i>
-        </button>
-        <button class="format-btn" type="button" data-fmt="html" data-target="image" aria-label="HTML image tag" data-tooltip="HTML image tag" data-tooltip-pos="top">
-          <i data-lucide="code-2"></i>
-        </button>
-      </div>
-      <button class="copy-btn" type="button" data-input="out-image-text" aria-label="Copy image snippet" data-tooltip="Copy image snippet (Alt+I)" data-tooltip-pos="top">
-        <span class="icon-copy icon-wrap"><i data-lucide="copy"></i></span>
-        <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
-      </button>
-      <input type="text" id="out-image-text" readonly aria-label="Image snippet" tabindex="-1">
-    </div>
+    <div id="export-section" class="export-section">
+      <div id="export-section-content" class="export-section-content">
+        <div class="snippet-row">
+          <div class="target-icon" data-tooltip="Direct Kroki image" data-tooltip-pos="top" data-tooltip-align="left">
+            <i data-lucide="image"></i>
+          </div>
+          <div class="format-icons">
+            <button class="format-btn active" type="button" data-fmt="url" data-target="image" aria-label="Direct image URL" data-tooltip="Direct image URL" data-tooltip-pos="top">
+              <i data-lucide="link"></i>
+            </button>
+            <button class="format-btn" type="button" data-fmt="md" data-target="image" aria-label="Markdown image" data-tooltip="Markdown image" data-tooltip-pos="top">
+              <i data-lucide="file-down"></i>
+            </button>
+            <button class="format-btn" type="button" data-fmt="html" data-target="image" aria-label="HTML image tag" data-tooltip="HTML image tag" data-tooltip-pos="top">
+              <i data-lucide="code-2"></i>
+            </button>
+          </div>
+          <button class="copy-btn" type="button" data-input="out-image-text" aria-label="Copy image snippet" data-tooltip="Copy image snippet (Alt+I)" data-tooltip-pos="top">
+            <span class="icon-copy icon-wrap"><i data-lucide="copy"></i></span>
+            <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
+          </button>
+          <input type="text" id="out-image-text" readonly aria-label="Image snippet" tabindex="-1">
+        </div>
 
-    <div class="snippet-row">
-      <div class="target-icon" data-tooltip="Editable Disperse link" data-tooltip-pos="top" data-tooltip-align="left">
-        <i data-lucide="pencil"></i>
-      </div>
-      <div class="format-icons">
-        <button class="format-btn active" type="button" data-fmt="url" data-target="editor" aria-label="Direct editor URL" data-tooltip="Direct editor URL" data-tooltip-pos="top">
-          <i data-lucide="link"></i>
-        </button>
-        <button class="format-btn" type="button" data-fmt="md" data-target="editor" aria-label="Markdown with edit link" data-tooltip="Markdown with edit link" data-tooltip-pos="top">
-          <i data-lucide="file-down"></i>
-        </button>
-        <button class="format-btn" type="button" data-fmt="html" data-target="editor" aria-label="HTML with edit link" data-tooltip="HTML with edit link" data-tooltip-pos="top">
-          <i data-lucide="code-2"></i>
-        </button>
-      </div>
-      <button class="copy-btn" type="button" data-input="out-editor-text" aria-label="Copy editor snippet" data-tooltip="Copy editor snippet (Alt+E)" data-tooltip-pos="top">
-        <span class="icon-copy icon-wrap"><i data-lucide="copy"></i></span>
-        <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
-      </button>
-      <input type="text" id="out-editor-text" readonly aria-label="Editor snippet" tabindex="-1">
-    </div>
+        <div class="snippet-row">
+          <div class="target-icon" data-tooltip="Editable Disperse link" data-tooltip-pos="top" data-tooltip-align="left">
+            <i data-lucide="pencil"></i>
+          </div>
+          <div class="format-icons">
+            <button class="format-btn active" type="button" data-fmt="url" data-target="editor" aria-label="Direct editor URL" data-tooltip="Direct editor URL" data-tooltip-pos="top">
+              <i data-lucide="link"></i>
+            </button>
+            <button class="format-btn" type="button" data-fmt="md" data-target="editor" aria-label="Markdown with edit link" data-tooltip="Markdown with edit link" data-tooltip-pos="top">
+              <i data-lucide="file-down"></i>
+            </button>
+            <button class="format-btn" type="button" data-fmt="html" data-target="editor" aria-label="HTML with edit link" data-tooltip="HTML with edit link" data-tooltip-pos="top">
+              <i data-lucide="code-2"></i>
+            </button>
+          </div>
+          <button class="copy-btn" type="button" data-input="out-editor-text" aria-label="Copy editor snippet" data-tooltip="Copy editor snippet (Alt+E)" data-tooltip-pos="top">
+            <span class="icon-copy icon-wrap"><i data-lucide="copy"></i></span>
+            <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
+          </button>
+          <input type="text" id="out-editor-text" readonly aria-label="Editor snippet" tabindex="-1">
+        </div>
 
-    <div class="snippet-row" id="local-file-row">
-      <div id="file-target-icon" class="target-icon" data-tooltip="Local file" data-tooltip-pos="top" data-tooltip-align="left">
-        <i data-lucide="hard-drive"></i>
+        <div class="snippet-row" id="local-file-row">
+          <div id="file-target-icon" class="target-icon" data-tooltip="Local file" data-tooltip-pos="top" data-tooltip-align="left">
+            <i data-lucide="hard-drive"></i>
+          </div>
+          <div class="format-icons">
+            <button id="file-open-btn" class="file-btn" type="button" aria-label="Open local file (Ctrl+O)" data-tooltip="Open local file (Ctrl+O)" data-tooltip-pos="top">
+              <i data-lucide="folder-open"></i>
+            </button>
+            <button id="file-save-btn" class="file-btn" type="button" aria-label="Save local file (Ctrl+S)" data-tooltip="Save local file (Ctrl+S)" data-tooltip-pos="top">
+              <span id="file-save-icon" class="icon-save icon-wrap"><i data-lucide="save"></i></span>
+              <span id="file-download-icon" class="icon-download icon-wrap" style="display:none"><i data-lucide="download"></i></span>
+              <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
+            </button>
+            <button id="file-save-as-btn" class="file-btn" type="button" aria-label="Save file as... (Ctrl+Shift+S)" data-tooltip="Save file as... (Ctrl+Shift+S)" data-tooltip-pos="top">
+              <i data-lucide="save-all"></i>
+            </button>
+          </div>
+          <button id="file-autosave-btn" class="file-btn" type="button" aria-label="Toggle auto-save (Alt+A)" data-tooltip="Toggle auto-save (Alt+A)" data-tooltip-pos="top">
+            <i data-lucide="zap"></i>
+          </button>
+          <input type="text" id="out-file-text" readonly aria-label="Local file status" placeholder="No local file — Open (Ctrl+O), Save (Ctrl+S), or drop a file anywhere" tabindex="-1">
+          <input type="file" id="file-input" style="display:none">
+        </div>
       </div>
-      <div class="format-icons">
-        <button id="file-open-btn" class="file-btn" type="button" aria-label="Open local file (Ctrl+O)" data-tooltip="Open local file (Ctrl+O)" data-tooltip-pos="top">
-          <i data-lucide="folder-open"></i>
-        </button>
-        <button id="file-save-btn" class="file-btn" type="button" aria-label="Save local file (Ctrl+S)" data-tooltip="Save local file (Ctrl+S)" data-tooltip-pos="top">
-          <span id="file-save-icon" class="icon-save icon-wrap"><i data-lucide="save"></i></span>
-          <span id="file-download-icon" class="icon-download icon-wrap" style="display:none"><i data-lucide="download"></i></span>
-          <span class="icon-check icon-wrap"><i data-lucide="check"></i></span>
-        </button>
-        <button id="file-save-as-btn" class="file-btn" type="button" aria-label="Save file as... (Ctrl+Shift+S)" data-tooltip="Save file as... (Ctrl+Shift+S)" data-tooltip-pos="top">
-          <i data-lucide="save-all"></i>
-        </button>
-      </div>
-      <button id="file-autosave-btn" class="file-btn" type="button" aria-label="Toggle auto-save (Alt+A)" data-tooltip="Toggle auto-save (Alt+A)" data-tooltip-pos="top">
-        <i data-lucide="zap"></i>
-      </button>
-      <input type="text" id="out-file-text" readonly aria-label="Local file status" placeholder="No local file — Open (Ctrl+O), Save (Ctrl+S), or drop a file anywhere" tabindex="-1">
-      <input type="file" id="file-input" style="display:none">
     </div>
 
     <div class="footer-credits">

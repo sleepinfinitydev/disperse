@@ -96,6 +96,7 @@ function initSplitter() {
   let isDragging = false;
   const GOLDEN_RATIO_PCT = 38.2;
   const SNAP_THRESHOLD_PCT = 1.6;
+  let currentSplitPct = GOLDEN_RATIO_PCT;
 
   const applySplitPercentage = (pct, enableSnap = false) => {
     let targetPct = Math.min(100, Math.max(0, pct));
@@ -107,6 +108,8 @@ function initSplitter() {
     } else {
       splitter.classList.remove('snapped');
     }
+
+    currentSplitPct = targetPct;
 
     if (isVerticalLayout()) {
       editorContainer.style.width = '100%';
@@ -141,12 +144,14 @@ function initSplitter() {
     if (!isDragging) return;
     const rect = mainEl.getBoundingClientRect();
     if (isVerticalLayout()) {
-      if (rect.height <= 0) return;
-      const pct = ((e.clientY - rect.top) / rect.height) * 100;
+      const availHeight = rect.height - splitter.offsetHeight;
+      if (availHeight <= 0) return;
+      const pct = ((e.clientY - rect.top - splitter.offsetHeight / 2) / availHeight) * 100;
       applySplitPercentage(pct, true);
     } else {
-      if (rect.width <= 0) return;
-      const pct = ((e.clientX - rect.left) / rect.width) * 100;
+      const availWidth = rect.width - splitter.offsetWidth;
+      if (availWidth <= 0) return;
+      const pct = ((e.clientX - rect.left - splitter.offsetWidth / 2) / availWidth) * 100;
       applySplitPercentage(pct, true);
     }
   });
@@ -199,37 +204,218 @@ function initSplitter() {
   if (btnMaximizePreview) {
     btnMaximizePreview.addEventListener('click', (e) => {
       e.stopPropagation();
-      const isVertical = isVerticalLayout();
-      const currentSizeStr = isVertical ? editorContainer.style.height : editorContainer.style.width;
-      const parsedPct = parseFloat(currentSizeStr);
-      const currentPct = Number.isNaN(parsedPct) ? GOLDEN_RATIO_PCT : parsedPct;
-      
-      if (currentPct === 0) {
+      if (currentSplitPct === 0) {
         applySplitPercentage(previousSplitPercentage);
+        if (exportSplitterCtrl) exportSplitterCtrl.restoreFromMaximize();
       } else {
-        previousSplitPercentage = currentPct;
+        previousSplitPercentage = currentSplitPct;
         applySplitPercentage(0);
+        const didCollapseExport = exportSplitterCtrl ? exportSplitterCtrl.collapseForMaximize() : false;
         setTimeout(() => {
           const zoomFitBtn = document.getElementById('zoom-fit');
           if (zoomFitBtn) zoomFitBtn.click();
-        }, 50);
+        }, didCollapseExport ? 220 : 50);
       }
     });
   }
 
   window.addEventListener('resize', () => {
-    if (isVerticalLayout()) {
-      editorContainer.style.width = '100%';
-      if (!editorContainer.style.height || editorContainer.style.height === '100%') {
-        editorContainer.style.height = '38.2%';
-      }
+    applySplitPercentage(currentSplitPct, false);
+  });
+}
+
+let toggleExportSection = null;
+let exportSplitterCtrl = null;
+
+function initExportSplitter() {
+  const exportSplitter = document.getElementById('export-splitter');
+  const exportSection = document.getElementById('export-section');
+  const exportContent = document.getElementById('export-section-content');
+  if (!exportSplitter || !exportSection || !exportContent) return;
+
+  let isDragging = false;
+  let grabOffset = 0;
+  let animTimer = null;
+  let lastTargetCollapsed = false;
+  let autoCollapsedByMaximize = false;
+  let savedHeightBeforeMaximize = null;
+  const SNAP_PX = 4;
+
+  const getMaxHeight = () => exportContent.offsetHeight;
+
+  const getCurrentHeight = () => exportSection.getBoundingClientRect().height;
+
+  const clearAnimation = () => {
+    if (animTimer) {
+      clearTimeout(animTimer);
+      animTimer = null;
+    }
+    exportSection.classList.remove('animating');
+  };
+
+  const applyExportHeight = (heightPx, animate = false) => {
+    const maxHeight = getMaxHeight();
+    const targetHeight = Math.min(maxHeight, Math.max(0, heightPx));
+    const isCollapsed = targetHeight === 0;
+    const isFullyExpanded = targetHeight >= maxHeight;
+    lastTargetCollapsed = isCollapsed;
+
+    clearAnimation();
+
+    const startHeight = getCurrentHeight();
+    if (animate && Math.abs(startHeight - targetHeight) >= 1) {
+      exportSection.style.height = `${startHeight}px`;
+      exportSection.classList.add('clipped');
+      exportSection.classList.remove('collapsed');
+      void exportSection.offsetHeight;
+      exportSection.classList.add('animating');
+      exportSection.style.height = `${targetHeight}px`;
+
+      animTimer = setTimeout(() => {
+        animTimer = null;
+        exportSection.classList.remove('animating');
+        if (isCollapsed) {
+          exportSection.classList.add('collapsed');
+        } else if (isFullyExpanded) {
+          exportSection.style.height = '';
+          exportSection.classList.remove('clipped', 'collapsed');
+        }
+        if (editor) editor.resize();
+      }, 210);
     } else {
-      editorContainer.style.height = '100%';
-      if (!editorContainer.style.width || editorContainer.style.width === '100%') {
-        editorContainer.style.width = '38.2%';
+      if (isFullyExpanded && !isDragging) {
+        exportSection.style.height = '';
+        exportSection.classList.remove('clipped', 'collapsed');
+      } else {
+        exportSection.style.height = `${targetHeight}px`;
+        exportSection.classList.add('clipped');
+        exportSection.classList.toggle('collapsed', isCollapsed);
       }
+      if (editor) editor.resize();
+    }
+  };
+
+  exportSplitter.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.splitter-quick-btn')) return;
+    e.preventDefault();
+    autoCollapsedByMaximize = false;
+    clearAnimation();
+    const currentH = getCurrentHeight();
+    exportSection.style.height = `${currentH}px`;
+    exportSection.classList.add('clipped');
+
+    isDragging = true;
+    exportSplitter.classList.add('dragging');
+    const splitterRect = exportSplitter.getBoundingClientRect();
+    grabOffset = splitterRect.bottom - e.clientY;
+    try {
+      exportSplitter.setPointerCapture(e.pointerId);
+    } catch (_) {}
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'row-resize';
+  });
+
+  exportSplitter.addEventListener('pointermove', (e) => {
+    if (!isDragging) return;
+    const maxHeight = getMaxHeight();
+    const exportBottom = exportSection.getBoundingClientRect().bottom;
+    const desiredTop = e.clientY + grabOffset;
+    let rawHeight = exportBottom - desiredTop;
+
+    if (rawHeight <= SNAP_PX) rawHeight = 0;
+    else if (rawHeight >= maxHeight - SNAP_PX) rawHeight = maxHeight;
+
+    applyExportHeight(rawHeight, false);
+  });
+
+  const stopDragging = (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    exportSplitter.classList.remove('dragging');
+    try {
+      if (e && e.pointerId !== undefined) {
+        exportSplitter.releasePointerCapture(e.pointerId);
+      }
+    } catch (_) {}
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+
+    const maxHeight = getMaxHeight();
+    const currentH = getCurrentHeight();
+    if (currentH >= maxHeight - 1) {
+      exportSection.style.height = '';
+      exportSection.classList.remove('clipped', 'collapsed');
     }
     if (editor) editor.resize();
+  };
+
+  exportSplitter.addEventListener('pointerup', stopDragging);
+  exportSplitter.addEventListener('pointercancel', stopDragging);
+
+  exportSplitter.addEventListener('dblclick', () => {
+    autoCollapsedByMaximize = false;
+    applyExportHeight(getMaxHeight(), true);
+  });
+
+  const btnCollapseExport = document.getElementById('export-collapse');
+  const btnRestoreExport = document.getElementById('export-restore');
+
+  if (btnCollapseExport) {
+    btnCollapseExport.addEventListener('click', (e) => {
+      e.stopPropagation();
+      autoCollapsedByMaximize = false;
+      applyExportHeight(0, true);
+    });
+  }
+  if (btnRestoreExport) {
+    btnRestoreExport.addEventListener('click', (e) => {
+      e.stopPropagation();
+      autoCollapsedByMaximize = false;
+      applyExportHeight(getMaxHeight(), true);
+    });
+  }
+
+  toggleExportSection = () => {
+    autoCollapsedByMaximize = false;
+    if (!lastTargetCollapsed && getCurrentHeight() > 0) {
+      applyExportHeight(0, true);
+    } else {
+      applyExportHeight(getMaxHeight(), true);
+    }
+  };
+
+  exportSplitterCtrl = {
+    collapseForMaximize() {
+      if (!lastTargetCollapsed && getCurrentHeight() > 0) {
+        autoCollapsedByMaximize = true;
+        savedHeightBeforeMaximize =
+          exportSection.style.height === '' ? null : getCurrentHeight();
+        applyExportHeight(0, true);
+        return true;
+      }
+      autoCollapsedByMaximize = false;
+      return false;
+    },
+    restoreFromMaximize() {
+      if (autoCollapsedByMaximize) {
+        autoCollapsedByMaximize = false;
+        if (lastTargetCollapsed) {
+          const targetH =
+            savedHeightBeforeMaximize !== null ? savedHeightBeforeMaximize : getMaxHeight();
+          applyExportHeight(targetH, true);
+        }
+      }
+    }
+  };
+
+  window.addEventListener('resize', () => {
+    if (exportSection.style.height !== '') {
+      const maxHeight = getMaxHeight();
+      const currentH = parseFloat(exportSection.style.height);
+      if (!Number.isNaN(currentH) && currentH > maxHeight) {
+        exportSection.style.height = `${maxHeight}px`;
+      }
+    }
   });
 }
 
@@ -809,6 +995,45 @@ async function toggleAutoSave() {
   }
 }
 
+function initFullscreen() {
+  const btn = document.getElementById('fullscreen-btn');
+  const iconMax = document.getElementById('fullscreen-icon-maximize');
+  const iconMin = document.getElementById('fullscreen-icon-minimize');
+  if (!btn) return;
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
+
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    toggleFullscreen();
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'F11') {
+      e.preventDefault();
+      toggleFullscreen();
+    }
+  });
+
+  const updateIcons = () => {
+    if (document.fullscreenElement) {
+      if (iconMax) iconMax.style.display = 'none';
+      if (iconMin) iconMin.style.display = 'inline-block';
+    } else {
+      if (iconMax) iconMax.style.display = 'inline-block';
+      if (iconMin) iconMin.style.display = 'none';
+    }
+  };
+
+  document.addEventListener('fullscreenchange', updateIcons);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   if (window.lucide && typeof window.lucide.createIcons === 'function') {
     window.lucide.createIcons();
@@ -834,9 +1059,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (window.themeManager) {
     window.themeManager.init();
   }
+  initFullscreen();
   initSelects();
   initEditor();
   initSplitter();
+  initExportSplitter();
   if (window.viewer) {
     window.viewer.init();
   }
@@ -897,6 +1124,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             case 'l': e.preventDefault(); document.getElementById('brand-link')?.click(); break;
             case 'i': e.preventDefault(); document.querySelector('button[data-input="out-image-text"]')?.click(); break;
             case 'e': e.preventDefault(); document.querySelector('button[data-input="out-editor-text"]')?.click(); break;
+            case 'x': e.preventDefault(); if (toggleExportSection) toggleExportSection(); break;
           }
         } else { // Alt + Shift
           if (isShiftedNumpad0 || e.code === 'Digit0' || e.code === 'Numpad0' || e.keyCode === 48 || e.keyCode === 96 || e.keyCode === 45 || e.key === '0' || e.key === ')' || e.key === '=' || key === 'insert') {
