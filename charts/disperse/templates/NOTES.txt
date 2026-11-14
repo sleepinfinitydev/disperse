@@ -1,0 +1,33 @@
+1. Disperse has been deployed!
+   - Mode: {{ if .Values.kroki.enabled }}Self-hosted Kroki backend ({{ include "disperse.krokiFullname" . }}){{ else }}Standalone ({{ include "disperse.krokiBaseUrl" . }}){{ end }}
+{{- if .Values.kroki.enabled }}
+   - Companion engine modes:
+     * mermaid:    {{ include "disperse.engineMode" (dict "root" . "engine" "mermaid") }}
+     * bpmn:       {{ include "disperse.engineMode" (dict "root" . "engine" "bpmn") }}
+     * excalidraw: {{ include "disperse.engineMode" (dict "root" . "engine" "excalidraw") }}
+{{- end }}
+
+2. Get the application URL by running these commands:
+{{- if .Values.httpRoute.enabled }}
+{{- range .Values.httpRoute.hostnames }}
+  http://{{ . }}/
+{{- end }}
+{{- else if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+  {{- range .paths }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ .path }}
+  {{- end }}
+{{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "disperse.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else if contains "LoadBalancer" .Values.service.type }}
+     NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+           You can watch the status by running 'kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "disperse.fullname" . }}'
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "disperse.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo http://$SERVICE_IP:{{ .Values.service.port }}
+{{- else if contains "ClusterIP" .Values.service.type }}
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "disperse.fullname" . }} 8765:{{ .Values.service.port }}
+  echo "Visit http://127.0.0.1:8765 to use Disperse"
+{{- end }}

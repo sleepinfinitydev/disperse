@@ -18,10 +18,28 @@ tasks:
     env:
       FOOTER_CREDITS: '{{.FOOTER_CREDITS}}'
       KROKI_BASE_URL: '{{.KROKI_BASE_URL}}'
+      KROKI_REMOTE_URL: '{{.KROKI_REMOTE_URL}}'
+      ENGINE_MODE_MERMAID: '{{.ENGINE_MODE_MERMAID}}'
+      ENGINE_MODE_BPMN: '{{.ENGINE_MODE_BPMN}}'
+      ENGINE_MODE_EXCALIDRAW: '{{.ENGINE_MODE_EXCALIDRAW}}'
+      KROKI_DISABLED_ENGINES: '{{.KROKI_DISABLED_ENGINES}}'
     cmds:
       - defer: printf 'window.DISPERSE_CONFIG = {};\n' > js/config.js
       - |
-        python3 -c 'import json, os; cfg = {k: os.environ[e] for k, e in [("krokiBaseUrl", "KROKI_BASE_URL"), ("footerCredits", "FOOTER_CREDITS")] if os.environ.get(e)}; open("js/config.js", "w").write("window.DISPERSE_CONFIG = " + json.dumps(cfg) + ";\n")'
+        python3 -c '
+        import json, os
+        cfg = {}
+        for k, e in [("krokiBaseUrl", "KROKI_BASE_URL"), ("krokiRemoteUrl", "KROKI_REMOTE_URL"), ("footerCredits", "FOOTER_CREDITS"), ("disabledEngines", "KROKI_DISABLED_ENGINES")]:
+            if os.environ.get(e):
+                cfg[k] = os.environ[e]
+        modes = {}
+        for eng, e in [("mermaid", "ENGINE_MODE_MERMAID"), ("bpmn", "ENGINE_MODE_BPMN"), ("excalidraw", "ENGINE_MODE_EXCALIDRAW")]:
+            if os.environ.get(e):
+                modes[eng] = os.environ[e]
+        if modes:
+            cfg["engineModes"] = modes
+        open("js/config.js", "w").write("window.DISPERSE_CONFIG = " + json.dumps(cfg) + ";\n")
+        '
       - echo "Starting server at http://localhost:{{.PORT}} ..."
       - python3 -m http.server {{.PORT}}
 
