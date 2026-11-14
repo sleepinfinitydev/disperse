@@ -1,6 +1,7 @@
 FROM nginxinc/nginx-unprivileged:stable
 
-LABEL org.opencontainers.image.source="https://github.com/sleepinfinitydev/disperse"
+LABEL org.opencontainers.image.source="https://github.com/sleepinfinitydev/disperse" \
+      org.opencontainers.image.description="Disperse — Diagrams as Code SPA. Run with: docker run --rm -p 8765:8765 ghcr.io/sleepinfinitydev/disperse:latest"
 
 USER root
 

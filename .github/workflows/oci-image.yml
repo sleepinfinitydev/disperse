@@ -63,7 +63,7 @@ jobs:
             echo "is_main=false" >> "$GITHUB_OUTPUT"
             echo "app_version=${IMMUTABLE_IMG_TAG}" >> "$GITHUB_OUTPUT"
             echo "image_tags=${IMMUTABLE_IMG_TAG} ${BRANCH_SLUG}" >> "$GITHUB_OUTPUT"
-            echo "chart_versions=${BRANCH_CHART_VER} ${COMMIT_CHART_VER}" >> "$GITHUB_OUTPUT"
+            echo "chart_versions=${COMMIT_CHART_VER} ${BRANCH_CHART_VER}" >> "$GITHUB_OUTPUT"
             echo "primary_chart_version=${BRANCH_CHART_VER}" >> "$GITHUB_OUTPUT"
             echo "primary_image_tag=${BRANCH_SLUG}" >> "$GITHUB_OUTPUT"
           fi

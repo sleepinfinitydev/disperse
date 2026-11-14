@@ -1,6 +1,6 @@
 apiVersion: v2
 name: disperse
-description: A Helm chart for Disperse — Diagrams as Code SPA with optional self-hosted Kroki backend and companion sidecars
+description: "Helm chart for Disperse (Diagrams as Code SPA + optional Kroki backend). Install: helm upgrade --install disperse oci://ghcr.io/sleepinfinitydev/charts/disperse"
 type: application
 version: 0.1.0
 appVersion: "latest"
@@ -23,3 +23,4 @@ maintainers:
     url: https://sleepinfinity.dev
 annotations:
   org.opencontainers.image.source: https://github.com/sleepinfinitydev/disperse
+  org.opencontainers.image.description: "Helm chart for Disperse (Diagrams as Code SPA + optional Kroki backend). Install: helm upgrade --install disperse oci://ghcr.io/sleepinfinitydev/charts/disperse"
