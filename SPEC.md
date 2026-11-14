@@ -365,7 +365,7 @@ Disperse follows the **[Twelve-Factor App](https://12factor.net/config)** method
   - `task build`: Builds the container image (`ghcr.io/sleepinfinitydev/disperse` by default, configurable via `IMAGE=...`) tagged with both the short Git commit hash (`git rev-parse --short HEAD`) and `latest`, auto-detecting `podman` or `docker`.
   - `task push`: Builds and pushes both tags (`:{{.GIT_HASH}}` and `:latest`) to the container registry.
 - **GitHub Actions (`.github/workflows/oci-image.yml`)**: Lints the Helm chart (`helm lint --strict`), builds and pushes the OCI container image (`ghcr.io/sleepinfinitydev/disperse`), and packages and pushes the OCI Helm chart (`oci://ghcr.io/sleepinfinitydev/charts/disperse`, separated under `/charts` and linked to the repository via `org.opencontainers.image.source` annotation) using `GITHUB_TOKEN` (`contents: read`, `packages: write`):
-  - **Triggers**: Runs automatically on `push` to `main` and `feat-helm-charts`, and supports manual execution from any branch via `workflow_dispatch`.
+  - **Triggers**: Runs automatically on `push` to `main` (and temporarily on `feat-helm-charts` while validating the Helm branch prior to merging into `main`), and supports manual execution from any branch via `workflow_dispatch`.
   - **`main` Tagging**: Publishes container image tags `:<git-short-hash>`, `:<chart-version>`, and `:latest`, alongside Helm chart version `<chart-version>` (e.g., `0.1.0`) packaged with `--app-version <git-short-hash>`.
   - **Branch / Preview Tagging (Non-`main`)**: Never publishes `latest` or stable SemVer versions. Instead, publishes sanitized branch container image tags `:<branch>-<git-short-hash>` and `:<branch>`, alongside SemVer 2.0 prerelease Helm chart versions `<chart-version>-<branch>` (rolling branch preview, e.g., `0.1.0-feat-helm-charts`) and `<chart-version>-<branch>.g<git-short-hash>` (immutable commit snapshot), packaged with `--app-version <branch>-<git-short-hash>` so deploying the branch chart automatically pulls the matching branch container image.
 
@@ -568,15 +568,40 @@ extraManifests: []
 
 ---
 
-### 9.4. Roadmap & Upcoming Enhancements
+### 9.4. Implementation Status & Pending Roadmap
 
-1. **Implemented**:
-   - Pure 12-Factor unprivileged static container (`nginxinc/nginx-unprivileged:stable`, `UID 101`, `readOnlyRootFilesystem: true`).
-   - Client-side `DOMParser` SVG sanitization (`js/viewer.js`).
-   - Decoupled Helm chart (`charts/disperse`) with independent `Service`, `Ingress`, and Gateway API `HTTPRoute` resources for Disperse and Kroki, plus full tri-state companion sidecar support (`local` | `remote` | `disabled`) for **Mermaid**, **BPMN**, and **Excalidraw**.
-   - Embedded bidirectional WYSIWYG visual editors for **Excalidraw (`@excalidraw/excalidraw`)** and **BPMN 2.0 (`bpmn-js`)**.
-2. **Future Enhancements**:
-   - **Diagrams.net / Draw.io Support**: Add `diagramsnet` to Disperse's engine catalog alongside the `yuzutech/kroki-diagramsnet` sidecar (`:8005`) and embedded `diagrams.net` visual editor integration.
-   - **Vendorized Frontend Assets for Full Air-Gapped Operation**: Bundle fonts (`IBM Plex Sans`, `IBM Plex Mono`), core UI libraries (`ace`, `pako`, `panzoom`, `lucide`), and WYSIWYG editor assets directly in the container/chart so Disperse operates in completely offline / air-gapped networks with zero external CDN requests.
+#### Implemented
+- **Hardened Unprivileged 12-Factor Container (`Containerfile`)**: `nginxinc/nginx-unprivileged:stable` (`UID 101`, `readOnlyRootFilesystem: true` with `/tmp` runtime config & server block, `Cache-Control: no-store` on `/js/config.js`, static SPA only without reverse proxy).
+- **Client-Side SVG XSS Sanitization (`js/viewer.js`)**: `DOMParser`-based sanitizer (`parseAndSanitizeSvg`) stripping scripts, unsafe SMIL mutations, `on*` handlers, external `<use>`, unsafe URIs, and CSS vectors while preserving `<foreignObject>` HTML labels and `@font-face` fonts.
+- **Decoupled Helm Chart (`charts/disperse`)**: Independent `Deployment`, `Service`, `Ingress`, and Gateway API `HTTPRoute` resources for Disperse (`<fullname>`) and Kroki (`<fullname>-kroki`), with automatic `KROKI_BASE_URL` derivation, `PodSecurity` `restricted` compliance (`UID 101` / `UID 1001` / `UID 65534`), and full tri-state companion sidecar support (`local` | `remote` | `disabled`) for **Mermaid (`:8002`)**, **BPMN (`:8003`)**, and **Excalidraw (`:8004`)**.
+- **Embedded Bidirectional WYSIWYG Editors (`js/wysiwyg.js`)**: Interactive `@excalidraw/excalidraw` and `bpmn-js` (`BpmnModeler`) visual editors with real-time code/URL synchronization and client-side SVG/PNG export.
+- **OCI Image & Helm Chart CI/CD (`.github/workflows/oci-image.yml`)**: Automated strict linting and publishing to `ghcr.io/sleepinfinitydev/disperse` (image) and `oci://ghcr.io/sleepinfinitydev/charts/disperse` (Helm chart) with isolated SemVer 2.0 prerelease tags on non-`main` branches.
+
+#### Pending Implementation Plan
+
+1. **Branch Validation & Merge Cleanup (`feat-helm-charts` -> `main`)**:
+   - Validate end-to-end deployment directly from GHCR (`helm upgrade --install disperse oci://ghcr.io/sleepinfinitydev/charts/disperse --version 0.1.0-feat-helm-charts`) on a live Kubernetes cluster (e.g., K3s) in both standalone (`kroki.enabled: false`) and self-hosted (`kroki.enabled: true` with sidecars and Ingress/HTTPRoute) modes.
+   - Upon merging `feat-helm-charts` into `main`, remove `feat-helm-charts` from `on.push.branches` in `.github/workflows/oci-image.yml` so automatic pushes run on `main` while future feature branches use manual `workflow_dispatch`.
+
+2. **Diagrams.net / Draw.io Full Support (Engine + Sidecar + Embedded WYSIWYG Editor)**:
+   - **Disperse Frontend & Runtime Config**:
+     - Add `diagramsnet` (`mode: 'xml'`, `wysiwyg: true`, `beta: true`) to `ENGINES` in `js/kroki.js` alongside a stock example `examples/diagramsnet.txt`.
+     - Add automatic file detection in `detectEngineFromFile()` for `.drawio` extensions and generic `.xml` files containing `<mxfile` / `<mxGraphModel`.
+     - Add `ENGINE_MODE_DIAGRAMSNET` (`local` | `remote` | `disabled`) to `Containerfile`, `Taskfile.yml`, `window.DISPERSE_CONFIG.engineModes.diagramsnet`, and `charts/disperse`.
+   - **Helm Chart Kroki Sidecar (`charts/disperse`)**:
+     - Integrate `yuzutech/kroki-diagramsnet:0.33.0` (`:8005`, `KROKI_DIAGRAMSNET_HOST=127.0.0.1`, `KROKI_DIAGRAMSNET_PORT=8005`) into `templates/kroki-deployment.yaml`, `values.yaml` (`kroki.sidecars.diagramsnet`), and `values.schema.json` with tri-state `mode` (`local` | `remote` | `disabled`, defaulting to `disabled` or `local` as desired).
+   - **Embedded Visual Editor (`js/wysiwyg.js` & Optional Self-Hosted Editor in Chart)**:
+     - Integrate `diagrams.net` in `js/wysiwyg.js` via `iframe` + JSON `postMessage` protocol (`?embed=1&proto=json&spin=1&ui=min`), synchronizing `autosave`/`save`/`export` events bidirectionally with the Ace XML editor, URL `#hash`, and Kroki snippets.
+     - Support dual `remote` vs. `local` editor hosting: use `https://embed.diagrams.net` in `remote` mode (displaying the explicit external/non-confidential UI indicator), and optionally allow deploying a self-hosted `jgraph/drawio` `Deployment`/`Service`/`Ingress` (`HTTPRoute`) from `charts/disperse` for 100% private in-cluster visual editing.
+   - **Architectural Note on Mermaid (Why Mermaid Remains Text-First)**:
+     - Unlike Excalidraw (JSON scene), BPMN 2.0 (`<bpmndi:BPMNDiagram>` XML), and Diagrams.net (`mxGraphModel` XML)—all of which store explicit `x`/`y` node coordinates in their source format—Mermaid is a declarative auto-layout DSL (`dagre`/`elk`) that does not persist manual canvas coordinates in its syntax; therefore, Mermaid intentionally remains a text-first code language rather than a freeform WYSIWYG canvas.
+
+3. **Vendorized Frontend Assets & Supply-Chain Hardening for Full Air-Gapped Operation**:
+   - Currently, while diagram payloads stay 100% in-cluster when `kroki.enabled: true` with `local` sidecars, the browser still fetches UI fonts, core JS libraries, and WYSIWYG bundles from public CDNs (`fonts.googleapis.com`, `fonts.gstatic.com`, `cdnjs.cloudflare.com`, `unpkg.com`).
+   - To enable **true offline / air-gapped operation** (zero external browser requests) and eliminate external CDN runtime dependencies:
+     - **Typography**: Self-host `IBM Plex Sans` and `IBM Plex Mono` (`woff2` subsets + local `@font-face` rules) instead of Google Fonts CDN.
+     - **Core SPA Libraries**: Vendorize/bundle `ace.js` (including dynamic syntax mode workers/scripts used by `ENGINES` and `keybinding-vim.min.js`), `pako.min.js`, `@panzoom/panzoom`, and `lucide.min.js` into local static assets served directly by Disperse's container image.
+     - **WYSIWYG Editor Bundles**: Vendorize `@excalidraw/excalidraw` (`react`, `react-dom`, `excalidraw.production.min.js`, and local `window.EXCALIDRAW_ASSET_PATH` fonts/chunks) and `bpmn-js` (`bpmn-modeler.production.min.js`, `diagram-js.css`, `bpmn-js.css`, and `bpmn-embedded.css` icon fonts) inside the Disperse container image.
+     - **Subresource Integrity (SRI)**: For any optional external script/stylesheet kept in non-vendorized development setups, enforce `integrity="sha384-..."` + `crossorigin="anonymous"`.
 
 
