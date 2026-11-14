@@ -1,0 +1,197 @@
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+commonLabels: {}
+commonAnnotations: {}
+
+# -----------------------------------------------------------------------------
+# Disperse Frontend & Unified L7 Entrypoint (Deployment 1)
+# -----------------------------------------------------------------------------
+replicaCount: 1
+
+image:
+  registry: ghcr.io
+  repository: sleepinfinitydev/disperse
+  # Overrides the image tag whose default is the chart appVersion ("latest")
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  automount: false
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+disperse:
+  # Primary Kroki API base URL used by the browser.
+  # When empty (""), defaults to "/kroki" if kroki.enabled=true, or "https://kroki.io" if kroki.enabled=false.
+  krokiBaseUrl: ""
+  # Custom footer HTML/text injected via FOOTER_CREDITS:
+  # - null (default): displays the standard Disperse footer credit line
+  # - "": hides the footer credit line completely
+  # - "<custom string/HTML>": renders custom credits (supports <a> and <i data-lucide="...">)
+  footerCredits: null
+  # Explicit list of diagram engine IDs to disable in the UI selector (e.g. ["tikz", "vega"])
+  disabledEngines: []
+  # Extra environment variables for the disperse container
+  env: []
+  nginx:
+    clientMaxBodySize: "2m"
+    largeClientHeaderBuffers: "4 16k"
+    proxyReadTimeout: "60s"
+
+# -----------------------------------------------------------------------------
+# Single Published Kubernetes Service (<fullname>)
+# -----------------------------------------------------------------------------
+service:
+  type: ClusterIP
+  port: 8765
+  targetPort: 8765
+  nodePort: null
+  annotations: {}
+
+resources: {}
+  # limits:
+  #   cpu: 200m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 50m
+  #   memory: 64Mi
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 15
+  timeoutSeconds: 3
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 2
+  periodSeconds: 10
+  timeoutSeconds: 3
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+pdb:
+  enabled: false
+  minAvailable: 1
+  maxUnavailable: null
+
+# -----------------------------------------------------------------------------
+# Self-Hosted Kroki Backend (Deployment 2: <fullname>-kroki)
+# -----------------------------------------------------------------------------
+kroki:
+  enabled: false
+  replicaCount: 1
+  # External Kroki URL used by companion engines configured with mode: "remote"
+  remoteFallbackUrl: "https://kroki.io"
+  image:
+    registry: docker.io
+    repository: yuzutech/kroki
+    tag: "0.33.0"
+    pullPolicy: IfNotPresent
+  port: 8000
+  safeMode: "SECURE"
+  maxUriLength: 16384
+  env: []
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    runAsGroup: 1001
+    fsGroup: 1001
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1001
+    capabilities:
+      drop:
+        - ALL
+  resources: {}
+    # limits:
+    #   cpu: 1000m
+    #   memory: 1Gi
+    # requests:
+    #   cpu: 200m
+    #   memory: 512Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # Per-engine routing mode when kroki.enabled is true:
+  # - "remote": keeps engine enabled via kroki.remoteFallbackUrl with explicit UI warning (🌐 non-confidential)
+  # - "disabled": hides the engine from Disperse's language selector
+  # - "local": routes to the internal Kroki server (sidecar containers introduced in Phases 2-4)
+  sidecars:
+    mermaid:
+      mode: "remote"
+    bpmn:
+      mode: "remote"
+    excalidraw:
+      mode: "remote"
+
+# -----------------------------------------------------------------------------
+# External Access — Kubernetes Ingress (networking.k8s.io/v1)
+# -----------------------------------------------------------------------------
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # nginx.ingress.kubernetes.io/large-client-header-buffers: "4 16k"
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: disperse.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: disperse-tls
+  #    hosts:
+  #      - disperse.local
+
+# -----------------------------------------------------------------------------
+# External Access — Kubernetes Gateway API (gateway.networking.k8s.io/v1)
+# -----------------------------------------------------------------------------
+httpRoute:
+  enabled: false
+  annotations: {}
+  labels: {}
+  parentRefs: []
+    # - name: main-gateway
+    #   namespace: gateway-system
+    #   sectionName: https
+  hostnames: []
+    # - disperse.local
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+
+# -----------------------------------------------------------------------------
+# Extensibility — Arbitrary Kubernetes Manifests (rendered with `tpl`)
+# -----------------------------------------------------------------------------
+extraManifests: []
+  # - apiVersion: networking.k8s.io/v1
+  #   kind: NetworkPolicy
+  #   metadata:
+  #     name: "{{ include \"disperse.fullname\" . }}-allow-all"

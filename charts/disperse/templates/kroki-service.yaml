@@ -1,0 +1,22 @@
+{{- if .Values.kroki.enabled -}}
+{{- $krokiPort := int (.Values.kroki.port | default 8000) -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "disperse.krokiFullname" . }}
+  labels:
+    {{- include "disperse.krokiLabels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ $krokiPort }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "disperse.krokiSelectorLabels" . | nindent 4 }}
+{{- end }}

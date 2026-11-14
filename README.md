@@ -22,7 +22,23 @@ Then open `http://localhost:8765` in your browser.
 Runtime configuration follows the **12-Factor App** model via environment variables (all optional with built-in defaults):
 - `PORT` (default: `8765`): HTTP listening port.
 - `FOOTER_CREDITS` (default: `Made with ❤️ in Betanzos ... inspired by Niolesk.`): Custom footer text/HTML (or `""` to hide).
-- `KROKI_BASE_URL` (default: `https://kroki.io`): Custom or self-hosted Kroki API endpoint.
+- `KROKI_BASE_URL` (default: `https://kroki.io`): Custom or self-hosted Kroki API endpoint (e.g., `/kroki`).
+- `KROKI_REMOTE_URL` (default: `https://kroki.io`): External Kroki URL used by engines configured in `remote` mode.
+- `ENGINE_MODE_MERMAID`, `ENGINE_MODE_BPMN`, `ENGINE_MODE_EXCALIDRAW` (default: `local`): Set to `remote` (routes to `KROKI_REMOTE_URL` with an explicit `🌐` non-private warning in the UI) or `disabled` (hides the engine from the selector).
+
+### Deploy on Kubernetes with Helm
+```bash
+# Standalone mode (uses public https://kroki.io)
+helm upgrade --install disperse ./charts/disperse
+
+# Self-hosted Kroki mode (with per-engine remote/disabled control for Mermaid, BPMN, and Excalidraw)
+helm upgrade --install disperse ./charts/disperse \
+  --set kroki.enabled=true \
+  --set kroki.sidecars.mermaid.mode=remote \
+  --set kroki.sidecars.bpmn.mode=remote \
+  --set kroki.sidecars.excalidraw.mode=remote
+```
+See [`charts/disperse/README.md`](charts/disperse/README.md) for full chart documentation (`Ingress`, Gateway API `HTTPRoute`, `extraManifests`, and privacy controls).
 
 ### Run locally (with [Task](https://taskfile.dev))
 ```bash

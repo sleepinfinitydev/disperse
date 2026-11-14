@@ -1,0 +1,114 @@
+{{- $targetPort := int (.Values.service.targetPort | default 8765) -}}
+{{- $krokiPort := int (.Values.kroki.port | default 8000) -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "disperse.fullname" . }}
+  labels:
+    {{- include "disperse.labels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "disperse.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with (mergeOverwrite (deepCopy (.Values.commonAnnotations | default dict)) (.Values.podAnnotations | default dict)) }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "disperse.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "disperse.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "disperse.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: disperse
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: {{ include "disperse.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ $targetPort }}
+              protocol: TCP
+          env:
+            - name: PORT
+              value: {{ $targetPort | quote }}
+            - name: KROKI_BASE_URL
+              value: {{ include "disperse.krokiBaseUrl" . | quote }}
+            - name: KROKI_REMOTE_URL
+              value: {{ include "disperse.krokiRemoteUrl" . | quote }}
+            {{- if .Values.kroki.enabled }}
+            - name: KROKI_INTERNAL_UPSTREAM
+              value: {{ printf "http://%s:%d" (include "disperse.krokiFullname" .) $krokiPort | quote }}
+            {{- end }}
+            - name: ENGINE_MODE_MERMAID
+              value: {{ include "disperse.engineMode" (dict "root" . "engine" "mermaid") | quote }}
+            - name: ENGINE_MODE_BPMN
+              value: {{ include "disperse.engineMode" (dict "root" . "engine" "bpmn") | quote }}
+            - name: ENGINE_MODE_EXCALIDRAW
+              value: {{ include "disperse.engineMode" (dict "root" . "engine" "excalidraw") | quote }}
+            {{- if .Values.disperse.disabledEngines }}
+            - name: KROKI_DISABLED_ENGINES
+              value: {{ join "," .Values.disperse.disabledEngines | quote }}
+            {{- end }}
+            {{- if not (kindIs "invalid" .Values.disperse.footerCredits) }}
+            - name: FOOTER_CREDITS
+              value: {{ .Values.disperse.footerCredits | quote }}
+            {{- end }}
+            {{- with .Values.disperse.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+              readOnly: true
+            - name: config
+              mountPath: /usr/share/nginx/html/js/config.js
+              subPath: config.js
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "disperse.fullname" . }}-config
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

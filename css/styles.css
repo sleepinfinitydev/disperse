@@ -251,6 +251,15 @@ button:where(:not(#wysiwyg-container *)),
   max-width: 150px;
 }
 
+#engine-select.remote-engine {
+  color: var(--color-tertiary);
+}
+
+#engine-select.remote-engine option {
+  color: var(--text-main);
+  background-color: var(--bg-panel);
+}
+
 .header-center .toolbar-select:hover:not(:disabled) {
   background-color: var(--border-color);
 }

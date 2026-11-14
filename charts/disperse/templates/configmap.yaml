@@ -1,0 +1,64 @@
+{{- $targetPort := int (.Values.service.targetPort | default 8765) -}}
+{{- $krokiPort := int (.Values.kroki.port | default 8000) -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "disperse.fullname" . }}-config
+  labels:
+    {{- include "disperse.labels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  default.conf: |
+    server {
+        listen       80;
+        {{- if ne $targetPort 80 }}
+        listen       {{ $targetPort }};
+        {{- end }}
+        server_name  localhost;
+
+        client_max_body_size {{ .Values.disperse.nginx.clientMaxBodySize | default "2m" }};
+        large_client_header_buffers {{ .Values.disperse.nginx.largeClientHeaderBuffers | default "4 16k" }};
+
+        location / {
+            root   /usr/share/nginx/html;
+            index  index.html index.htm;
+        }
+        {{- if .Values.kroki.enabled }}
+
+        location /kroki/ {
+            rewrite ^/kroki/(.*)$ /$1 break;
+            proxy_pass http://{{ include "disperse.krokiFullname" . }}:{{ $krokiPort }};
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout {{ .Values.disperse.nginx.proxyReadTimeout | default "60s" }};
+        }
+        {{- end }}
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   /usr/share/nginx/html;
+        }
+    }
+  config.js: |
+    window.DISPERSE_CONFIG = Object.assign(
+      {
+        krokiBaseUrl: {{ include "disperse.krokiBaseUrl" . | toJson }},
+        krokiRemoteUrl: {{ include "disperse.krokiRemoteUrl" . | toJson }},
+        {{- if not (kindIs "invalid" .Values.disperse.footerCredits) }}
+        footerCredits: {{ .Values.disperse.footerCredits | toJson }},
+        {{- end }}
+        engineModes: {
+          mermaid: {{ include "disperse.engineMode" (dict "root" . "engine" "mermaid") | toJson }},
+          bpmn: {{ include "disperse.engineMode" (dict "root" . "engine" "bpmn") | toJson }},
+          excalidraw: {{ include "disperse.engineMode" (dict "root" . "engine" "excalidraw") | toJson }}
+        },
+        disabledEngines: {{ (.Values.disperse.disabledEngines | default list) | toJson }}
+      },
+      window.DISPERSE_CONFIG || {}
+    );

@@ -1,0 +1,23 @@
+apiVersion: v2
+name: disperse
+description: A Helm chart for Disperse — Diagrams as Code SPA with optional self-hosted Kroki backend
+type: application
+version: 0.1.0
+appVersion: "latest"
+icon: https://raw.githubusercontent.com/sleepinfinitydev/disperse/main/favicon.svg
+home: https://github.com/sleepinfinitydev/disperse
+sources:
+  - https://github.com/sleepinfinitydev/disperse
+keywords:
+  - diagrams
+  - diagrams-as-code
+  - kroki
+  - d2
+  - mermaid
+  - plantuml
+  - c4
+  - excalidraw
+  - bpmn
+maintainers:
+  - name: sleepinfinity.dev
+    url: https://sleepinfinity.dev

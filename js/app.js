@@ -180,13 +180,28 @@ function setEditorModeForEngine(engineId) {
   if (docsBtn && info && info.docs) {
     docsBtn.href = info.docs;
   }
+  const engineSelect = document.getElementById('engine-select');
   const engineWrap = document.getElementById('engine-select-wrap');
   const isBeta = Boolean(info && info.beta);
+  const isRemote =
+    window.kroki && typeof window.kroki.isEngineRemote === 'function'
+      ? window.kroki.isEngineRemote(engineId)
+      : false;
+  const remoteHost =
+    window.kroki && typeof window.kroki.getRemoteHostLabel === 'function'
+      ? window.kroki.getRemoteHostLabel()
+      : 'kroki.io';
+
+  if (engineSelect) {
+    engineSelect.classList.toggle('remote-engine', isRemote);
+  }
   if (engineWrap) {
-    engineWrap.setAttribute(
-      'data-tooltip',
-      isBeta ? 'Diagram language (Experimental / Beta editor)' : 'Diagram language'
-    );
+    engineWrap.classList.toggle('remote-engine', isRemote);
+    let tooltip = isBeta ? 'Diagram language (Experimental / Beta editor)' : 'Diagram language';
+    if (isRemote) {
+      tooltip += ` — ⚠️ External service (${remoteHost}, non-confidential)`;
+    }
+    engineWrap.setAttribute('data-tooltip', tooltip);
   }
   const isD2 = engineId === 'd2';
   const layoutSelect = document.getElementById('layout-select');
@@ -632,7 +647,12 @@ function initSelects() {
 
   engineSelect.innerHTML = '';
   let lastGroup = null;
-  window.kroki.ENGINES.forEach((engine) => {
+  const enabledEngines =
+    typeof window.kroki.getEnabledEngines === 'function'
+      ? window.kroki.getEnabledEngines()
+      : window.kroki.ENGINES;
+
+  enabledEngines.forEach((engine) => {
     const currentGroup = engine.wysiwyg ? 'editor' : (engine.featured ? 'featured' : 'other');
     if (lastGroup && lastGroup !== currentGroup) {
       const sep = document.createElement('option');
@@ -643,12 +663,18 @@ function initSelects() {
     }
     const opt = document.createElement('option');
     opt.value = engine.id;
-    opt.textContent = engine.label;
+    opt.textContent =
+      typeof window.kroki.getEngineDisplayLabel === 'function'
+        ? window.kroki.getEngineDisplayLabel(engine)
+        : engine.label;
     engineSelect.appendChild(opt);
     lastGroup = currentGroup;
   });
-  engineSelect.value = 'd2';
-  currentEngine = 'd2';
+  const defaultEngine = enabledEngines.some((e) => e.id === 'd2')
+    ? 'd2'
+    : (enabledEngines[0] ? enabledEngines[0].id : 'd2');
+  engineSelect.value = defaultEngine;
+  currentEngine = defaultEngine;
 
   if (layoutSelect && window.kroki.D2_LAYOUTS) {
     layoutSelect.innerHTML = '';
@@ -968,11 +994,18 @@ async function loadFromUrl() {
     }
   }
 
+  const enabledEngines =
+    typeof window.kroki.getEnabledEngines === 'function'
+      ? window.kroki.getEnabledEngines()
+      : window.kroki.ENGINES;
+  const fallbackEngine = enabledEngines.some((e) => e.id === 'd2')
+    ? 'd2'
+    : (enabledEngines[0] ? enabledEngines[0].id : 'd2');
   const savedLastEngine = safeGetStorage(STORAGE_LAST_ENGINE);
   const initialEngine =
-    savedLastEngine && window.kroki.ENGINES.some((e) => e.id === savedLastEngine)
+    savedLastEngine && enabledEngines.some((e) => e.id === savedLastEngine)
       ? savedLastEngine
-      : 'd2';
+      : fallbackEngine;
 
   if (engineSelect) {
     engineSelect.value = initialEngine;

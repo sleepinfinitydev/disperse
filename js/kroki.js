@@ -148,15 +148,18 @@ function isWysiwygEngine(engineId) {
 }
 
 function resolveEngineId(engineId, code = '') {
+  let candidate = null;
   if (ENGINES.some((e) => e.id === engineId)) {
-    return engineId;
+    candidate = engineId;
+  } else if (engineId === 'c4plantuml') {
+    if (/C4_Container/i.test(code)) candidate = 'c4plantuml-container';
+    else if (/C4_Component/i.test(code)) candidate = 'c4plantuml-component';
+    else if (/C4_Dynamic/i.test(code)) candidate = 'c4plantuml-dynamic';
+    else if (/C4_Deployment/i.test(code)) candidate = 'c4plantuml-deployment';
+    else candidate = 'c4plantuml-context';
   }
-  if (engineId === 'c4plantuml') {
-    if (/C4_Container/i.test(code)) return 'c4plantuml-container';
-    if (/C4_Component/i.test(code)) return 'c4plantuml-component';
-    if (/C4_Dynamic/i.test(code)) return 'c4plantuml-dynamic';
-    if (/C4_Deployment/i.test(code)) return 'c4plantuml-deployment';
-    return 'c4plantuml-context';
+  if (candidate && !isEngineDisabled(candidate)) {
+    return candidate;
   }
   return null;
 }
@@ -271,7 +274,7 @@ function detectEngineFromFile(filename, content = '') {
     }
   }
 
-  if (detected && ENGINES.some((e) => e.id === detected)) {
+  if (detected && ENGINES.some((e) => e.id === detected) && !isEngineDisabled(detected)) {
     return detected;
   }
   return null;
@@ -329,6 +332,109 @@ function getKrokiBaseUrl() {
   return base;
 }
 
+function getKrokiRemoteUrl() {
+  const configured =
+    window.DISPERSE_CONFIG && typeof window.DISPERSE_CONFIG.krokiRemoteUrl === 'string'
+      ? window.DISPERSE_CONFIG.krokiRemoteUrl.trim()
+      : '';
+  const base = (configured || 'https://kroki.io').replace(/\/+$/, '');
+  if (base.startsWith('/') && typeof window !== 'undefined' && window.location && window.location.origin) {
+    return `${window.location.origin}${base}`;
+  }
+  return base;
+}
+
+function getRemoteHostLabel() {
+  const remoteUrl = getKrokiRemoteUrl();
+  try {
+    const parsed = new URL(remoteUrl);
+    return parsed.host || remoteUrl;
+  } catch (_) {
+    return remoteUrl.replace(/^https?:\/\//i, '').split('/')[0] || 'kroki.io';
+  }
+}
+
+function normalizeEngineMode(val) {
+  if (typeof val === 'boolean') {
+    return val ? 'local' : 'disabled';
+  }
+  if (typeof val !== 'string') return 'local';
+  const lower = val.trim().toLowerCase();
+  if (lower === 'remote' || lower === 'external') return 'remote';
+  if (
+    lower === 'disabled' ||
+    lower === 'false' ||
+    lower === '0' ||
+    lower === 'off' ||
+    lower === 'no'
+  ) {
+    return 'disabled';
+  }
+  return 'local';
+}
+
+function getEngineMode(engineId) {
+  if (!engineId) return 'local';
+  const info = getEngineInfo(engineId);
+  const krokiEngine = info.krokiEngine || info.id || engineId;
+  const cfg = (typeof window !== 'undefined' && window.DISPERSE_CONFIG) || {};
+
+  let disabledList = [];
+  if (Array.isArray(cfg.disabledEngines)) {
+    disabledList = cfg.disabledEngines.map((x) => String(x).trim().toLowerCase()).filter(Boolean);
+  } else if (typeof cfg.disabledEngines === 'string' && cfg.disabledEngines.trim()) {
+    disabledList = cfg.disabledEngines
+      .split(',')
+      .map((x) => x.trim().toLowerCase())
+      .filter(Boolean);
+  }
+
+  const idLower = String(engineId).toLowerCase();
+  const krokiLower = String(krokiEngine).toLowerCase();
+  if (disabledList.includes(idLower) || disabledList.includes(krokiLower)) {
+    return 'disabled';
+  }
+
+  const modes = cfg.engineModes && typeof cfg.engineModes === 'object' ? cfg.engineModes : null;
+  if (modes) {
+    if (Object.prototype.hasOwnProperty.call(modes, engineId)) {
+      return normalizeEngineMode(modes[engineId]);
+    }
+    if (Object.prototype.hasOwnProperty.call(modes, idLower)) {
+      return normalizeEngineMode(modes[idLower]);
+    }
+    if (Object.prototype.hasOwnProperty.call(modes, krokiEngine)) {
+      return normalizeEngineMode(modes[krokiEngine]);
+    }
+    if (Object.prototype.hasOwnProperty.call(modes, krokiLower)) {
+      return normalizeEngineMode(modes[krokiLower]);
+    }
+  }
+
+  return 'local';
+}
+
+function isEngineDisabled(engineId) {
+  return getEngineMode(engineId) === 'disabled';
+}
+
+function isEngineRemote(engineId) {
+  return getEngineMode(engineId) === 'remote';
+}
+
+function getEnabledEngines() {
+  return ENGINES.filter((e) => !isEngineDisabled(e.id));
+}
+
+function getEngineDisplayLabel(engineOrId) {
+  const info = typeof engineOrId === 'string' ? getEngineInfo(engineOrId) : engineOrId;
+  if (!info) return '';
+  if (isEngineRemote(info.id)) {
+    return `${info.label} 🌐 (${getRemoteHostLabel()})`;
+  }
+  return info.label;
+}
+
 window.kroki = {
   ENGINES,
   D2_LAYOUTS,
@@ -342,6 +448,14 @@ window.kroki = {
   decode: base64UrlSafeToText,
   getEngineInfo,
   getKrokiEngine,
+  getEngineMode,
+  isEngineDisabled,
+  isEngineRemote,
+  getEnabledEngines,
+  getEngineDisplayLabel,
+  getKrokiBaseUrl,
+  getKrokiRemoteUrl,
+  getRemoteHostLabel,
   isWysiwygEngine,
   resolveEngineId,
   buildOptionsQuery,
@@ -353,6 +467,7 @@ window.kroki = {
         ? info.krokiFormats[0]
         : format;
     const query = buildOptionsQuery(krokiEngine, options);
-    return `${getKrokiBaseUrl()}/${krokiEngine}/${effectiveFormat}/${payload}${query}`;
+    const baseUrl = isEngineRemote(engine) ? getKrokiRemoteUrl() : getKrokiBaseUrl();
+    return `${baseUrl}/${krokiEngine}/${effectiveFormat}/${payload}${query}`;
   }
 };
