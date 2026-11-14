@@ -543,25 +543,21 @@ Disperse and Kroki have fundamentally different runtime profiles: Disperse is an
 
 Instead of coupling Disperse's Nginx container as a reverse proxy in front of Kroki, the Helm chart exposes **each service cleanly through its own Kubernetes `Service` and `Ingress` / Gateway API `HTTPRoute`**:
 
-```text
-                Browser Client
-          ┌────────────┴────────────┐
-          │                         │
-          ▼ (disperse.*)            ▼ (kroki.* or kroki.io)
-┌───────────────────────┐ ┌─────────────────────────────────────────┐
-│ Ingress / HTTPRoute   │ │ Ingress / HTTPRoute                     │
-│  Service: disperse    │ │  Service: disperse-kroki (:8000)        │
-└───────────┬───────────┘ └────────────────────┬────────────────────┘
-            │                                  │
-            ▼                                  ▼
-┌───────────────────────┐ ┌─────────────────────────────────────────┐
-│ Deployment: disperse  │ │ Deployment: disperse-kroki              │
-│ • nginx-unprivileged  │ │ • Main: yuzutech/kroki (:8000)          │
-│   (UID 101, static)   │ │ • Sidecars over 127.0.0.1 (when local): │
-└───────────────────────┘ │   - kroki-mermaid (:8002)               │
-                          │   - kroki-bpmn (:8003)                  │
-                          │   - kroki-excalidraw (:8004)            │
-                          └─────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    Client["Browser Client"]
+
+    DisperseIngress["Ingress / HTTPRoute<br/>Service: disperse"]
+    KrokiIngress["Ingress / HTTPRoute<br/>Service: disperse-kroki (:8000)"]
+
+    DisperseDeploy["Deployment: disperse<br/>• nginx-unprivileged (UID 101, static)"]
+    KrokiDeploy["Deployment: disperse-kroki<br/>• Main: yuzutech/kroki (:8000)<br/>• Sidecars over 127.0.0.1 (when local):<br/>  - kroki-mermaid (:8002)<br/>  - kroki-bpmn (:8003)<br/>  - kroki-excalidraw (:8004)"]
+
+    Client -- "disperse.*" --> DisperseIngress
+    Client -- "kroki.* or kroki.io" --> KrokiIngress
+
+    DisperseIngress --> DisperseDeploy
+    KrokiIngress --> KrokiDeploy
 ```
 
 - **100% Controller-Agnostic**: Works out of the box on K3s (Traefik), `ingress-nginx`, Cilium, HAProxy, AWS ALB, and any Gateway API controller without vendor-specific regex path-rewrite annotations or CRDs.
