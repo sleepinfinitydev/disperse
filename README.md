@@ -342,12 +342,12 @@ ingress:
   className: nginx
   annotations:
     nginx.ingress.kubernetes.io/large-client-header-buffers: "4 16k"
-    cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
     - host: disperse.example.com
       paths:
         - path: /
           pathType: Prefix
+  # Reference an existing kubernetes.io/tls Secret in the same namespace (optional)
   tls:
     - secretName: disperse-tls
       hosts:
