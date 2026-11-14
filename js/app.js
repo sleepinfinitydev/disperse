@@ -1465,7 +1465,27 @@ function initFullscreen() {
   document.addEventListener('fullscreenchange', updateIcons);
 }
 
+const DEFAULT_FOOTER_CREDITS =
+  'Made with <i data-lucide="heart" class="heart-icon"></i> in Betanzos · Copyleft <i data-lucide="copyright" class="copyleft-icon"></i> (<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer">GPLv3</a>) by <a href="https://sleepinfinity.dev" target="_blank" rel="noopener noreferrer">sleepinfinity.dev</a> · <a href="https://github.com/sleepinfinitydev/disperse" target="_blank" rel="noopener noreferrer">Disperse</a> was built on the shoulders of giants: <a href="https://kroki.io" target="_blank" rel="noopener noreferrer">Kroki</a>, <a href="https://excalidraw.com" target="_blank" rel="noopener noreferrer">Excalidraw</a>, <a href="https://bpmn.io" target="_blank" rel="noopener noreferrer">bpmn.io</a>, <a href="https://ace.c9.io" target="_blank" rel="noopener noreferrer">Ace</a>, <a href="https://github.com/timmywil/panzoom" target="_blank" rel="noopener noreferrer">Panzoom</a>, <a href="https://github.com/nodeca/pako" target="_blank" rel="noopener noreferrer">Pako</a>, <a href="https://lucide.dev" target="_blank" rel="noopener noreferrer">Lucide</a>, and inspired by <a href="https://niolesk.top" target="_blank" rel="noopener noreferrer">Niolesk</a>.';
+
+function initFooterCredits() {
+  const footerEl =
+    document.getElementById('footer-credits') || document.querySelector('.footer-credits');
+  if (!footerEl) return;
+  const cfg = window.DISPERSE_CONFIG || {};
+  const rawCredits =
+    typeof cfg.footerCredits === 'string' ? cfg.footerCredits : DEFAULT_FOOTER_CREDITS;
+  if (!rawCredits.trim()) {
+    footerEl.innerHTML = '';
+    footerEl.style.display = 'none';
+    return;
+  }
+  footerEl.style.display = '';
+  footerEl.innerHTML = rawCredits;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+  initFooterCredits();
   if (window.lucide && typeof window.lucide.createIcons === 'function') {
     window.lucide.createIcons();
   }

@@ -7,6 +7,7 @@
 - **Technology**: HTML5, CSS3, and Vanilla JavaScript (ES6+), with no UI frameworks, relying only on lightweight libraries for code editing, zoom/pan, iconography, and compression. All source code, comments, documentation, and UI text are in **English** (`lang="en"`).
 - **Zero-Text / Icon-First UI**: The interface contains no static text other than the `DISPERSE` brand title and footer credits (along with technical engine/format dropdown values and generated URLs/snippets). All actions and controls are represented using **vector icons (SVG)**.
 - **Stateless URL Sharing & Per-Language Local Persistence**: Any diagram can be shared via a self-contained URL carrying the compressed and encoded source code in Kroki's standard format. Simultaneously, each diagram language maintains an isolated workspace draft in `localStorage` so switching languages never causes cross-syntax rendering errors or work loss, while shared `#hash` URLs take precedence on load without overwriting existing local drafts until modified.
+- **12-Factor Configuration via Environment Variables**: Disperse strictly adheres to the **[Twelve-Factor App (Factor III: Config)](https://12factor.net/config)** methodology for deployment and runtime configuration. Environment-specific settings (such as listening port `PORT`, rendering backend `KROKI_BASE_URL`, and customizable footer credits `FOOTER_CREDITS`) are injected via environment variables at runtime into `js/config.js` (`window.DISPERSE_CONFIG`) without modifying source code or rebuilding container images, while providing sensible defaults out of the box.
 
 ---
 
@@ -178,8 +179,13 @@ Compact panel for obtaining ready-to-publish links, snippets, and managing local
    - Double-clicking `#export-splitter` restores the export section to its full height, and pressing `Alt+X` toggles between collapsed and restored states.
    - In reduced-size viewports (`<= 900px`), `#export-splitter` expands to `24px` and displays quick-action buttons inside its `.splitter-grip` (`#export-collapse` `▼` and `#export-restore` `▲`), matching `#splitter`.
    - Maximizing the preview (`Alt+Enter` / `#maximize-preview`) automatically collapses `#export-section` if it is expanded and restores its previous height when exiting maximized preview (unless manually adjusted in the meantime).
-5. **Footer credits**:
-   - Centered bottom credit line acknowledging the project, its license, and its dependencies: rendered with Lucide vector icons (`heart` tinted in `--color-tertiary` and horizontally flipped `copyright` icon representing copyleft) instead of native Unicode emojis/glyphs to avoid platform-specific rendering anomalies: `Made with <heart> in Betanzos · Copyleft <copyleft> (GPLv3) by sleepinfinity.dev · Disperse was built on the shoulders of giants: Kroki, Excalidraw, bpmn.io, Ace, Panzoom, Pako, Lucide, and inspired by Niolesk.`
+5. **Footer credits (`#footer-credits`)**:
+   - **Default value**: Centered bottom credit line acknowledging the project, its license, and its dependencies, rendered with Lucide vector icons (`heart` tinted in `--color-tertiary` and horizontally flipped `copyright` icon representing copyleft) instead of native Unicode emojis/glyphs to avoid platform-specific rendering anomalies:
+     `Made with <heart> in Betanzos · Copyleft <copyleft> (GPLv3) by sleepinfinity.dev · Disperse was built on the shoulders of giants: Kroki, Excalidraw, bpmn.io, Ace, Panzoom, Pako, Lucide, and inspired by Niolesk.`
+   - **12-Factor Environment Variable Customization (`FOOTER_CREDITS`)**:
+     - Customizable at runtime via the `FOOTER_CREDITS` environment variable (or `DISPERSE_FOOTER_CREDITS`), exposed to the frontend as `window.DISPERSE_CONFIG.footerCredits` (`js/config.js`) and applied by `initFooterCredits()` in `js/app.js` prior to `lucide.createIcons()`.
+     - Supports plain text, HTML links (`<a href="...">`), and inline Lucide icon tags (`<i data-lucide="..."></i>`), which automatically inherit the active theme's typography and `--color-primary` link styling.
+     - If `FOOTER_CREDITS` is unset, the default credit line above is displayed. If `FOOTER_CREDITS` is explicitly set to an empty or whitespace-only string (`FOOTER_CREDITS=""`), `#footer-credits` is hidden (`display: none`).
 
 ### 4.4. Responsive Design
 1. **Desktop & Wide Screens (`> 900px`)**:
@@ -296,7 +302,8 @@ Clean file structure requiring no build step:
 - `index.html` — Semantic structure and CDN library imports.
 - `favicon.svg` — Vector brand icon and logo (a prism dispersing a beam into 4 tetradic graph nodes).
 - `css/styles.css` — Tetradic `oklch` color system, golden-ratio responsive layout, and light/dark themes.
-- `js/app.js` — Initialization, per-engine `localStorage` workspace persistence, auto-render and reset/new workflows, global keyboard shortcuts (`Ctrl/Cmd`, `Alt`/`Alt+Shift`, `F11`), magnetic splitter, local file workflow with format auto-detection, and events.
+- `js/config.js` — 12-Factor runtime configuration object (`window.DISPERSE_CONFIG`) providing default values (`krokiBaseUrl`, `footerCredits`) and generated at container startup from environment variables by Nginx's entrypoint script (`Containerfile`).
+- `js/app.js` — Initialization (including `initFooterCredits()`), per-engine `localStorage` workspace persistence, auto-render and reset/new workflows, global keyboard shortcuts (`Ctrl/Cmd`, `Alt`/`Alt+Shift`, `F11`), magnetic splitter, local file workflow with format auto-detection, and events.
 - `js/theme.js` — `sRGB → Oklab → OKLCH` conversion, tetradic palette generation, dynamic brand icon coloring, and light/dark mode toggle.
 - `js/kroki.js` — Engine catalog, documentation links, file-extension/content language detection, cached lazy-loading of `examples/{engine}.txt`, compression/decompression, and Kroki URL builder.
 - `js/viewer.js` — Diagram viewer (SVG and PNG) with zoom, pan, error overlay, and file download.
@@ -315,11 +322,28 @@ Clean file structure requiring no build step:
 
 ---
 
-## 8. Deployment and Containerization
+## 8. 12-Factor Configuration, Deployment, and Containerization
 
-- **`Containerfile`**: Builds an OCI image based on `nginx:stable` (Debian), linked to the repository via `LABEL org.opencontainers.image.source`, copying only the required static assets (`index.html`, `favicon.svg`, `css/`, `js/`, and `examples/`). It configures Nginx to listen on port `8765` (`ENV PORT=8765`, `EXPOSE 8765 80`) and prints the server URL (`Starting server at http://localhost:8765 ...`) on startup.
-  - **Runtime Backend, Engine Modes & Reverse-Proxy Configuration**: The entrypoint script (`/docker-entrypoint.d/40-disperse.sh`) also supports:
+### 8.1. Twelve-Factor App Configuration Model (Factor III: Config)
+Disperse follows the **[Twelve-Factor App](https://12factor.net/config)** methodology for all deployment and runtime configuration:
+1. **Strict Separation of Config from Code**: No deployment-specific URLs, ports, or organizational branding/footer credits need to be hardcoded or require rebuilding the application or OCI image.
+2. **Environment Variables as the Single Configuration Interface**: All runtime configuration is supplied via standard environment variables (`PORT`, `KROKI_BASE_URL`, `FOOTER_CREDITS`, etc.).
+3. **Sensible Defaults**: Every environment variable has a documented default value embedded in `js/config.js` and `Containerfile`, ensuring zero-configuration startup out of the box.
+4. **Runtime Injection for Static SPA (`js/config.js` -> `window.DISPERSE_CONFIG`)**:
+   - In **OCI containers (`Containerfile`)**, the Nginx container entrypoint script (`/docker-entrypoint.d/40-disperse.sh`) reads the container's environment variables on startup and generates `/usr/share/nginx/html/js/config.js` before Nginx starts serving requests.
+   - In **local development (`Taskfile.yml` `task run`)**, `js/config.js` is generated from `FOOTER_CREDITS` and `KROKI_BASE_URL` before starting `python3 -m http.server` (and restored via `defer` on exit).
+
+| Environment Variable | `window.DISPERSE_CONFIG` Key | Default Value | Description |
+| :--- | :--- | :--- | :--- |
+| `PORT` | *(Server / Nginx)* | `8765` | HTTP listening port for the container or local server. |
+| `FOOTER_CREDITS` *(alias: `DISPERSE_FOOTER_CREDITS`)* | `footerCredits` | `'Made with <i data-lucide="heart" class="heart-icon"></i> in Betanzos · Copyleft <i data-lucide="copyright" class="copyleft-icon"></i> (<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer">GPLv3</a>) by <a href="https://sleepinfinity.dev" target="_blank" rel="noopener noreferrer">sleepinfinity.dev</a> · <a href="https://github.com/sleepinfinitydev/disperse" target="_blank" rel="noopener noreferrer">Disperse</a> was built on the shoulders of giants: <a href="https://kroki.io" target="_blank" rel="noopener noreferrer">Kroki</a>, <a href="https://excalidraw.com" target="_blank" rel="noopener noreferrer">Excalidraw</a>, <a href="https://bpmn.io" target="_blank" rel="noopener noreferrer">bpmn.io</a>, <a href="https://ace.c9.io" target="_blank" rel="noopener noreferrer">Ace</a>, <a href="https://github.com/timmywil/panzoom" target="_blank" rel="noopener noreferrer">Panzoom</a>, <a href="https://github.com/nodeca/pako" target="_blank" rel="noopener noreferrer">Pako</a>, <a href="https://lucide.dev" target="_blank" rel="noopener noreferrer">Lucide</a>, and inspired by <a href="https://niolesk.top" target="_blank" rel="noopener noreferrer">Niolesk</a>.'` | Custom text/HTML (supporting `<a>` links and `<i data-lucide="...">` icons) rendered in `#footer-credits`. Setting `FOOTER_CREDITS=""` hides the footer credit line completely. |
+| `KROKI_BASE_URL` | `krokiBaseUrl` | `'https://kroki.io'` | Base URL of the Kroki rendering API (supports absolute URLs or relative paths such as `/kroki`). |
+
+### 8.2. Containerization & Local Tooling
+- **`Containerfile`**: Builds an OCI image based on `nginx:stable` (Debian), linked to the repository via `LABEL org.opencontainers.image.source`, copying only the required static assets (`index.html`, `favicon.svg`, `css/`, `js/`, and `examples/`). It configures Nginx to listen on port `8765` (`ENV PORT=8765`, `EXPOSE 8765 80`), declares default 12-Factor environment variables (`PORT`, `KROKI_BASE_URL`, `FOOTER_CREDITS`), generates `/usr/share/nginx/html/js/config.js` on startup, and prints the server URL (`Starting server at http://localhost:8765 ...`).
+  - **Runtime Backend, Footer, Engine Modes & Reverse-Proxy Configuration**: The entrypoint script (`/docker-entrypoint.d/40-disperse.sh`) supports:
     - `PORT` (default: `8765`): Configures the container HTTP listening port alongside port `80` (no code changes required for port binding).
+    - `FOOTER_CREDITS` / `DISPERSE_FOOTER_CREDITS` (default: standard Betanzos / GPLv3 / sleepinfinity.dev / Niolesk credit string): Injects `window.DISPERSE_CONFIG.footerCredits` into `/usr/share/nginx/html/js/config.js` at container startup.
     - `KROKI_BASE_URL` (default: `https://kroki.io`): Injects the primary runtime Kroki base URL (`window.DISPERSE_CONFIG.krokiBaseUrl`) consumed by `js/kroki.js` without requiring a build step.
     - `KROKI_REMOTE_URL` (default: `https://kroki.io`): Injects the fallback public/third-party Kroki base URL (`window.DISPERSE_CONFIG.krokiRemoteUrl`) used by any companion engine configured in `remote` mode.
     - `ENGINE_MODE_MERMAID`, `ENGINE_MODE_BPMN`, `ENGINE_MODE_EXCALIDRAW`, `ENGINE_MODE_DIAGRAMSNET` (`local` | `remote` | `disabled`, also accepting `true`/`false` aliases via `ENABLE_<ENGINE>`): Configures per-engine routing and visibility in Disperse's UI selector (`#engine-select`), mapped 1:1 to the Helm chart's sidecar mode (`kroki.sidecars.<engine>.mode`).
@@ -327,10 +351,16 @@ Clean file structure requiring no build step:
     - `KROKI_INTERNAL_UPSTREAM` (optional, e.g., `http://disperse-kroki:8000`): When set, configures an Nginx `location /kroki/` reverse-proxy block in `/etc/nginx/conf.d/default.conf` that strips the `/kroki/` prefix and forwards requests to the internal Kroki server.
 - **Running the Container**:
   ```bash
+  # Default configuration
   docker run --rm -p 8765:8765 ghcr.io/sleepinfinitydev/disperse:latest
+
+  # Custom footer credits via 12-Factor environment variable
+  docker run --rm -p 8765:8765 \
+    -e FOOTER_CREDITS='Internal Diagrams · <a href="https://example.com" target="_blank">Platform Team</a>' \
+    ghcr.io/sleepinfinitydev/disperse:latest
   ```
 - **`Taskfile.yml`**: Provides development and packaging tasks:
-  - `task run`: Starts a lightweight local web server (`python3 -m http.server`) on port `8765` by default (configurable via `PORT`, e.g., `task run PORT=9000`).
+  - `task run`: Generates `js/config.js` from 12-Factor environment variables (`FOOTER_CREDITS`, `KROKI_BASE_URL`), starts a lightweight local web server (`python3 -m http.server`) on port `8765` by default (configurable via `PORT`, e.g., `FOOTER_CREDITS="Custom footer" task run` or `task run PORT=9000`), and restores `js/config.js` via `defer` upon exit.
   - `task build`: Builds the container image (`ghcr.io/sleepinfinitydev/disperse` by default, configurable via `IMAGE=...`) tagged with both the short Git commit hash (`git rev-parse --short HEAD`) and `latest`, auto-detecting `podman` or `docker`.
   - `task push`: Builds and pushes both tags (`:{{.GIT_HASH}}` and `:latest`) to the container registry.
 - **GitHub Actions (`.github/workflows/oci-image.yml`)**: Automatically builds the OCI image from `Containerfile` and pushes both `:<git-short-hash>` and `:latest` tags to GitHub Container Registry (`ghcr.io/sleepinfinitydev/disperse`) on every push to `main` using `GITHUB_TOKEN` with minimal permissions (`contents: read`, `packages: write`).
@@ -567,6 +597,8 @@ image:
 disperse:
   # Used when kroki.enabled is false. When kroki.enabled is true, defaults to "/kroki"
   krokiBaseUrl: "https://kroki.io"
+  # Optional custom footer HTML/text (passed as FOOTER_CREDITS; uses default credit line when omitted)
+  footerCredits: ""
   nginx:
     clientMaxBodySize: "2m"
     largeClientHeaderBuffers: "4 16k"

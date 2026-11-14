@@ -15,7 +15,13 @@ tasks:
     desc: "Run the application locally for testing via Python HTTP server"
     vars:
       PORT: '{{.PORT | default "8765"}}'
+    env:
+      FOOTER_CREDITS: '{{.FOOTER_CREDITS}}'
+      KROKI_BASE_URL: '{{.KROKI_BASE_URL}}'
     cmds:
+      - defer: printf 'window.DISPERSE_CONFIG = {};\n' > js/config.js
+      - |
+        python3 -c 'import json, os; cfg = {k: os.environ[e] for k, e in [("krokiBaseUrl", "KROKI_BASE_URL"), ("footerCredits", "FOOTER_CREDITS")] if os.environ.get(e)}; open("js/config.js", "w").write("window.DISPERSE_CONFIG = " + json.dumps(cfg) + ";\n")'
       - echo "Starting server at http://localhost:{{.PORT}} ..."
       - python3 -m http.server {{.PORT}}
 

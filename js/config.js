@@ -1,0 +1,1 @@
+window.DISPERSE_CONFIG = {};

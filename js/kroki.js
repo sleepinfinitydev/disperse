@@ -317,6 +317,18 @@ function buildOptionsQuery(engine, options = {}) {
   return qs ? `?${qs}` : '';
 }
 
+function getKrokiBaseUrl() {
+  const configured =
+    window.DISPERSE_CONFIG && typeof window.DISPERSE_CONFIG.krokiBaseUrl === 'string'
+      ? window.DISPERSE_CONFIG.krokiBaseUrl.trim()
+      : '';
+  const base = (configured || 'https://kroki.io').replace(/\/+$/, '');
+  if (base.startsWith('/') && typeof window !== 'undefined' && window.location && window.location.origin) {
+    return `${window.location.origin}${base}`;
+  }
+  return base;
+}
+
 window.kroki = {
   ENGINES,
   D2_LAYOUTS,
@@ -341,6 +353,6 @@ window.kroki = {
         ? info.krokiFormats[0]
         : format;
     const query = buildOptionsQuery(krokiEngine, options);
-    return `https://kroki.io/${krokiEngine}/${effectiveFormat}/${payload}${query}`;
+    return `${getKrokiBaseUrl()}/${krokiEngine}/${effectiveFormat}/${payload}${query}`;
   }
 };

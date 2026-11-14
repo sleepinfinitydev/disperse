@@ -19,11 +19,16 @@ docker run --rm -p 8765:8765 ghcr.io/sleepinfinitydev/disperse:latest
 ```
 Then open `http://localhost:8765` in your browser.
 
+Runtime configuration follows the **12-Factor App** model via environment variables (all optional with built-in defaults):
+- `PORT` (default: `8765`): HTTP listening port.
+- `FOOTER_CREDITS` (default: `Made with ❤️ in Betanzos ... inspired by Niolesk.`): Custom footer text/HTML (or `""` to hide).
+- `KROKI_BASE_URL` (default: `https://kroki.io`): Custom or self-hosted Kroki API endpoint.
+
 ### Run locally (with [Task](https://taskfile.dev))
 ```bash
 task run
 ```
-By default, it starts a local server at `http://localhost:8765` (customizable via `task run PORT=9000`).
+By default, it starts a local server at `http://localhost:8765` (customizable via environment variables or task arguments, e.g., `FOOTER_CREDITS="Custom footer" task run` or `task run PORT=9000`).
 
 ### Build & Push OCI Container Image
 ```bash
