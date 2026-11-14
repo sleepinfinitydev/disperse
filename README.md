@@ -4,6 +4,11 @@
 
 ![Disperse Screenshot](assets/screenshot.png)
 
+> [!NOTE]
+> **About this project:** Disperse should be regarded as a functional prototype—personally, I believe it is the best Kroki frontend out there, though you use it at your own risk.
+>
+> It began as an experiment bringing together several technical curiosities: styling a web app with CSS `oklch`, exploring agentic programming, and practicing spec-driven development. At the same time, I had been planning to deploy [Niolesk](https://niolesk.top), wasn't quite convinced by its look and feel, and diagrams as code happen to be a personal obsession of mine.
+
 ---
 
 ## Documentation Map (Diátaxis)
