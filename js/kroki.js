@@ -147,6 +147,11 @@ function isWysiwygEngine(engineId) {
   return Boolean(getEngineInfo(engineId).wysiwyg);
 }
 
+function isKnownEngineId(engineId) {
+  if (!engineId || typeof engineId !== 'string') return false;
+  return ENGINES.some((e) => e.id === engineId) || engineId === 'c4plantuml';
+}
+
 function resolveEngineId(engineId, code = '') {
   let candidate = null;
   if (ENGINES.some((e) => e.id === engineId)) {
@@ -419,7 +424,7 @@ function isEngineDisabled(engineId) {
 }
 
 function isEngineRemote(engineId) {
-  return getEngineMode(engineId) === 'remote';
+  return getEngineMode(engineId) === 'remote' && getKrokiBaseUrl() !== getKrokiRemoteUrl();
 }
 
 function getEnabledEngines() {
@@ -457,6 +462,7 @@ window.kroki = {
   getKrokiRemoteUrl,
   getRemoteHostLabel,
   isWysiwygEngine,
+  isKnownEngineId,
   resolveEngineId,
   buildOptionsQuery,
   buildUrl(engine, format, payload, options = {}) {

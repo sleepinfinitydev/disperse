@@ -119,6 +119,201 @@ function hideViewerError() {
   if (errorText) errorText.textContent = '';
 }
 
+const FORBIDDEN_SVG_TAGS = new Set([
+  'script',
+  'iframe',
+  'frame',
+  'frameset',
+  'object',
+  'embed',
+  'applet',
+  'audio',
+  'video',
+  'source',
+  'track',
+  'canvas',
+  'form',
+  'input',
+  'button',
+  'select',
+  'textarea',
+  'option',
+  'meta',
+  'link',
+  'base',
+  'noscript',
+  'template',
+  'portal',
+  'marquee'
+]);
+
+const SMIL_ANIMATION_TAGS = new Set([
+  'set',
+  'animate',
+  'animatetransform',
+  'animatemotion',
+  'animatecolor'
+]);
+
+const URI_ATTRIBUTES = new Set([
+  'href',
+  'xlink:href',
+  'src',
+  'action',
+  'formaction',
+  'data',
+  'poster',
+  'ping'
+]);
+
+function sanitizeCssText(cssText) {
+  if (!cssText) return '';
+  return String(cssText)
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/@import\b[^;]*;?/gi, '')
+    .replace(/expression\s*\([^)]*\)/gi, '')
+    .replace(/(?:javascript|vbscript)\s*:/gi, '');
+}
+
+function isSafeSvgUri(rawVal, tagLower) {
+  const normalized = String(rawVal || '')
+    .replace(/[\u0000-\u0020]+/g, '')
+    .toLowerCase();
+  if (!normalized) return true;
+  if (normalized.startsWith('#')) return true;
+  if (tagLower === 'use' || tagLower === 'feimage') {
+    return false;
+  }
+  if (
+    normalized.startsWith('javascript:') ||
+    normalized.startsWith('vbscript:') ||
+    normalized.startsWith('file:')
+  ) {
+    return false;
+  }
+  if (normalized.startsWith('data:')) {
+    if (tagLower === 'image' || tagLower === 'img') {
+      return /^data:image\/(?:png|jpeg|jpg|gif|webp);base64,[a-z0-9+/=_-]+$/i.test(normalized);
+    }
+    return false;
+  }
+  if (tagLower === 'a') {
+    return (
+      normalized.startsWith('http://') ||
+      normalized.startsWith('https://') ||
+      normalized.startsWith('mailto:')
+    );
+  }
+  return (
+    normalized.startsWith('http://') ||
+    normalized.startsWith('https://') ||
+    !/^[a-z][a-z0-9+.-]*:/i.test(normalized)
+  );
+}
+
+function sanitizeSvgTree(rootSvg) {
+  const walker = rootSvg.ownerDocument.createTreeWalker(rootSvg, NodeFilter.SHOW_ELEMENT);
+  const toRemove = [];
+  let node = rootSvg;
+
+  while (node) {
+    const tagLower = (node.localName || node.tagName || '').toLowerCase();
+
+    if (FORBIDDEN_SVG_TAGS.has(tagLower)) {
+      toRemove.push(node);
+    } else if (SMIL_ANIMATION_TAGS.has(tagLower)) {
+      const targetAttr = (node.getAttribute('attributeName') || '').trim().toLowerCase();
+      const smilVals = [
+        node.getAttribute('to') || '',
+        node.getAttribute('from') || '',
+        node.getAttribute('by') || '',
+        node.getAttribute('values') || ''
+      ].join(' ');
+      if (
+        targetAttr.startsWith('on') ||
+        URI_ATTRIBUTES.has(targetAttr) ||
+        /(?:javascript|vbscript|data)\s*:/i.test(smilVals)
+      ) {
+        toRemove.push(node);
+      }
+    }
+
+    if (!toRemove.includes(node)) {
+      const attrs = Array.from(node.attributes || []);
+      for (const attr of attrs) {
+        const attrNameLower = attr.name.replace(/[\u0000-\u0020]+/g, '').toLowerCase();
+        const attrLocalLower = (attr.localName || attrNameLower).toLowerCase();
+
+        if (
+          attrNameLower.startsWith('on') ||
+          attrLocalLower.startsWith('on') ||
+          attrNameLower === 'srcdoc' ||
+          attrNameLower === 'formaction' ||
+          attrNameLower === 'ping'
+        ) {
+          node.removeAttributeNode(attr);
+          continue;
+        }
+
+        if (URI_ATTRIBUTES.has(attrNameLower) || URI_ATTRIBUTES.has(attrLocalLower)) {
+          if (!isSafeSvgUri(attr.value, tagLower)) {
+            node.removeAttributeNode(attr);
+            continue;
+          }
+          if (tagLower === 'a' && !String(attr.value || '').trim().startsWith('#')) {
+            node.setAttribute('target', '_blank');
+            node.setAttribute('rel', 'noopener noreferrer');
+          }
+        } else if (attrNameLower === 'style') {
+          const cleanStyle = sanitizeCssText(attr.value);
+          if (cleanStyle.trim()) {
+            node.setAttribute('style', cleanStyle);
+          } else {
+            node.removeAttributeNode(attr);
+          }
+        }
+      }
+
+      if (tagLower === 'style') {
+        node.textContent = sanitizeCssText(node.textContent);
+      }
+    }
+
+    node = walker.nextNode();
+  }
+
+  for (const badNode of toRemove) {
+    if (badNode.parentNode) {
+      badNode.parentNode.removeChild(badNode);
+    }
+  }
+}
+
+function parseAndSanitizeSvg(svgRaw) {
+  const parser = new DOMParser();
+  let xmlDoc = parser.parseFromString(String(svgRaw || ''), 'image/svg+xml');
+  let svgNode = null;
+
+  if (
+    xmlDoc &&
+    !xmlDoc.querySelector('parsererror') &&
+    xmlDoc.documentElement &&
+    (xmlDoc.documentElement.localName || xmlDoc.documentElement.tagName || '').toLowerCase() === 'svg'
+  ) {
+    svgNode = xmlDoc.documentElement;
+  } else {
+    const htmlDoc = parser.parseFromString(String(svgRaw || ''), 'text/html');
+    svgNode = htmlDoc ? htmlDoc.querySelector('svg') : null;
+  }
+
+  if (!svgNode) {
+    throw new Error('Invalid SVG response from rendering server');
+  }
+
+  sanitizeSvgTree(svgNode);
+  return document.importNode(svgNode, true);
+}
+
 function updateViewer(url, format, engine) {
   const viewer = document.getElementById('viewer');
   const loading = document.getElementById('loading');
@@ -156,15 +351,13 @@ function updateViewer(url, format, engine) {
       lastRenderedData.engine = engine || 'diagram';
 
       if (format === 'svg') {
-        lastRenderedData.svgText = data;
-        viewer.innerHTML = data;
-        const svgEl = viewer.querySelector('svg');
-        if (svgEl) {
-          svgEl.style.maxWidth = '100%';
-          svgEl.style.maxHeight = '100%';
-          svgEl.style.width = 'auto';
-          svgEl.style.height = 'auto';
-        }
+        const svgEl = parseAndSanitizeSvg(data);
+        svgEl.style.maxWidth = '100%';
+        svgEl.style.maxHeight = '100%';
+        svgEl.style.width = 'auto';
+        svgEl.style.height = 'auto';
+        viewer.replaceChildren(svgEl);
+        lastRenderedData.svgText = new XMLSerializer().serializeToString(svgEl);
       } else {
         lastRenderedData.svgText = '';
         const blobUrl = URL.createObjectURL(data);

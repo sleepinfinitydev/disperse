@@ -12,9 +12,10 @@ metadata:
 spec:
   {{- if not (kindIs "invalid" .Values.pdb.minAvailable) }}
   minAvailable: {{ .Values.pdb.minAvailable }}
-  {{- end }}
-  {{- if not (kindIs "invalid" .Values.pdb.maxUnavailable) }}
+  {{- else if not (kindIs "invalid" .Values.pdb.maxUnavailable) }}
   maxUnavailable: {{ .Values.pdb.maxUnavailable }}
+  {{- else }}
+  maxUnavailable: 1
   {{- end }}
   selector:
     matchLabels:

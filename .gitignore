@@ -1,0 +1,13 @@
+# OS & editor files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.bak
+*.tmp
+*.orig
+*~
+
+# Packaged Helm charts & local override values
+*.tgz
+values-*.yaml

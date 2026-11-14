@@ -1,9 +1,11 @@
-name: Publish OCI Image
+name: Publish OCI Image and Helm Chart
 
 on:
   push:
     branches:
       - main
+      - feat-helm-charts
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,15 +18,123 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Ensure Helm v3 is installed
+        run: |
+          if ! command -v helm >/dev/null 2>&1; then
+            curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          fi
+          helm version
+
+      - name: Lint Helm chart
+        run: helm lint --strict ./charts/disperse
+
+      - name: Compute image and chart tags
+        id: meta
+        run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          CHART_OCI_REPO="oci://ghcr.io/${OWNER}/charts"
+          GIT_HASH="$(git rev-parse --short HEAD)"
+          BASE_VERSION="$(awk '/^version:/{print $2; exit}' charts/disperse/Chart.yaml | tr -d "\"'")"
+
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "chart_oci_repo=${CHART_OCI_REPO}" >> "$GITHUB_OUTPUT"
+
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            echo "is_main=true" >> "$GITHUB_OUTPUT"
+            echo "app_version=${GIT_HASH}" >> "$GITHUB_OUTPUT"
+            echo "image_tags=${GIT_HASH} ${BASE_VERSION} latest" >> "$GITHUB_OUTPUT"
+            echo "chart_versions=${BASE_VERSION}" >> "$GITHUB_OUTPUT"
+            echo "primary_chart_version=${BASE_VERSION}" >> "$GITHUB_OUTPUT"
+            echo "primary_image_tag=latest" >> "$GITHUB_OUTPUT"
+          else
+            BRANCH_SLUG="$(printf '%s' "${GITHUB_REF_NAME}" \
+              | tr '[:upper:]' '[:lower:]' \
+              | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' \
+              | cut -c1-40 \
+              | sed -E 's/-+$//')"
+            if [ -z "$BRANCH_SLUG" ]; then
+              BRANCH_SLUG="dev"
+            fi
+            IMMUTABLE_IMG_TAG="${BRANCH_SLUG}-${GIT_HASH}"
+            BRANCH_CHART_VER="${BASE_VERSION}-${BRANCH_SLUG}"
+            COMMIT_CHART_VER="${BASE_VERSION}-${BRANCH_SLUG}.g${GIT_HASH}"
+
+            echo "is_main=false" >> "$GITHUB_OUTPUT"
+            echo "app_version=${IMMUTABLE_IMG_TAG}" >> "$GITHUB_OUTPUT"
+            echo "image_tags=${IMMUTABLE_IMG_TAG} ${BRANCH_SLUG}" >> "$GITHUB_OUTPUT"
+            echo "chart_versions=${BRANCH_CHART_VER} ${COMMIT_CHART_VER}" >> "$GITHUB_OUTPUT"
+            echo "primary_chart_version=${BRANCH_CHART_VER}" >> "$GITHUB_OUTPUT"
+            echo "primary_image_tag=${BRANCH_SLUG}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Log in to GitHub Container Registry
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-
-      - name: Build and push OCI image
         run: |
-          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
-          GIT_HASH="$(git rev-parse --short HEAD)"
-          docker build -t "$IMAGE:$GIT_HASH" -t "$IMAGE:latest" -f Containerfile .
-          docker push "$IMAGE:$GIT_HASH"
-          docker push "$IMAGE:latest"
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "$GHCR_TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push OCI container image
+        run: |
+          IMAGE="${{ steps.meta.outputs.image }}"
+          BUILD_ARGS=""
+          for tag in ${{ steps.meta.outputs.image_tags }}; do
+            BUILD_ARGS="$BUILD_ARGS -t ${IMAGE}:${tag}"
+          done
+
+          # shellcheck disable=SC2086
+          docker build $BUILD_ARGS -f Containerfile .
+
+          for tag in ${{ steps.meta.outputs.image_tags }}; do
+            docker push "${IMAGE}:${tag}"
+          done
+
+      - name: Package and push OCI Helm chart
+        run: |
+          CHART_OCI_REPO="${{ steps.meta.outputs.chart_oci_repo }}"
+          APP_VERSION="${{ steps.meta.outputs.app_version }}"
+          DIST_DIR="$(mktemp -d)"
+
+          for ver in ${{ steps.meta.outputs.chart_versions }}; do
+            helm package ./charts/disperse \
+              --version "$ver" \
+              --app-version "$APP_VERSION" \
+              --destination "$DIST_DIR"
+            helm push "${DIST_DIR}/disperse-${ver}.tgz" "$CHART_OCI_REPO"
+          done
+
+      - name: Write job summary
+        run: |
+          IMAGE="${{ steps.meta.outputs.image }}"
+          CHART_REF="${{ steps.meta.outputs.chart_oci_repo }}/disperse"
+          PRIMARY_CHART_VER="${{ steps.meta.outputs.primary_chart_version }}"
+          PRIMARY_IMG_TAG="${{ steps.meta.outputs.primary_image_tag }}"
+          IS_MAIN="${{ steps.meta.outputs.is_main }}"
+
+          {
+            echo "## Published OCI Artifacts"
+            echo ""
+            echo "### Container Image (\`${IMAGE}\`)"
+            for tag in ${{ steps.meta.outputs.image_tags }}; do
+              echo "- \`${IMAGE}:${tag}\`"
+            done
+            echo ""
+            echo "### Helm Chart (\`${CHART_REF}\`)"
+            for ver in ${{ steps.meta.outputs.chart_versions }}; do
+              echo "- \`${CHART_REF}:${ver}\` *(appVersion: \`${{ steps.meta.outputs.app_version }}\`)*"
+            done
+            echo ""
+            echo "### Quick Test Commands"
+            echo "\`\`\`bash"
+            echo "# Run container"
+            echo "docker run --rm -p 8765:8765 ${IMAGE}:${PRIMARY_IMG_TAG}"
+            echo ""
+            echo "# Deploy with Helm from GHCR"
+            if [ "$IS_MAIN" = "true" ]; then
+              echo "helm upgrade --install disperse ${CHART_REF} --namespace disperse --create-namespace"
+            else
+              echo "helm upgrade --install disperse ${CHART_REF} --version ${PRIMARY_CHART_VER} --namespace disperse --create-namespace"
+            fi
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"

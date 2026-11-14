@@ -1,5 +1,4 @@
-{{- $targetPort := int (.Values.service.targetPort | default 8765) -}}
-{{- $krokiPort := int (.Values.kroki.port | default 8000) -}}
+{{- $containerPort := int (include "disperse.containerPort" .) -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -17,11 +16,10 @@ spec:
       {{- include "disperse.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      {{- with (mergeOverwrite (deepCopy (.Values.commonAnnotations | default dict)) (.Values.podAnnotations | default dict)) }}
       annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
-        {{- with (mergeOverwrite (deepCopy (.Values.commonAnnotations | default dict)) (.Values.podAnnotations | default dict)) }}
         {{- toYaml . | nindent 8 }}
-        {{- end }}
+      {{- end }}
       labels:
         {{- include "disperse.labels" . | nindent 8 }}
         {{- with .Values.podLabels }}
@@ -45,19 +43,15 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ $targetPort }}
+              containerPort: {{ $containerPort }}
               protocol: TCP
           env:
             - name: PORT
-              value: {{ $targetPort | quote }}
+              value: {{ $containerPort | quote }}
             - name: KROKI_BASE_URL
               value: {{ include "disperse.krokiBaseUrl" . | quote }}
             - name: KROKI_REMOTE_URL
               value: {{ include "disperse.krokiRemoteUrl" . | quote }}
-            {{- if .Values.kroki.enabled }}
-            - name: KROKI_INTERNAL_UPSTREAM
-              value: {{ printf "http://%s:%d" (include "disperse.krokiFullname" .) $krokiPort | quote }}
-            {{- end }}
             - name: ENGINE_MODE_MERMAID
               value: {{ include "disperse.engineMode" (dict "root" . "engine" "mermaid") | quote }}
             - name: ENGINE_MODE_BPMN
@@ -88,18 +82,11 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           volumeMounts:
-            - name: config
-              mountPath: /etc/nginx/conf.d/default.conf
-              subPath: default.conf
-              readOnly: true
-            - name: config
-              mountPath: /usr/share/nginx/html/js/config.js
-              subPath: config.js
-              readOnly: true
+            - name: tmp
+              mountPath: /tmp
       volumes:
-        - name: config
-          configMap:
-            name: {{ include "disperse.fullname" . }}-config
+        - name: tmp
+          emptyDir: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

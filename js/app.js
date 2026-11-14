@@ -685,7 +685,7 @@ function initSelects() {
       layoutSelect.appendChild(opt);
     });
     layoutSelect.value = 'dagre';
-    layoutSelect.disabled = false;
+    layoutSelect.disabled = defaultEngine !== 'd2';
     layoutSelect.addEventListener('change', () => {
       canPersistCurrentDraft = true;
       syncState(true);
@@ -701,7 +701,7 @@ function initSelects() {
       themeSelect.appendChild(opt);
     });
     themeSelect.value = 'default';
-    themeSelect.disabled = false;
+    themeSelect.disabled = defaultEngine !== 'd2';
     themeSelect.addEventListener('change', () => {
       canPersistCurrentDraft = true;
       syncState(true);
@@ -823,7 +823,13 @@ function syncState(renderDiagram = true, renderOpts = {}) {
   const themeSelect = document.getElementById('theme-select');
   if (!engineSelect || !formatSelect || !editor) return;
 
-  const engine = engineSelect.value || 'd2';
+  const engine = engineSelect.value || currentEngine || 'd2';
+  if (window.kroki && typeof window.kroki.isEngineDisabled === 'function' && window.kroki.isEngineDisabled(engine)) {
+    if (renderDiagram && window.viewer && typeof window.viewer.showError === 'function') {
+      window.viewer.showError(`Diagram engine "${engine}" is disabled on this Disperse instance.`);
+    }
+    return;
+  }
   const format = formatSelect.value || 'svg';
   const options = {
     layout: layoutSelect ? layoutSelect.value : 'dagre',
@@ -989,7 +995,19 @@ async function loadFromUrl() {
         window.kroki.loadExample(resolvedEngine).catch(() => {});
         setEditorCode(decoded, true);
         resetEditorUndoHistory();
-        return;
+        return null;
+      }
+
+      if (
+        decoded !== null &&
+        window.kroki &&
+        typeof window.kroki.isKnownEngineId === 'function' &&
+        window.kroki.isKnownEngineId(engine)
+      ) {
+        canPersistCurrentDraft = false;
+        setEditorCode(decoded, false);
+        resetEditorUndoHistory();
+        return { disabledEngine: engine };
       }
     }
   }
@@ -1034,7 +1052,7 @@ async function loadFromUrl() {
     window.kroki.loadExample(initialEngine).catch(() => {});
     setEditorCode(savedDraft.code, true);
     resetEditorUndoHistory();
-    return;
+    return null;
   }
 
   try {
@@ -1044,6 +1062,7 @@ async function loadFromUrl() {
   } catch (err) {
     console.error('Failed to load initial example:', err);
   }
+  return null;
 }
 
 async function resetToExample() {
@@ -1565,8 +1584,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   initProgressiveFileUI();
   updateAutoRenderUI();
 
-  await loadFromUrl();
-  syncState(true, { centerView: true });
+  const urlStatus = await loadFromUrl();
+  if (urlStatus && urlStatus.disabledEngine) {
+    if (window.viewer && typeof window.viewer.showError === 'function') {
+      window.viewer.showError(
+        `Diagram engine "${urlStatus.disabledEngine}" is disabled on this Disperse instance.`
+      );
+    }
+  } else {
+    syncState(true, { centerView: true });
+  }
   
   if (editor && !window.kroki.isWysiwygEngine(currentEngine)) {
     editor.focus();

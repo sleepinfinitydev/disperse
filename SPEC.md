@@ -153,7 +153,7 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 ### 4.3. Bottom Bar (Publishing, Sharing Snippets & Local Files)
 Compact panel for obtaining ready-to-publish links, snippets, and managing local files:
 1. **Target types** (three rows identified by icons):
-   - **Image (image icon)**: Points directly to the configured Kroki API base URL (`https://kroki.io` by default, or `{current_origin}/kroki` when deployed with the integrated self-hosted Kroki backend):
+   - **Image (image icon)**: Points directly to the configured Kroki API base URL (`https://kroki.io` by default, or a dedicated self-hosted Kroki endpoint such as `http://kroki.127.0.0.1.nip.io` — or `https://kroki.io` for specific engines configured in `remote` mode):
      `{kroki_base_url}/{engine}/{format}/{compressed_payload}`
    - **Editor (pencil icon)**: Points to this Disperse instance with state in the URL hash:
      `{current_origin}/#{engine}/{format}/{compressed_payload}`
@@ -284,15 +284,16 @@ Displayed at the bottom of `#engine-select` below the second disabled separator 
    - Compress using **Zlib Deflate** (level 9).
    - Convert the compressed buffer to **URL-safe Base64** (replacing `+` with `-` and `/` with `_`).
 2. **Decoding & Startup Precedence (`#hash` URL vs. `localStorage`)**:
-   - **With URL `#engine/format/payload[?layout=...&theme=...]` hash (Shared Link)**: The URL payload always takes precedence on startup—decoding and loading the specified engine, format, options, and source code. To protect the user's own local workspace, opening an external `#hash` URL whose content differs from the existing `localStorage` draft for that engine **does not overwrite** `disperse-draft:{engine}` until the user makes a modification in the editor/canvas (if the user switches languages without modifying it, their previous local draft remains intact).
+   - **With URL `#engine/format/payload[?layout=...&theme=...]` hash (Shared Link)**: The URL payload always takes precedence on startup—decoding and loading the specified engine, format, options, and source code. To protect the user's own local workspace, opening an external `#hash` URL whose content differs from the existing `localStorage` draft for that engine **does not overwrite** `disperse-draft:{engine}` until the user makes a modification in the editor/canvas (if the user switches languages without modifying it, their previous local draft remains intact). If the `#hash` URL specifies a known engine that has been administratively disabled on the instance (`disabled`), Disperse preserves `window.location.hash` intact, displays the decoded source code in the editor without persisting it, and shows an explicit notice in `#viewer-error`.
    - **Without URL `#hash` (Clean Root Visit)**: Restores the last active language from `disperse-last-engine` (defaulting to `d2`) and loads its saved draft from `disperse-draft:{engine}` (including D2 `layout`/`theme` when applicable), falling back to `examples/{engine}.txt` if no draft exists.
 3. **Per-Language `localStorage` Persistence**:
    - Each of the 32 selectable entries in `#engine-select` stores its own draft independently under `disperse-draft:{engineId}` (JSON `{ code, layout?, theme? }`), alongside `disperse-last-engine` and `disperse-autorender` (`'true'` by default).
    - Whenever an engine's code matches its stock template (`examples/{engineId}.txt`) and uses default options, `disperse-draft:{engineId}` is removed from `localStorage` to keep storage clean.
    - While a local file (`fileState.name`) is open, edits track against that file rather than overwriting the language's scratchpad draft; any pending in-browser draft is flushed synchronously on `beforeunload`. All `localStorage` operations are wrapped in `try/catch` to handle private browsing or quota limits gracefully.
-4. **Rendering**:
-   - Standard diagrams use `GET {kroki_base_url}/{engine}/{format}/{payload}` (where `{kroki_base_url}` defaults to `https://kroki.io` and can be configured at runtime via `window.DISPERSE_CONFIG.krokiBaseUrl`, resolving relative paths such as `/kroki` against `window.location.origin`).
-   - If a syntax error occurs, the error body returned by Kroki is displayed in the `#viewer-error` overlay.
+4. **Rendering & SVG Sanitization**:
+   - Standard diagrams use `GET {kroki_base_url}/{engine}/{format}/{payload}` (where `{kroki_base_url}` defaults to `https://kroki.io` and can be configured at runtime via `window.DISPERSE_CONFIG.krokiBaseUrl`, or routed to `window.DISPERSE_CONFIG.krokiRemoteUrl` for engines in `remote` mode).
+   - **Client-Side SVG Sanitization (`js/viewer.js`)**: Before mounting any rendered SVG into `#viewer`, Disperse parses it via `DOMParser` (`parseAndSanitizeSvg`) and strips executable scripts (`<script>`), dangerous embedded elements (`<iframe>`, `<object>`, `<embed>`, `<form>`, `<meta>`, `<link>`, `<base>`), inline event handlers (`on*`), unsafe SMIL attribute mutations (`<set>`, `<animate*>`), external `<use>` references, unsafe URI schemes (`javascript:`, `vbscript:`, `file:`, non-raster `data:`), and CSS `expression()`/`@import` vectors—while preserving legitimate `<style>` rules, embedded `@font-face` fonts, `<foreignObject>` HTML node labels (e.g., Mermaid and D2), and external `http(s):`/`mailto:` links (forcing `target="_blank"` and `rel="noopener noreferrer"`). The sanitized `<svg>` node is mounted via `document.importNode` + `replaceChildren` (never raw `innerHTML`).
+   - If a syntax or rendering error occurs, the error body returned by Kroki is displayed as plain text (`textContent`) in the `#viewer-error` overlay.
 
 ---
 
@@ -306,7 +307,7 @@ Clean file structure requiring no build step:
 - `js/app.js` — Initialization (including `initFooterCredits()`), per-engine `localStorage` workspace persistence, auto-render and reset/new workflows, global keyboard shortcuts (`Ctrl/Cmd`, `Alt`/`Alt+Shift`, `F11`), magnetic splitter, local file workflow with format auto-detection, and events.
 - `js/theme.js` — `sRGB → Oklab → OKLCH` conversion, tetradic palette generation, dynamic brand icon coloring, and light/dark mode toggle.
 - `js/kroki.js` — Engine catalog, documentation links, file-extension/content language detection, cached lazy-loading of `examples/{engine}.txt`, compression/decompression, and Kroki URL builder.
-- `js/viewer.js` — Diagram viewer (SVG and PNG) with zoom, pan, error overlay, and file download.
+- `js/viewer.js` — Diagram viewer (SVG and PNG) with `DOMParser`-based SVG XSS sanitization, zoom, pan, error overlay, and file download.
 - `js/wysiwyg.js` — Lazy-loaded embedded WYSIWYG visual editors (`@excalidraw/excalidraw` and `bpmn-js`) with bidirectional Ace Editor / URL synchronization and client-side SVG/PNG export.
 - `examples/*.txt` — Individual default example files for each of the 32 selectable engine/template entries (28 Kroki engines including 5 C4-PlantUML diagram types).
 - `assets/screenshot.png` — Application screenshot referenced in `README.md`.
@@ -327,34 +328,28 @@ Clean file structure requiring no build step:
 ### 8.1. Twelve-Factor App Configuration Model (Factor III: Config)
 Disperse follows the **[Twelve-Factor App](https://12factor.net/config)** methodology for all deployment and runtime configuration:
 1. **Strict Separation of Config from Code**: No deployment-specific URLs, ports, or organizational branding/footer credits need to be hardcoded or require rebuilding the application or OCI image.
-2. **Environment Variables as the Single Configuration Interface**: All runtime configuration is supplied via standard environment variables (`PORT`, `KROKI_BASE_URL`, `FOOTER_CREDITS`, etc.).
+2. **Environment Variables as the Single Configuration Interface**: All runtime configuration—both in standalone OCI containers and in Kubernetes (`charts/disperse`)—is supplied strictly via standard environment variables (`PORT`, `KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `ENGINE_MODE_*`, `KROKI_DISABLED_ENGINES`, `FOOTER_CREDITS`).
 3. **Sensible Defaults**: Every environment variable has a documented default value embedded in `js/config.js` and `Containerfile`, ensuring zero-configuration startup out of the box.
 4. **Runtime Injection for Static SPA (`js/config.js` -> `window.DISPERSE_CONFIG`)**:
-   - In **OCI containers (`Containerfile`)**, the Nginx container entrypoint script (`/docker-entrypoint.d/40-disperse.sh`) reads the container's environment variables on startup and generates `/usr/share/nginx/html/js/config.js` before Nginx starts serving requests.
-   - In **local development (`Taskfile.yml` `task run`)**, `js/config.js` is generated from `FOOTER_CREDITS` and `KROKI_BASE_URL` before starting `python3 -m http.server` (and restored via `defer` on exit).
+   - In **OCI containers (`Containerfile`)**, the unprivileged Nginx entrypoint script (`/docker-entrypoint.d/40-disperse.sh`) reads the container's environment variables on startup, writes `/tmp/disperse-config.js` (and `/usr/share/nginx/html/js/config.js` when writable), and configures `/tmp/disperse-nginx.conf` to serve `/js/config.js` with `Cache-Control: no-store, no-cache, must-revalidate`—compatible with `readOnlyRootFilesystem: true` when `/tmp` is mounted as a `tmpfs` / `emptyDir`.
+   - In **local development (`Taskfile.yml` `task run`)**, `js/config.js` is generated from `KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `ENGINE_MODE_*`, `KROKI_DISABLED_ENGINES`, and `FOOTER_CREDITS` / `DISPERSE_FOOTER_CREDITS` (properly honoring `FOOTER_CREDITS=""` to hide the footer) before starting `python3 -m http.server`, and restored via `defer` on exit.
 
 | Environment Variable | `window.DISPERSE_CONFIG` Key | Default Value | Description |
 | :--- | :--- | :--- | :--- |
-| `PORT` | *(Server / Nginx)* | `8765` | HTTP listening port for the container or local server. |
+| `PORT` | *(Server / Nginx)* | `8765` | Unprivileged HTTP listening port for the container (`UID 101`) or local server. |
 | `FOOTER_CREDITS` *(alias: `DISPERSE_FOOTER_CREDITS`)* | `footerCredits` | `'Made with <i data-lucide="heart" class="heart-icon"></i> in Betanzos · Copyleft <i data-lucide="copyright" class="copyleft-icon"></i> (<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer">GPLv3</a>) by <a href="https://sleepinfinity.dev" target="_blank" rel="noopener noreferrer">sleepinfinity.dev</a> · <a href="https://github.com/sleepinfinitydev/disperse" target="_blank" rel="noopener noreferrer">Disperse</a> was built on the shoulders of giants: <a href="https://kroki.io" target="_blank" rel="noopener noreferrer">Kroki</a>, <a href="https://excalidraw.com" target="_blank" rel="noopener noreferrer">Excalidraw</a>, <a href="https://bpmn.io" target="_blank" rel="noopener noreferrer">bpmn.io</a>, <a href="https://ace.c9.io" target="_blank" rel="noopener noreferrer">Ace</a>, <a href="https://github.com/timmywil/panzoom" target="_blank" rel="noopener noreferrer">Panzoom</a>, <a href="https://github.com/nodeca/pako" target="_blank" rel="noopener noreferrer">Pako</a>, <a href="https://lucide.dev" target="_blank" rel="noopener noreferrer">Lucide</a>, and inspired by <a href="https://niolesk.top" target="_blank" rel="noopener noreferrer">Niolesk</a>.'` | Custom text/HTML (supporting `<a>` links and `<i data-lucide="...">` icons) rendered in `#footer-credits`. Setting `FOOTER_CREDITS=""` hides the footer credit line completely. |
-| `KROKI_BASE_URL` | `krokiBaseUrl` | `'https://kroki.io'` | Primary base URL of the Kroki rendering API (supports absolute URLs or relative paths such as `/kroki`). |
-| `KROKI_REMOTE_URL` | `krokiRemoteUrl` | `'https://kroki.io'` | Fallback external Kroki URL used by companion engines configured in `remote` mode. |
-| `KROKI_INTERNAL_UPSTREAM` | *(Server / Nginx)* | `''` | Optional internal Kroki upstream URL (e.g., `http://disperse-kroki:8000`) for Nginx's `location /kroki/` reverse proxy. |
-| `ENGINE_MODE_MERMAID`, `ENGINE_MODE_BPMN`, `ENGINE_MODE_EXCALIDRAW` | `engineModes.{mermaid,bpmn,excalidraw}` | `'local'` | Per-engine mode (`local` \| `remote` \| `disabled`). When `remote`, adds `🌐 (<host>)` and a non-confidential warning tooltip in `#engine-select` and routes requests to `KROKI_REMOTE_URL`. When `disabled`, hides the engine from `#engine-select`. |
+| `KROKI_BASE_URL` | `krokiBaseUrl` | `'https://kroki.io'` | Primary base URL of the Kroki rendering API (supports absolute URLs or relative paths). |
+| `KROKI_REMOTE_URL` | `krokiRemoteUrl` | `'https://kroki.io'` | Fallback external Kroki URL used by companion engines configured in `remote` mode when `KROKI_BASE_URL` differs. |
+| `ENGINE_MODE_MERMAID`, `ENGINE_MODE_BPMN`, `ENGINE_MODE_EXCALIDRAW` | `engineModes.{mermaid,bpmn,excalidraw}` | `'local'` | Per-engine mode (`local` \| `remote` \| `disabled`). When `remote` (and `KROKI_BASE_URL !== KROKI_REMOTE_URL`), adds `🌐 (<host>)` and a non-confidential warning tooltip in `#engine-select` and routes requests to `KROKI_REMOTE_URL`. When `disabled`, hides the engine from `#engine-select`. |
 | `KROKI_DISABLED_ENGINES` | `disabledEngines` | `''` | Optional comma-separated list of engine IDs to hide from `#engine-select`. |
 
 ### 8.2. Containerization & Local Tooling
-- **`Containerfile`**: Builds an OCI image based on `nginx:stable` (Debian), linked to the repository via `LABEL org.opencontainers.image.source`, copying only the required static assets (`index.html`, `favicon.svg`, `css/`, `js/`, and `examples/`). It configures Nginx to listen on port `8765` (`ENV PORT=8765`, `EXPOSE 8765 80`), declares default 12-Factor environment variables (`PORT`, `KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `KROKI_INTERNAL_UPSTREAM`, `ENGINE_MODE_*`, `KROKI_DISABLED_ENGINES`, `NGINX_CLIENT_MAX_BODY_SIZE`, `NGINX_LARGE_CLIENT_HEADER_BUFFERS`, `NGINX_PROXY_READ_TIMEOUT`, `FOOTER_CREDITS`), generates `/usr/share/nginx/html/js/config.js` on startup, and prints the server URL (`Starting server at http://localhost:8765 ...`).
-  - **Runtime Backend, Footer, Engine Modes & Reverse-Proxy Configuration**: The entrypoint script (`/docker-entrypoint.d/40-disperse.sh`) supports:
-    - `PORT` (default: `8765`): Configures the container HTTP listening port alongside port `80` (no code changes required for port binding).
-    - `FOOTER_CREDITS` / `DISPERSE_FOOTER_CREDITS` (default: standard Betanzos / GPLv3 / sleepinfinity.dev / Niolesk credit string): Injects `window.DISPERSE_CONFIG.footerCredits` into `/usr/share/nginx/html/js/config.js` at container startup.
-    - `KROKI_BASE_URL` (default: `https://kroki.io`): Injects the primary runtime Kroki base URL (`window.DISPERSE_CONFIG.krokiBaseUrl`) consumed by `js/kroki.js` without requiring a build step.
-    - `KROKI_REMOTE_URL` (default: `https://kroki.io`): Injects the fallback public/third-party Kroki base URL (`window.DISPERSE_CONFIG.krokiRemoteUrl`) used by any companion engine configured in `remote` mode.
-    - `ENGINE_MODE_MERMAID`, `ENGINE_MODE_BPMN`, `ENGINE_MODE_EXCALIDRAW` (`local` | `remote` | `disabled`, also accepting `true`/`false` aliases via `ENABLE_<ENGINE>`): Configures per-engine routing and visibility in Disperse's UI selector (`#engine-select`), mapped 1:1 to the Helm chart's sidecar mode (`kroki.sidecars.<engine>.mode`).
-    - `KROKI_DISABLED_ENGINES` (default: `""`, comma-separated list): Optional override list injected into `window.DISPERSE_CONFIG.disabledEngines` to disable any arbitrary engine IDs.
-    - `KROKI_INTERNAL_UPSTREAM` (optional, e.g., `http://disperse-kroki:8000`): When set, configures an Nginx `location /kroki/` reverse-proxy block in `/etc/nginx/conf.d/default.conf` (using dynamic DNS `resolver` from `/etc/resolv.conf` so Nginx starts cleanly even before the upstream resolves) that strips the `/kroki/` prefix and forwards requests to the internal Kroki server.
-    - `NGINX_CLIENT_MAX_BODY_SIZE` (`2m`), `NGINX_LARGE_CLIENT_HEADER_BUFFERS` (`4 16k`), `NGINX_PROXY_READ_TIMEOUT` (`60s`): Tune Nginx body/URI limits and upstream timeouts.
-- **`README.md`**: Organized following the **[Diátaxis](https://diataxis.fr/)** documentation framework (Tutorials for Docker and local K3s + Helm deployment, How-To Guides for engine privacy modes and Ingress/Gateway API exposure, Reference tables, and Architecture/Privacy Explanations).
+- **`Containerfile`**: Builds a hardened, non-root OCI image based on **`nginxinc/nginx-unprivileged:stable`** (`USER 101`, group `0`-writable assets for OpenShift/Kubernetes compatibility), linked to the repository via `LABEL org.opencontainers.image.source`, copying only the required static assets (`index.html`, `favicon.svg`, `css/`, `js/`, and `examples/`, scoped by `.dockerignore`). Nginx serves static files exclusively (no reverse proxy) on port `8765` (`ENV PORT=8765`, `EXPOSE 8765`).
+  - **Runtime Configuration (`/docker-entrypoint.d/40-disperse.sh`)**:
+    - Validates `PORT` is numeric (`8765` fallback) and writes `/tmp/disperse-nginx.conf` (included from `/etc/nginx/nginx.conf`).
+    - Escapes `\`, `"`, `\r`, `\t`, and `\n` safely when generating `/tmp/disperse-config.js` from `KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `ENGINE_MODE_MERMAID`, `ENGINE_MODE_BPMN`, `ENGINE_MODE_EXCALIDRAW`, `KROKI_DISABLED_ENGINES`, and `FOOTER_CREDITS` / `DISPERSE_FOOTER_CREDITS`.
+    - Serves `/js/config.js` with `Cache-Control: no-store, no-cache, must-revalidate` and runs cleanly under `--read-only --tmpfs /tmp --cap-drop=ALL`.
+- **`README.md`**: Organized following the **[Diátaxis](https://diataxis.fr/)** documentation framework (Tutorials for Docker and local K3s + Helm deployment, How-To Guides for sidecar modes and separate Ingress/Gateway API exposure, Reference tables, and Architecture/Privacy Explanations).
 - **Running the Container**:
   ```bash
   # Default configuration
@@ -366,218 +361,126 @@ Disperse follows the **[Twelve-Factor App](https://12factor.net/config)** method
     ghcr.io/sleepinfinitydev/disperse:latest
   ```
 - **`Taskfile.yml`**: Provides development and packaging tasks:
-  - `task run`: Generates `js/config.js` from 12-Factor environment variables (`FOOTER_CREDITS`, `KROKI_BASE_URL`), starts a lightweight local web server (`python3 -m http.server`) on port `8765` by default (configurable via `PORT`, e.g., `FOOTER_CREDITS="Custom footer" task run` or `task run PORT=9000`), and restores `js/config.js` via `defer` upon exit.
+  - `task run`: Generates `js/config.js` from 12-Factor environment variables (`KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `ENGINE_MODE_*`, `KROKI_DISABLED_ENGINES`, `FOOTER_CREDITS` / `DISPERSE_FOOTER_CREDITS`), starts `python3 -m http.server` on port `8765` by default (`PORT=...`), and restores `js/config.js` via `defer` upon exit.
   - `task build`: Builds the container image (`ghcr.io/sleepinfinitydev/disperse` by default, configurable via `IMAGE=...`) tagged with both the short Git commit hash (`git rev-parse --short HEAD`) and `latest`, auto-detecting `podman` or `docker`.
   - `task push`: Builds and pushes both tags (`:{{.GIT_HASH}}` and `:latest`) to the container registry.
-- **GitHub Actions (`.github/workflows/oci-image.yml`)**: Automatically builds the OCI image from `Containerfile` and pushes both `:<git-short-hash>` and `:latest` tags to GitHub Container Registry (`ghcr.io/sleepinfinitydev/disperse`) on every push to `main` using `GITHUB_TOKEN` with minimal permissions (`contents: read`, `packages: write`).
+- **GitHub Actions (`.github/workflows/oci-image.yml`)**: Lints the Helm chart (`helm lint --strict`), builds and pushes the OCI container image (`ghcr.io/sleepinfinitydev/disperse`), and packages and pushes the OCI Helm chart (`oci://ghcr.io/sleepinfinitydev/charts/disperse`, separated under `/charts` and linked to the repository via `org.opencontainers.image.source` annotation) using `GITHUB_TOKEN` (`contents: read`, `packages: write`):
+  - **Triggers**: Runs automatically on `push` to `main` and `feat-helm-charts`, and supports manual execution from any branch via `workflow_dispatch`.
+  - **`main` Tagging**: Publishes container image tags `:<git-short-hash>`, `:<chart-version>`, and `:latest`, alongside Helm chart version `<chart-version>` (e.g., `0.1.0`) packaged with `--app-version <git-short-hash>`.
+  - **Branch / Preview Tagging (Non-`main`)**: Never publishes `latest` or stable SemVer versions. Instead, publishes sanitized branch container image tags `:<branch>-<git-short-hash>` and `:<branch>`, alongside SemVer 2.0 prerelease Helm chart versions `<chart-version>-<branch>` (rolling branch preview, e.g., `0.1.0-feat-helm-charts`) and `<chart-version>-<branch>.g<git-short-hash>` (immutable commit snapshot), packaged with `--app-version <branch>-<git-short-hash>` so deploying the branch chart automatically pulls the matching branch container image.
 
 ---
 
 ## 9. Kubernetes & Helm Chart Specification (`charts/disperse`)
 
-Disperse provides an official Helm v3 chart (`apiVersion: v2`, `type: application`) under `charts/disperse` designed around Kubernetes and Helm best practices while supporting flexible deployment topologies.
+Disperse provides an official Helm v3 chart (`apiVersion: v2`, `type: application`) under `charts/disperse` designed around Kubernetes PodSecurity (`restricted`), 12-Factor configuration, and clean network decoupling.
 
-### 9.1. Architectural Goals & Requirements Alignment
+### 9.1. Architectural Goals & Decoupled Topology
 
 1. **Dual Backend Operating Modes**:
-   - **Mode A — Standalone Disperse with Public Kroki (`kroki.enabled: false`, default)**:
-     - Deploys only the `disperse` `Deployment` (static SPA served by Nginx).
-     - The browser communicates directly with `https://kroki.io` (or an external custom Kroki URL defined in `disperse.krokiBaseUrl`).
-     - Minimal cluster footprint (single lightweight Pod).
+   - **Mode A — Standalone Disperse with External Kroki (`kroki.enabled: false`, default)**:
+     - Deploys only the `disperse` `Deployment` (static SPA served by `nginxinc/nginx-unprivileged` as `UID 101`).
+     - The browser communicates directly with `https://kroki.io` (or any custom private Kroki server defined in `disperse.krokiBaseUrl`).
    - **Mode B — Full Self-Hosted Stack (`kroki.enabled: true`)**:
-     - Deploys a **second `Deployment`** (`<fullname>-kroki`) running the Kroki gateway server along with all required companion containers as **Pod sidecars** to support all 28 diagram engines in Disperse.
-     - Isolates the lightweight static frontend (`disperse`) from the CPU/memory-intensive JVM + headless Chromium rendering stack (`kroki`), enabling independent scaling, resource quotas, rollouts, and node scheduling.
-2. **Single Published Service & Unified Path Policy**:
-   - Both Disperse and Kroki (when enabled) are published externally through a **single public-facing Kubernetes `Service`** (`<fullname>`) under a unified, collision-free HTTP path policy:
-     - `/` — Serves the **Disperse** SPA (`index.html`, `favicon.svg`, `css/`, `js/`, `examples/`).
-     - `/kroki/` — Proxies requests to the self-hosted **Kroki** backend (when `kroki.enabled: true`), rewriting `/kroki/{engine}/{format}/{payload}` to `/{engine}/{format}/{payload}`.
-3. **External Traffic Exposure (Ingress & Gateway API)**:
-   - First-class support for both standard Kubernetes **Ingress (`networking.k8s.io/v1`)** and **Gateway API (`gateway.networking.k8s.io/v1` `HTTPRoute`)**.
-4. **Extensibility via `extraManifests`**:
-   - Built-in `extraManifests` list rendered through Helm's `tpl` engine so operators can bundle arbitrary Kubernetes resources (e.g., `Gateway`, `Certificate`, `NetworkPolicy`, `ServiceMonitor`, `Middleware`, `BackendTrafficPolicy`) with full access to chart context and helpers.
-
----
-
-### 9.2. Reconciling Kubernetes Best Practices with the Single-Service & Multi-Deployment Requirement
-
-A core Kubernetes networking constraint is that a `v1/Service` operates at **Layer 4 (TCP)** using Pod label selectors (`spec.selector`):
-- A `v1/Service` cannot natively perform Layer 7 HTTP path routing (`/` vs. `/kroki/`).
-- Sharing a single `spec.selector` across two heterogeneous `Deployment`s (`disperse` and `kroki`) is a Kubernetes anti-pattern: `kube-proxy`, Service Meshes, and `kubectl port-forward svc/<name>` would indiscriminately select pods from either Deployment, causing failed connections.
-- Furthermore, the upstream `yuzutech/kroki` server expects requests at the root path (`/{engine}/{format}/{payload}` and `/health`) and has no native context-path configuration. Relying on `Ingress` annotations for path rewriting (such as `nginx.ingress.kubernetes.io/rewrite-target`) would lock the chart into specific Ingress controllers and fail when using `kubectl port-forward`, `NodePort`, or `LoadBalancer` Services.
-
-#### Solution: Disperse Nginx as Unified L7 Entrypoint + Internal Kroki Discovery Service
+     - Deploys a **second `Deployment`** (`<fullname>-kroki`) running `yuzutech/kroki` along with configurable companion sidecars (`mermaid`, `bpmn`, `excalidraw`) inside the same Pod over `127.0.0.1`.
+     - Isolates the lightweight static frontend (`disperse`) from the JVM + headless Chromium rendering stack (`kroki`), enabling independent scaling, resource quotas, rollouts, and node scheduling.
+2. **Decoupled Services & Independent Ingress / Gateway API Routing (No Nginx Reverse Proxy)**:
+   - Disperse's Nginx container serves static SPA assets exclusively; it does **not** reverse-proxy Kroki traffic.
+   - Instead, Disperse (`<fullname>:8765`) and Kroki (`<fullname>-kroki:8000`, when `kroki.enabled: true`) each expose their own dedicated Kubernetes `Service` and optional **`Ingress` (`ingress.*` / `kroki.ingress.*`)** or **Gateway API `HTTPRoute` (`httpRoute.*` / `kroki.httpRoute.*`)**:
 
 ```
-                           External Traffic
-        (Ingress / Gateway API HTTPRoute / LoadBalancer / port-forward)
-                                  │
-                                  ▼
-               ┌──────────────────────────────────────┐
-               │   Public Service: <fullname> (:8765) │  <-- Single Published Service
-               └──────────────────┬───────────────────┘
-                                  │
-                                  ▼
-               ┌──────────────────────────────────────┐
-               │        Deployment 1: <fullname>      │
-               │     Container: disperse (Nginx)      │
-               │                                      │
-               │  • location /       -> Static SPA    │
-               │  • location /kroki/ -> proxy_pass ───┼──────┐ (when kroki.enabled=true,
-               └──────────────────────────────────────┘      │  strips /kroki/ prefix)
-                                                             ▼
-                                      ┌──────────────────────────────────────┐
-                                      │ Internal Service: <fullname>-kroki   │
-                                      │     (ClusterIP: 8000, internal)      │
-                                      └──────────────────┬───────────────────┘
-                                                         │
-                                                         ▼
-                                      ┌──────────────────────────────────────┐
-                                      │    Deployment 2: <fullname>-kroki    │
-                                      │  ┌────────────────────────────────┐  │
-                                      │  │ Main: yuzutech/kroki (:8000)   │  │
-                                      │  └───────┬────────┬────────┬──────┘  │
-                                      │          │127.0.0.1 (Pod loopback)   │
-                                      │          ▼        ▼        ▼         │
-                                      │  ┌──────────┐┌────────┐┌──────────┐  │
-                                      │  │ mermaid  ││  bpmn  ││excalidraw│  │
-                                      │  │ (:8002)  ││(:8003) ││ (:8004)  │  │
-                                      │  └──────────┘└────────┘└──────────┘  │
-                                      └──────────────────────────────────────┘
+                        Browser Client
+              ┌────────────────┴────────────────┐
+              │                                 │
+              ▼ (disperse.*)                    ▼ (kroki.* or kroki.io)
+   ┌──────────────────────┐          ┌──────────────────────────────────────┐
+   │ Ingress / HTTPRoute  │          │ Ingress / HTTPRoute                  │
+   │  Service: <fullname> │          │  Service: <fullname>-kroki (:8000)   │
+   │       (:8765)        │          └──────────────────┬───────────────────┘
+   └──────────┬───────────┘                             │
+              ▼                                         ▼
+   ┌──────────────────────┐          ┌──────────────────────────────────────┐
+   │ Deployment 1:        │          │ Deployment 2: <fullname>-kroki       │
+   │  <fullname>          │          │  ┌────────────────────────────────┐  │
+   │  nginx-unprivileged  │          │  │ Main: yuzutech/kroki (:8000)   │  │
+   │  (UID 101, static)   │          │  └───────┬────────┬────────┬──────┘  │
+   └──────────────────────┘          │          │127.0.0.1 (Pod loopback)   │
+                                     │          ▼        ▼        ▼         │
+                                     │  ┌──────────┐┌────────┐┌──────────┐  │
+                                     │  │ mermaid  ││  bpmn  ││excalidraw│  │
+                                     │  │ (:8002)  ││(:8003) ││ (:8004)  │  │
+                                     │  └──────────┘└────────┘└──────────┘  │
+                                     └──────────────────────────────────────┘
 ```
 
-This architecture satisfies all requirements and adheres strictly to Helm and Kubernetes best practices:
-- **Single Published Service (`<fullname>`)**: External clients, Ingresses, Gateway API `HTTPRoute`s, and `kubectl port-forward svc/<fullname> 8765:8765` interact with **one** Service and port.
-- **Controller-Agnostic Path Routing**: Because Disperse already runs on `nginx:stable`, configuring `location /kroki/` inside Disperse's Nginx handles prefix stripping (`rewrite ^/kroki/(.*)$ /$1 break;`) and reverse-proxying in a completely portable manner across any Ingress controller, Gateway API implementation, or L4 Service type.
-- **Same-Origin Requests & Valid Shareable Snippets**: When `kroki.enabled: true`, `disperse.krokiBaseUrl` defaults to `/kroki`. The frontend resolves `/kroki` against `window.location.origin` (`${window.location.origin}/kroki/{engine}/{format}/{payload}`), eliminating CORS preflight overhead and ensuring that copied Markdown/HTML image snippets in the footer contain complete, valid absolute URLs.
-- **Clean Label Isolation**:
-  - `Deployment` 1 (`<fullname>`) uses selector `app.kubernetes.io/component: app`.
-  - `Deployment` 2 (`<fullname>-kroki`) uses selector `app.kubernetes.io/component: kroki` and is backed by an internal-only `ClusterIP` Service (`<fullname>-kroki:8000`) used strictly as an in-cluster DNS upstream for Nginx.
+   - **Why Decoupled Routing Is Superior**:
+     - Upstream `yuzutech/kroki` serves requests at `/` (`/{engine}/{format}/{payload}`) and natively emits `Access-Control-Allow-Origin: *` CORS headers.
+     - Exposing Kroki on its own hostname (e.g., `kroki.127.0.0.1.nip.io` alongside `disperse.127.0.0.1.nip.io`) works identically across **every** Kubernetes Ingress controller (K3s Traefik, `ingress-nginx`, Cilium, HAProxy, AWS ALB) and Gateway API implementation without vendor-specific regex path-rewrite annotations or CRDs, and eliminates an unnecessary L7 hop through Nginx.
+     - Switching between public Kroki (`kroki.io`), an existing corporate Kroki server, or the chart's built-in Kroki stack reduces to changing a single backend URL (`KROKI_BASE_URL` / `disperse.krokiBaseUrl`).
+3. **Automatic `KROKI_BASE_URL` Resolution in Helm (`disperse.krokiBaseUrl`)**:
+   - When `disperse.krokiBaseUrl` is explicitly set, that URL is used verbatim.
+   - Otherwise, when `kroki.enabled: true`, the chart automatically derives `KROKI_BASE_URL` from `kroki.ingress.hosts[0]` (`https://` when `kroki.ingress.tls` is configured, else `http://`), or from `kroki.httpRoute.hostnames[0]` (`https://` when `kroki.httpRoute.https` or an HTTPS/TLS `sectionName` is used), falling back to `http://localhost:<kroki.service.port>` for local `kubectl port-forward` usage.
+   - When `kroki.enabled: false` and `disperse.krokiBaseUrl` is empty, it defaults to `https://kroki.io`.
+4. **Pure 12-Factor Injection (No `ConfigMap` Duplication)**:
+   - `templates/deployment.yaml` injects all runtime configuration (`PORT`, `KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `ENGINE_MODE_MERMAID`, `ENGINE_MODE_BPMN`, `ENGINE_MODE_EXCALIDRAW`, `KROKI_DISABLED_ENGINES`, `FOOTER_CREDITS`, plus `disperse.env` overrides) directly as container environment variables consumed by `40-disperse.sh`, mounting only a single `emptyDir` at `/tmp`.
+5. **Extensibility via `extraManifests`**:
+   - Built-in `extraManifests` list rendered through Helm's `tpl` engine so operators can bundle arbitrary Kubernetes resources (e.g., `Gateway`, `Certificate`, `NetworkPolicy`, `ServiceMonitor`) with full access to chart context and helpers.
 
 ---
 
-### 9.3. Required Changes in Disperse Application & Container
+### 9.2. Companion Sidecars & Tri-State (`local` | `remote` | `disabled`) Modes
 
-To support the Helm chart's deployment modes without breaking standalone or local usage:
+To render all **28 diagram engines** supported by Disperse, the `<fullname>-kroki` `Deployment` combines the core `yuzutech/kroki` container (25 built-in engines) with **3 individually configurable headless-Chromium companion sidecars** (`mermaid`, `bpmn`, `excalidraw`):
 
-1. **Port Handling (No Changes Needed)**:
-   - `Containerfile` already listens on both `80` and `${PORT:-8765}` (`EXPOSE 8765 80`). The Helm chart can target port `8765` (or any custom `PORT`) while exposing whatever `service.port` the operator prefers.
-2. **Dynamic `krokiBaseUrl` in `js/kroki.js`**:
-   - Replace the hardcoded `https://kroki.io` in `window.kroki.buildUrl()` with a dynamic resolver reading `window.DISPERSE_CONFIG?.krokiBaseUrl` (defaulting to `'https://kroki.io'`).
-   - When `krokiBaseUrl` is a relative path (such as `'/kroki'`), resolve it against `window.location.origin` (`${window.location.origin}/kroki/...`) so both the live preview (`fetch`) and the shareable Markdown/HTML image snippets in the footer always produce valid absolute URLs.
-3. **Dynamic Tri-State Engine Modes (`local` | `remote` | `disabled`) & Confidentiality Indicators in `js/kroki.js` / `js/app.js`**:
-   - Support per-engine mode configuration in `window.DISPERSE_CONFIG.engineModes` (`{ mermaid, bpmn, excalidraw, diagramsnet }`), where each of the 4 companion engines can be set to:
-     - **`disabled`**: Hidden/omitted from `#engine-select`.
-     - **`local`**: Rendered via the primary self-hosted backend (`krokiBaseUrl`, e.g., `/kroki/{engine}/...`).
-     - **`remote`**: Rendered directly via the external third-party backend (`krokiRemoteUrl`, defaulting to `https://kroki.io/{engine}/...`), bypassing the need to deploy the local Chromium sidecar container.
-   - **Explicit UI Confidentiality Notice for `remote` Engines**:
-     - Whenever Disperse uses a self-hosted primary backend (`krokiBaseUrl` is `/kroki` or a custom internal host) and an engine is configured in `remote` mode:
-       1. Its `<option>` label in `#engine-select` explicitly displays an external indicator and target host: e.g., `mermaid 🌐 (kroki.io)`.
-       2. When a `remote` engine is active, `#engine-select` displays a distinct visual warning state (using `--color-tertiary`) and updates its `data-tooltip` to `"Diagram language — ⚠️ External service (kroki.io, non-confidential)"` so users are unambiguously informed before typing sensitive architecture data.
-       3. The Publishing Footer's Image URL (`#out-image-text`) explicitly shows `https://kroki.io/{engine}/...`, reinforcing that the diagram is served externally.
-4. **Runtime Configuration & Nginx Reverse Proxy (`Containerfile` / `ConfigMap`)**:
-   - Load an optional `js/config.js` (defining `window.DISPERSE_CONFIG`) generated at container startup from environment variables (`KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `ENGINE_MODE_*`, `KROKI_DISABLED_ENGINES`) or mounted via the Helm chart's `ConfigMap`, alongside the Nginx `location /kroki/` reverse-proxy block when `kroki.enabled: true`.
-
----
-
-### 9.4. Kroki Deployment, Sidecar Containers & Hybrid (`local` / `remote` / `disabled`) Modes
-
-To render all **28 diagram engines** supported by Disperse (Section 4) plus optional `diagramsnet`, the `<fullname>-kroki` `Deployment` combines the core Kroki gateway container with up to **4 individually configurable companion engines**:
-
-| Container / Engine | Helm Setting | Disperse Container Env Var | Supported Modes | Image (when `mode: local`) | Port |
+| Container / Engine | Helm Setting | Disperse Container Env Var | Default Mode (`kroki.enabled=true`) | Image (when `mode: local`) | Port |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`kroki` (25 core engines)** | `kroki.enabled` | `KROKI_INTERNAL_UPSTREAM` | `true` / `false` | `docker.io/yuzutech/kroki` | `8000` |
-| **`mermaid`** | `kroki.sidecars.mermaid.mode` | `ENGINE_MODE_MERMAID` | `local` \| `remote` \| `disabled` | `docker.io/yuzutech/kroki-mermaid` | `8002` |
-| **`bpmn`** | `kroki.sidecars.bpmn.mode` | `ENGINE_MODE_BPMN` | `local` \| `remote` \| `disabled` | `docker.io/yuzutech/kroki-bpmn` | `8003` |
-| **`excalidraw`** | `kroki.sidecars.excalidraw.mode` | `ENGINE_MODE_EXCALIDRAW` | `local` \| `remote` \| `disabled` | `docker.io/yuzutech/kroki-excalidraw` | `8004` |
-| **`diagramsnet`** | `kroki.sidecars.diagramsnet.mode` | `ENGINE_MODE_DIAGRAMSNET` | `local` \| `remote` \| `disabled` | `docker.io/yuzutech/kroki-diagramsnet` | `8005` |
+| **`kroki` (25 core engines)** | `kroki.enabled` | `KROKI_BASE_URL` | — | `docker.io/yuzutech/kroki:0.33.0` | `8000` |
+| **`mermaid`** | `kroki.sidecars.mermaid.mode` | `ENGINE_MODE_MERMAID` | `"local"` | `docker.io/yuzutech/kroki-mermaid:0.33.0` | `8002` |
+| **`bpmn`** | `kroki.sidecars.bpmn.mode` | `ENGINE_MODE_BPMN` | `"local"` | `docker.io/yuzutech/kroki-bpmn:0.33.0` | `8003` |
+| **`excalidraw`** | `kroki.sidecars.excalidraw.mode` | `ENGINE_MODE_EXCALIDRAW` | `"local"` | `docker.io/yuzutech/kroki-excalidraw:0.33.0` | `8004` |
 
-#### Tri-State Mode Semantics (`local` vs. `remote` vs. `disabled`)
-When `kroki.enabled: true`, each of the 4 Chromium-based engines can be independently configured:
-- **`mode: "local"`**: Deploys the corresponding `yuzutech/kroki-<engine>` sidecar container inside the `<fullname>-kroki` Pod (communicating over `127.0.0.1`) and routes requests through the internal `/kroki/<engine>/...` endpoint. Guarantees **100% data privacy / on-premise confidentiality**, at the cost of the sidecar's Chromium RAM/CPU footprint.
-- **`mode: "remote"`**: Does **not** deploy the sidecar container in Kubernetes (zero Chromium resource usage in-cluster). Instead, Disperse keeps the engine available in `#engine-select` with an explicit external/non-confidential label (`<engine> 🌐 (kroki.io)`) and routes its rendering requests directly from the user's browser to `kroki.remoteFallbackUrl` (`https://kroki.io` by default). Because the browser calls `https://kroki.io` directly (via CORS), the Kubernetes cluster itself does not even require outbound internet egress from Pods.
-- **`mode: "disabled"`**: Does **not** deploy the sidecar container and removes the engine from Disperse's `#engine-select` dropdown. Ideal for air-gapped or strict-compliance environments that do not wish to allocate Chromium sidecar resources for that format.
+#### Tri-State Mode Semantics
+- **`mode: "local"` *(default when `kroki.enabled: true`)*:** Deploys the corresponding `yuzutech/kroki-<engine>` sidecar container inside `<fullname>-kroki` (wired over `127.0.0.1` via `KROKI_<ENGINE>_HOST` / `KROKI_<ENGINE>_PORT`, with a shared `/dev/shm` `Memory` `emptyDir` volume sized via `kroki.sidecars.shmSize`, default `256Mi`) and routes requests to `KROKI_BASE_URL`. Guarantees **100% in-cluster diagram rendering privacy**.
+- **`mode: "remote"`:** Omits the sidecar container from `<fullname>-kroki` (saving ~150–400 MB Chromium RAM per sidecar). When `KROKI_BASE_URL !== KROKI_REMOTE_URL`, Disperse marks the engine in `#engine-select` with `<label> 🌐 (<remote_host>)`, highlights `#engine-select` in `--color-tertiary`, displays a `"⚠️ External service (<host>, non-confidential)"` tooltip, and routes rendering/snippet URLs for that engine directly to `KROKI_REMOTE_URL` (`https://kroki.io` by default).
+- **`mode: "disabled"`:** Omits the sidecar container and removes the engine from `#engine-select` and file auto-detection.
+- **Standalone / External Kroki Guard (`kroki.enabled: false`)**: When `kroki.enabled: false`, `kroki.sidecars` is ignored so connecting Disperse to an external private `disperse.krokiBaseUrl` routes all engines to `disperse.krokiBaseUrl` by default (unless explicitly overridden in `disperse.engineModes`).
 
-#### Why the 4 Companion Sidecars Require Headless Chromium & Their Use Cases in Disperse
-
-Each of these 4 companion containers embeds a **headless Chromium** browser controlled via Puppeteer / Chrome DevTools Protocol (CDP), which increases memory consumption (~150–400 MB RAM per sidecar). Because of this resource footprint and their distinct workflows, **each of the 4 sidecars has its own independent boolean flag (`kroki.sidecars.<name>.enabled`)**:
-
-1. **`mermaid` (`kroki.sidecars.mermaid.enabled`)**:
-   - **Why Chromium is needed**: `mermaid.js` was architected as a browser DOM library that relies on real browser layout APIs (`SVGElement.getBBox()`, `getComputedTextLength()`, CSS font metrics, and `<foreignObject>`) to measure text and node dimensions before routing edges. Even the official `mermaid-cli` (`mmdc`) runs Puppeteer + headless Chromium under the hood. Because Kroki must return a self-contained static SVG/PNG at `GET /mermaid/svg/<payload>` (usable inside external `<img src="...">` tags where JS execution is blocked), server-side rendering requires headless Chromium.
-   - **Use case in Disperse**: Primary **Diagrams-as-Code** authoring language written directly by hand in the code editor.
-2. **`bpmn` (`kroki.sidecars.bpmn.enabled`)**:
-   - **Why Chromium is needed**: Renders OMG **BPMN 2.0** XML workflow files into static SVG images (`GET /bpmn/svg/<payload>`) using `bpmn-js` (from Camunda / bpmn.io), which depends on a real browser DOM and SVG `getBBox()` engine.
-   - **Use case in Disperse**: Disperse embeds the interactive `bpmn-js` (`BpmnModeler`) visual editor directly in the browser for creating and editing BPMN 2.0 workflows visually (synchronized bidirectionally with the XML code editor), while the Kroki `bpmn` endpoint serves **stateless static SVG image URLs** (`![](https://.../bpmn/svg/<payload>)`) for external documentation.
-3. **`excalidraw` (`kroki.sidecars.excalidraw.enabled`)**:
-   - **Why Chromium is needed**: Renders `.excalidraw` JSON scene files into static SVG images (`GET /excalidraw/svg/<payload>`) using the official Excalidraw browser engine (HTML5 Canvas/SVG + Virgil hand-drawn font metrics) inside headless Chromium.
-   - **Use case in Disperse**: While Disperse embeds the interactive `@excalidraw/excalidraw` WYSIWYG editor directly in the browser for creating and editing diagrams visually (synchronized bidirectionally with the JSON code editor), the Kroki `excalidraw` endpoint is used to serve **stateless static SVG image URLs** (`![](https://.../excalidraw/svg/<payload>)`) for embedding in external Markdown/HTML documentation. Operators who do not need self-hosted static image rendering for Excalidraw can set `kroki.sidecars.excalidraw.mode: "remote"` or `"disabled"` to save Chromium RAM.
-4. **`diagramsnet` (`kroki.sidecars.diagramsnet.enabled`)**:
-   - **Why Chromium is needed**: Renders `.drawio` / `mxGraphModel` XML files using the browser-based `diagrams.net` (`draw.io`) engine inside headless Chromium.
-   - **Use case in Disperse**: Same workflow as Excalidraw/BPMN — `draw.io` XML is authored visually in `diagrams.net`, not typed by hand. Enabling this sidecar (`enabled: false` by default) allows importing `.drawio` XML files into Disperse to generate stateless shareable URLs, or using the `/kroki/` endpoint as a shared cluster-wide Kroki server for CI/CD documentation pipelines (e.g., Asciidoctor, MkDocs).
-
-When `kroki.enabled: true`, disabling any sidecar (`kroki.sidecars.<name>.enabled: false`) both omits its container from the `<fullname>-kroki` Pod and adds `<name>` to Disperse's `disabledEngines` runtime config so the UI dropdown remains accurate.
-
-#### Kubernetes-Specific Kroki Hardening & Best Practices
-1. **Preventing the `KROKI_PORT` Collision**:
-   - Kubernetes automatically injects `<SERVICE_NAME>_PORT=tcp://<ip>:<port>` environment variables into Pods when `enableServiceLinks` is true. If a Service is named `kroki`, Kubernetes injects `KROKI_PORT=tcp://...`, which crashes `yuzutech/kroki` (as it expects `KROKI_PORT` to be an integer).
-   - The chart sets `enableServiceLinks: false` on the Kroki Pod spec and explicitly defines `KROKI_LISTEN=0.0.0.0:8000` (and `KROKI_PORT=8000`).
-2. **Loopback Companion Wiring**:
-   - Because sidecars share the Pod network namespace, `KROKI_MERMAID_HOST=127.0.0.1`, `KROKI_BPMN_HOST=127.0.0.1`, `KROKI_EXCALIDRAW_HOST=127.0.0.1`, and `KROKI_DIAGRAMSNET_HOST=127.0.0.1` work over localhost with zero extra Services or cluster DNS overhead.
-3. **Non-Root & Read-Only Root Filesystem Compatibility**:
-   - All `yuzutech/kroki*` images run as UID/GID `1001` (`kroki`).
-   - The Pod mounts an `emptyDir` volume with isolated `subPath`s into `/tmp` and `/home/kroki` for each enabled container so CLI engines (D2, TikZ, GraphViz, PlantUML) and Chromium workers can write temporary files while keeping `readOnlyRootFilesystem: true`, `runAsNonRoot: true`, `allowPrivilegeEscalation: false`, and `capabilities.drop: ["ALL"]`.
-4. **URI & Payload Sizing**:
-   - Complex diagrams (such as Excalidraw or large D2/Mermaid files) produce long Base64-encoded GET URLs. Both the Disperse Nginx proxy (`large_client_header_buffers 4 16k;`) and Kroki (`KROKI_MAX_URI_LENGTH=16384`) are pre-configured with sensible defaults to prevent `HTTP 414 Request-URI Too Long` errors.
-   - **Important for External Traffic**: When exposing Disperse via Ingress or Gateway API, the external controller or proxy must also be configured to accept large request URIs. For example, when using `ingress-nginx`, the deployer should set the annotation `nginx.ingress.kubernetes.io/large-client-header-buffers: "4 16k"` (or larger) in `ingress.annotations`.
+#### Kubernetes Hardening & Best Practices
+1. **PodSecurity `restricted` Compliance Across Both Deployments**:
+   - **`disperse` (`UID/GID 101`)** and **`kroki` + sidecars (`UID/GID 1001`)** run with `runAsNonRoot: true`, `readOnlyRootFilesystem: true`, `allowPrivilegeEscalation: false`, `seccompProfile: RuntimeDefault`, and `capabilities.drop: ["ALL"]` (including the `helm test` Pod running as `UID 65534`).
+   - Isolated `emptyDir` `subPath` mounts provide writable `/tmp` and `/home/kroki` directories for each container in `<fullname>-kroki`.
+2. **Preventing the `KROKI_PORT` Collision**:
+   - Sets `enableServiceLinks: false` on `<fullname>-kroki` so Kubernetes never injects `KROKI_PORT=tcp://...` environment variables that would crash `yuzutech/kroki`.
+3. **URI & Payload Sizing**:
+   - Complex diagrams produce long Base64-encoded GET URLs on Kroki (`KROKI_MAX_URI_LENGTH=16384`). When exposing Kroki via Ingress or Gateway API, configure the external proxy to accept large request headers (e.g., `nginx.ingress.kubernetes.io/large-client-header-buffers: "4 16k"` on `kroki.ingress.annotations`).
 
 ---
 
-### 9.5. External Access: Ingress and Gateway API (`HTTPRoute`)
-
-The chart provides native, mutually compatible templates for both Kubernetes Ingress and the modern Kubernetes Gateway API:
-
-1. **Ingress (`templates/ingress.yaml`, `networking.k8s.io/v1`)**:
-   - Enabled via `ingress.enabled: true` (`false` by default).
-   - Supports `ingress.className`, `ingress.annotations` (e.g., `cert-manager.io/cluster-issuer`), `ingress.hosts` (with configurable `paths` and `pathType`, defaulting to `/` `Prefix` -> `<fullname>` Service), and `ingress.tls`.
-2. **Gateway API (`templates/httproute.yaml`, `gateway.networking.k8s.io/v1`)**:
-   - Enabled via `httpRoute.enabled: true` (`false` by default).
-   - Follows standard Gateway API role separation by attaching an `HTTPRoute` to existing cluster `Gateway`s via `httpRoute.parentRefs` (supporting `name`, `namespace`, `sectionName`, `port`).
-   - Supports `httpRoute.hostnames`, `httpRoute.annotations`, `httpRoute.labels`, and `httpRoute.rules` (defaulting to a `PathPrefix: /` match forwarding to `<fullname>` Service on port `8765`, while allowing custom `matches`, `filters`, `timeouts`, and `backendRefs`).
-   - If a deployer wishes to provision a dedicated `Gateway`, `ReferenceGrant`, or controller-specific policy alongside the chart, it can be declared directly in `extraManifests`.
-
----
-
-### 9.6. Extensibility via `extraManifests`
-
-- Defined in `values.yaml` as `extraManifests: []` (`templates/extra-manifests.yaml`).
-- Accepts an array of arbitrary Kubernetes manifest objects (YAML maps) or raw YAML strings.
-- Every entry is rendered through Helm's `tpl` function (`{{ tpl (toYaml .) $ }}` or `{{ tpl . $ }}`), enabling dynamic interpolation of release values and chart template helpers (e.g., `{{ include "disperse.fullname" . }}`, `{{ .Release.Namespace }}`, `{{ include "disperse.labels" . | nindent 4 }}`).
-
----
-
-### 9.7. Chart File Structure & Values Schema
+### 9.3. Chart File Structure & Values Overview
 
 ```
 charts/disperse/
-├── Chart.yaml                  # Chart metadata (apiVersion: v2, type: application)
-├── .helmignore                 # Ignored files when packaging
-├── README.md                   # Chart documentation, architecture & configuration reference
-├── values.yaml                 # Default configuration values
-├── values.schema.json          # JSON Schema for strict values validation
+├── Chart.yaml                   # Chart metadata (apiVersion: v2, type: application)
+├── .helmignore                  # Ignored files when packaging
+├── README.md                    # Chart documentation & quick-start examples
+├── values.yaml                  # Default configuration values
+├── values.schema.json           # JSON Schema for strict values validation
 └── templates/
-    ├── NOTES.txt               # Post-install usage & URL instructions
-    ├── _helpers.tpl            # Naming, labels, selectors, image & tpl helpers
-    ├── serviceaccount.yaml     # Optional ServiceAccount (automountServiceAccountToken: false)
-    ├── configmap.yaml          # Nginx reverse-proxy & runtime config for Disperse
-    ├── deployment.yaml         # Disperse SPA + Nginx reverse-proxy Deployment
-    ├── service.yaml            # Single published Service (<fullname>)
-    ├── kroki-deployment.yaml   # Conditional Kroki + sidecars Deployment (if kroki.enabled)
-    ├── kroki-service.yaml      # Conditional internal ClusterIP Service (<fullname>-kroki)
-    ├── ingress.yaml            # Conditional Ingress (if ingress.enabled)
-    ├── httproute.yaml          # Conditional Gateway API HTTPRoute (if httpRoute.enabled)
-    ├── pdb.yaml                # Optional PodDisruptionBudget
-    ├── extra-manifests.yaml    # Templated extra Kubernetes manifests (if extraManifests)
+    ├── NOTES.txt                # Post-install access & port-forward instructions
+    ├── _helpers.tpl             # Naming, labels, images, URL & engine-mode helpers
+    ├── serviceaccount.yaml      # Optional ServiceAccount (automountServiceAccountToken: false)
+    ├── deployment.yaml          # Disperse unprivileged static SPA Deployment (12-Factor env)
+    ├── service.yaml             # Disperse Service (<fullname>:8765)
+    ├── ingress.yaml             # Conditional Ingress for Disperse (if ingress.enabled)
+    ├── httproute.yaml           # Conditional HTTPRoute for Disperse (if httpRoute.enabled)
+    ├── kroki-deployment.yaml    # Conditional Kroki + sidecars Deployment (if kroki.enabled)
+    ├── kroki-service.yaml       # Conditional Kroki Service (<fullname>-kroki:8000)
+    ├── kroki-ingress.yaml       # Conditional Ingress for Kroki (if kroki.enabled & kroki.ingress.enabled)
+    ├── kroki-httproute.yaml     # Conditional HTTPRoute for Kroki (if kroki.enabled & kroki.httpRoute.enabled)
+    ├── pdb.yaml                 # Optional PodDisruptionBudget (if pdb.enabled)
+    ├── extra-manifests.yaml     # Templated extra Kubernetes manifests (if extraManifests)
     └── tests/
-        └── test-connection.yaml # Helm test hook verifying `/` and `/kroki/health`
+        └── test-connection.yaml # Helm test hook verifying Disperse `/`, `/js/config.js` & Kroki `/health`
 ```
 
 #### Key `values.yaml` Structure Overview
@@ -587,140 +490,93 @@ global:
   imageRegistry: ""
   imagePullSecrets: []
 
-nameOverride: ""
-fullnameOverride: ""
-commonLabels: {}
-commonAnnotations: {}
-
-# Disperse Frontend & Unified Entrypoint
 replicaCount: 1
 image:
   registry: ghcr.io
   repository: sleepinfinitydev/disperse
-  tag: "" # Defaults to .Chart.AppVersion
+  tag: "" # Defaults to .Chart.AppVersion ("latest")
   pullPolicy: IfNotPresent
 
 disperse:
-  # Used when kroki.enabled is false. When kroki.enabled is true, defaults to "/kroki"
-  krokiBaseUrl: "https://kroki.io"
-  # Optional custom footer HTML/text (passed as FOOTER_CREDITS; uses default credit line when omitted)
-  footerCredits: ""
-  nginx:
-    clientMaxBodySize: "2m"
-    largeClientHeaderBuffers: "4 16k"
-    proxyReadTimeout: "60s"
+  krokiBaseUrl: ""     # Auto-derived when empty
+  krokiRemoteUrl: ""   # Defaults to kroki.remoteFallbackUrl ("https://kroki.io")
+  engineModes: {}      # Optional overrides when kroki.enabled=false
+  footerCredits: null  # null = default credits, "" = hide footer, "<string>" = custom HTML/text
+  disabledEngines: []
+  env: []
 
-# Single Published Service
 service:
   type: ClusterIP
   port: 8765
-  annotations: {}
+  targetPort: 8765
 
-# Self-Hosted Kroki Backend (Second Deployment + Companion Sidecars)
+pdb:
+  enabled: false
+  minAvailable: null
+  maxUnavailable: 1
+
 kroki:
   enabled: false
   replicaCount: 1
-  remoteFallbackUrl: "https://kroki.io" # Used by sidecars configured with mode: "remote"
+  remoteFallbackUrl: "https://kroki.io"
   image:
     registry: docker.io
     repository: yuzutech/kroki
     tag: "0.33.0"
-    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
   safeMode: "SECURE"
   maxUriLength: 16384
-  env: []
-  resources: {}
-  # Sidecar modes: "local" (deploy container in-cluster), "remote" (use remoteFallbackUrl with UI warning), or "disabled"
   sidecars:
+    shmSize: "256Mi"
     mermaid:
-      mode: "local"
-      image:
-        registry: docker.io
-        repository: yuzutech/kroki-mermaid
-        tag: "0.33.0"
+      mode: "local"    # "local" | "remote" | "disabled"
       port: 8002
-      resources: {}
     bpmn:
-      mode: "remote"
-      image:
-        registry: docker.io
-        repository: yuzutech/kroki-bpmn
-        tag: "0.33.0"
+      mode: "local"    # "local" | "remote" | "disabled"
       port: 8003
-      resources: {}
     excalidraw:
-      mode: "remote"
-      image:
-        registry: docker.io
-        repository: yuzutech/kroki-excalidraw
-        tag: "0.33.0"
+      mode: "local"    # "local" | "remote" | "disabled"
       port: 8004
-      resources: {}
-    diagramsnet:
-      mode: "disabled"
-      image:
-        registry: docker.io
-        repository: yuzutech/kroki-diagramsnet
-        tag: "0.33.0"
-      port: 8005
-      resources: {}
+  ingress:
+    enabled: false
+    hosts:
+      - host: kroki.127.0.0.1.nip.io
+        paths:
+          - path: /
+            pathType: Prefix
+  httpRoute:
+    enabled: false
+    https: false
 
-# External Access — Kubernetes Ingress (networking.k8s.io/v1)
 ingress:
   enabled: false
-  className: ""
-  annotations: {}
   hosts:
     - host: disperse.127.0.0.1.nip.io
       paths:
         - path: /
           pathType: Prefix
-  tls: []
 
-# External Access — Kubernetes Gateway API (gateway.networking.k8s.io/v1)
 httpRoute:
   enabled: false
-  annotations: {}
-  labels: {}
-  parentRefs: []
-    # - name: main-gateway
-    #   namespace: gateway-system
-    #   sectionName: https
-  hostnames: []
-    # - disperse.127.0.0.1.nip.io
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
+  https: false
 
-# Extensibility — Arbitrary Kubernetes Manifests (rendered with `tpl`)
 extraManifests: []
 ```
 
 ---
 
-### 9.8. Phased Implementation Roadmap & Future WYSIWYG Experiment
+### 9.4. Roadmap & Upcoming Enhancements
 
-Implementation of the runtime engine modes (`local` | `remote` | `disabled`) and the Helm chart will proceed incrementally across 5 phases, followed by the experimental interactive WYSIWYG track:
-
-1. **Phase 1 — Core Stack, 25 Built-In Engines & Tri-State Mode Infrastructure (`local` | `remote` | `disabled`) (Implemented)**:
-   - Implement runtime configuration in Disperse (`KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `KROKI_INTERNAL_UPSTREAM`, `ENGINE_MODE_MERMAID`, `ENGINE_MODE_BPMN`, `ENGINE_MODE_EXCALIDRAW`, `KROKI_DISABLED_ENGINES`) so each companion engine (`mermaid`, `bpmn`, `excalidraw`) can be individually configured as `disabled`, `remote` (pointing to `https://kroki.io` or a custom third-party URL with explicit `🌐 (kroki.io)` label and non-confidential warning tooltip in `#engine-select`), or `local`.
-   - Build the base Helm chart (`charts/disperse`, `version: 0.1.0`, `appVersion: "latest"`) supporting standalone mode (`kroki.enabled: false` -> `https://kroki.io`) and self-hosted mode (`kroki.enabled: true`) with the core `yuzutech/kroki` Deployment serving all 25 built-in engines, single `Service` + Nginx `/kroki/` reverse-proxy path policy, `Ingress`, `Gateway API (HTTPRoute)`, and `extraManifests`.
-2. **Phase 2 — Mermaid Full Tri-State Support (`local` | `remote` | `disabled`)**:
-   - Integrate the `yuzutech/kroki-mermaid` sidecar container (`:8002`) in `kroki-deployment.yaml` when `kroki.sidecars.mermaid.mode == "local"`, allowing deployers to switch Mermaid seamlessly between `local` (in-cluster sidecar), `remote` (`kroki.io` third-party fallback), and `disabled` (`ENGINE_MODE_MERMAID`).
-3. **Phase 3 — BPMN Full Tri-State Support (`local` | `remote` | `disabled`)**:
-   - Integrate the `yuzutech/kroki-bpmn` sidecar container (`:8003`) when `kroki.sidecars.bpmn.mode == "local"`, supporting `local` sidecar, `remote` third-party fallback, and `disabled` (`ENGINE_MODE_BPMN`).
-4. **Phase 4 — Excalidraw Full Tri-State Support (`local` | `remote` | `disabled`)**:
-   - Integrate the `yuzutech/kroki-excalidraw` sidecar container (`:8004`) when `kroki.sidecars.excalidraw.mode == "local"`, supporting `local` sidecar, `remote` third-party fallback, and `disabled` (`ENGINE_MODE_EXCALIDRAW`).
-5. **Phase 5 — Diagrams.net Engine & Full Tri-State Support (`local` | `remote` | `disabled`)**:
-   - Add `diagramsnet` (`mode: 'xml'`, `examples/diagramsnet.txt`) to Disperse's engine catalog and integrate the `yuzutech/kroki-diagramsnet` sidecar container (`:8005`) when `kroki.sidecars.diagramsnet.mode == "local"`, supporting `local` sidecar, `remote` third-party fallback, and `disabled` (`ENGINE_MODE_DIAGRAMSNET`).
-6. **Bidirectional WYSIWYG Embedded Editors Track (`local` | `remote` | `disabled`)**:
-   - **Implemented (`Excalidraw (Editor)` and `BPMN (Editor)`)**: Replaces the right-hand preview panel with embedded interactive `@excalidraw/excalidraw` and `bpmn-js` (`BpmnModeler`) visual editors (`#wysiwyg-container`, `js/wysiwyg.js`), auto-collapsing the left-hand Ace Editor (`0%`) by default while keeping both synchronized bidirectionally in real time alongside the compressed stateless URL and Kroki snippets.
-   - **Next Visual Format (**Diagrams.net / Draw.io**)**: Extend the same embedded WYSIWYG architecture to `embed.diagrams.net` (`postMessage` iframe) alongside the `kroki-diagramsnet` sidecar in the Helm chart.
-   - **Note on Mermaid**: Unlike Draw.io (`mxGraphModel` XML), Excalidraw (JSON scene), and BPMN (`<bpmndi:BPMNDiagram>` XML) which persist explicit `x`/`y` node coordinates in their source code, Mermaid is a declarative auto-layout text DSL (`dagre`/`elk`) that does not store manual canvas coordinates in its syntax; therefore, Mermaid remains a text-first engine rather than a freeform WYSIWYG canvas.
-   - **Dual `remote` vs. `local` Deployment for Embedded Visual Editors**:
-     - **`remote` editor mode**: Embeds the visual editor from public third-party hosts/CDNs (e.g., `https://embed.diagrams.net/?embed=1&proto=json`, ESM CDN for Excalidraw/`bpmn-js`) paired with `https://kroki.io` (or local Kroki) for stateless image URLs—requiring **zero extra editor containers** in the cluster while displaying the explicit external/non-confidential warning in the UI.
-     - **`local` editor mode**: Supports self-hosted in-cluster deployments of the visual editors in the Helm chart (e.g., deploying the official `jgraph/drawio` container or serving local static bundles for Excalidraw and `bpmn-js` behind the same unified Service/path policy) so air-gapped and high-confidentiality environments get full WYSIWYG editing without external network dependencies.
+1. **Implemented**:
+   - Pure 12-Factor unprivileged static container (`nginxinc/nginx-unprivileged:stable`, `UID 101`, `readOnlyRootFilesystem: true`).
+   - Client-side `DOMParser` SVG sanitization (`js/viewer.js`).
+   - Decoupled Helm chart (`charts/disperse`) with independent `Service`, `Ingress`, and Gateway API `HTTPRoute` resources for Disperse and Kroki, plus full tri-state companion sidecar support (`local` | `remote` | `disabled`) for **Mermaid**, **BPMN**, and **Excalidraw**.
+   - Embedded bidirectional WYSIWYG visual editors for **Excalidraw (`@excalidraw/excalidraw`)** and **BPMN 2.0 (`bpmn-js`)**.
+2. **Future Enhancements**:
+   - **Diagrams.net / Draw.io Support**: Add `diagramsnet` to Disperse's engine catalog alongside the `yuzutech/kroki-diagramsnet` sidecar (`:8005`) and embedded `diagrams.net` visual editor integration.
+   - **Vendorized Frontend Assets for Full Air-Gapped Operation**: Bundle fonts (`IBM Plex Sans`, `IBM Plex Mono`), core UI libraries (`ace`, `pako`, `panzoom`, `lucide`), and WYSIWYG editor assets directly in the container/chart so Disperse operates in completely offline / air-gapped networks with zero external CDN requests.
 
 

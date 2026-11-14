@@ -12,7 +12,7 @@ spec:
   type: {{ .Values.service.type }}
   ports:
     - port: {{ .Values.service.port }}
-      targetPort: http
+      targetPort: {{ if and .Values.service.targetPort (kindIs "string" .Values.service.targetPort) (not (regexMatch "^[0-9]+$" .Values.service.targetPort)) }}{{ .Values.service.targetPort }}{{ else }}http{{ end }}
       protocol: TCP
       name: http
       {{- if and (or (eq .Values.service.type "NodePort") (eq .Values.service.type "LoadBalancer")) .Values.service.nodePort }}

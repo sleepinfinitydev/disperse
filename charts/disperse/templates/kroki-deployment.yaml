@@ -1,5 +1,16 @@
 {{- if .Values.kroki.enabled -}}
-{{- $krokiPort := int (.Values.kroki.port | default 8000) -}}
+{{- $krokiPort := int (include "disperse.krokiContainerPort" .) -}}
+{{- $sidecars := .Values.kroki.sidecars | default dict -}}
+{{- $mermaidCfg := $sidecars.mermaid | default dict -}}
+{{- $bpmnCfg := $sidecars.bpmn | default dict -}}
+{{- $excalidrawCfg := $sidecars.excalidraw | default dict -}}
+{{- $mermaidLocal := eq (include "disperse.engineMode" (dict "root" . "engine" "mermaid")) "local" -}}
+{{- $bpmnLocal := eq (include "disperse.engineMode" (dict "root" . "engine" "bpmn")) "local" -}}
+{{- $excalidrawLocal := eq (include "disperse.engineMode" (dict "root" . "engine" "excalidraw")) "local" -}}
+{{- $anyLocalSidecar := or $mermaidLocal $bpmnLocal $excalidrawLocal -}}
+{{- $mermaidPort := int ($mermaidCfg.port | default 8002) -}}
+{{- $bpmnPort := int ($bpmnCfg.port | default 8003) -}}
+{{- $excalidrawPort := int ($excalidrawCfg.port | default 8004) -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -56,6 +67,24 @@ spec:
               value: {{ .Values.kroki.safeMode | default "SECURE" | quote }}
             - name: KROKI_MAX_URI_LENGTH
               value: {{ .Values.kroki.maxUriLength | default 16384 | quote }}
+            {{- if $mermaidLocal }}
+            - name: KROKI_MERMAID_HOST
+              value: "127.0.0.1"
+            - name: KROKI_MERMAID_PORT
+              value: {{ $mermaidPort | quote }}
+            {{- end }}
+            {{- if $bpmnLocal }}
+            - name: KROKI_BPMN_HOST
+              value: "127.0.0.1"
+            - name: KROKI_BPMN_PORT
+              value: {{ $bpmnPort | quote }}
+            {{- end }}
+            {{- if $excalidrawLocal }}
+            - name: KROKI_EXCALIDRAW_HOST
+              value: "127.0.0.1"
+            - name: KROKI_EXCALIDRAW_PORT
+              value: {{ $excalidrawPort | quote }}
+            {{- end }}
             {{- with .Values.kroki.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -84,9 +113,149 @@ spec:
             - name: kroki-tmp
               mountPath: /home/kroki
               subPath: kroki-home
+        {{- if $mermaidLocal }}
+        - name: mermaid
+          {{- with .Values.kroki.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: {{ include "disperse.krokiSidecarImage" (dict "root" . "sidecar" $mermaidCfg "defaultRepo" "yuzutech/kroki-mermaid") | quote }}
+          imagePullPolicy: {{ ($mermaidCfg.image | default dict).pullPolicy | default .Values.kroki.image.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - name: mermaid
+              containerPort: {{ $mermaidPort }}
+              protocol: TCP
+          env:
+            - name: KROKI_PORT
+              value: {{ $mermaidPort | quote }}
+            {{- with $mermaidCfg.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          livenessProbe:
+            tcpSocket:
+              port: mermaid
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            tcpSocket:
+              port: mermaid
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          {{- with $mermaidCfg.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: kroki-tmp
+              mountPath: /tmp
+              subPath: mermaid-tmp
+            - name: kroki-tmp
+              mountPath: /home/kroki
+              subPath: mermaid-home
+            - name: dshm
+              mountPath: /dev/shm
+        {{- end }}
+        {{- if $bpmnLocal }}
+        - name: bpmn
+          {{- with .Values.kroki.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: {{ include "disperse.krokiSidecarImage" (dict "root" . "sidecar" $bpmnCfg "defaultRepo" "yuzutech/kroki-bpmn") | quote }}
+          imagePullPolicy: {{ ($bpmnCfg.image | default dict).pullPolicy | default .Values.kroki.image.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - name: bpmn
+              containerPort: {{ $bpmnPort }}
+              protocol: TCP
+          env:
+            - name: KROKI_PORT
+              value: {{ $bpmnPort | quote }}
+            {{- with $bpmnCfg.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          livenessProbe:
+            tcpSocket:
+              port: bpmn
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            tcpSocket:
+              port: bpmn
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          {{- with $bpmnCfg.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: kroki-tmp
+              mountPath: /tmp
+              subPath: bpmn-tmp
+            - name: kroki-tmp
+              mountPath: /home/kroki
+              subPath: bpmn-home
+            - name: dshm
+              mountPath: /dev/shm
+        {{- end }}
+        {{- if $excalidrawLocal }}
+        - name: excalidraw
+          {{- with .Values.kroki.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: {{ include "disperse.krokiSidecarImage" (dict "root" . "sidecar" $excalidrawCfg "defaultRepo" "yuzutech/kroki-excalidraw") | quote }}
+          imagePullPolicy: {{ ($excalidrawCfg.image | default dict).pullPolicy | default .Values.kroki.image.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - name: excalidraw
+              containerPort: {{ $excalidrawPort }}
+              protocol: TCP
+          env:
+            - name: KROKI_PORT
+              value: {{ $excalidrawPort | quote }}
+            - name: KROKI_EXCALIDRAW_PAGE_URL
+              value: {{ printf "http://127.0.0.1:%d/public/index.html" $excalidrawPort | quote }}
+            {{- with $excalidrawCfg.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          livenessProbe:
+            tcpSocket:
+              port: excalidraw
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            tcpSocket:
+              port: excalidraw
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          {{- with $excalidrawCfg.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: kroki-tmp
+              mountPath: /tmp
+              subPath: excalidraw-tmp
+            - name: kroki-tmp
+              mountPath: /home/kroki
+              subPath: excalidraw-home
+            - name: dshm
+              mountPath: /dev/shm
+        {{- end }}
       volumes:
         - name: kroki-tmp
           emptyDir: {}
+        {{- if $anyLocalSidecar }}
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ $sidecars.shmSize | default "256Mi" | quote }}
+        {{- end }}
       {{- with .Values.kroki.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

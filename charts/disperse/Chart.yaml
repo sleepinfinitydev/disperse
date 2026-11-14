@@ -1,6 +1,6 @@
 apiVersion: v2
 name: disperse
-description: A Helm chart for Disperse — Diagrams as Code SPA with optional self-hosted Kroki backend
+description: A Helm chart for Disperse — Diagrams as Code SPA with optional self-hosted Kroki backend and companion sidecars
 type: application
 version: 0.1.0
 appVersion: "latest"
@@ -21,3 +21,5 @@ keywords:
 maintainers:
   - name: sleepinfinity.dev
     url: https://sleepinfinity.dev
+annotations:
+  org.opencontainers.image.source: https://github.com/sleepinfinitydev/disperse
