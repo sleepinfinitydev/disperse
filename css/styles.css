@@ -276,6 +276,29 @@ button:where(:not(#wysiwyg-container *)):disabled:hover,
   color: var(--bg-panel);
 }
 
+#autorender-btn:not(.active) {
+  color: var(--text-muted);
+}
+
+.header-center .toolbar-btn.active {
+  background-color: var(--selection-bg);
+  color: var(--color-primary);
+}
+
+.header-center .toolbar-btn.active:hover {
+  background-color: var(--color-primary);
+  color: var(--bg-panel);
+}
+
+#refresh-btn.stale {
+  color: var(--color-tertiary);
+}
+
+#refresh-btn.stale:hover {
+  background-color: var(--color-tertiary);
+  color: var(--bg-panel);
+}
+
 .icon-wrap {
   display: inline-flex;
   align-items: center;
@@ -995,7 +1018,12 @@ body > footer input[type="text"]:focus {
   .header-center {
     order: 3;
     width: 100%;
+    min-width: 0;
     justify-content: space-between;
+  }
+
+  .header-center .toolbar-btn {
+    flex-shrink: 0;
   }
 
   .header-center .toolbar-select-wrap {
@@ -1003,12 +1031,15 @@ body > footer input[type="text"]:focus {
     min-width: 0;
   }
 
+  .header-center .toolbar-select,
   .header-center select,
   #theme-select {
     flex: 1;
     width: 100%;
     min-width: 0;
     max-width: none;
+    padding: 0 4px;
+    font-size: 12px;
   }
 
   button:where(:not(#wysiwyg-container *)), .circle-btn, #color-swatch, .color-picker-wrapper {

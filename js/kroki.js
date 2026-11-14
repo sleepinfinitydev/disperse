@@ -96,6 +96,15 @@ async function isExampleCode(code, engineId) {
   return false;
 }
 
+function isExampleCodeSync(code, engineId) {
+  const normalized = (code || '').trimEnd();
+  if (!normalized) return true;
+  if (engineId && Object.prototype.hasOwnProperty.call(exampleCache, engineId)) {
+    return exampleCache[engineId] === normalized;
+  }
+  return false;
+}
+
 const ENGINE_EXTENSIONS = {
   bpmn: 'bpmn',
   bytefield: 'clj',
@@ -157,6 +166,117 @@ function getEngineExtension(engineId) {
   return ENGINE_EXTENSIONS[engineId] || ENGINE_EXTENSIONS[krokiEngine] || 'txt';
 }
 
+function detectEngineFromFile(filename, content = '') {
+  if (!filename || typeof filename !== 'string') return null;
+  const lower = filename.trim().toLowerCase();
+  const src = typeof content === 'string' ? content : '';
+
+  let detected = null;
+
+  if (lower.endsWith('.vg.json')) {
+    detected = 'vega';
+  } else if (lower.endsWith('.vl.json')) {
+    detected = 'vegalite';
+  } else {
+    const dotIdx = lower.lastIndexOf('.');
+    const ext = dotIdx !== -1 ? lower.slice(dotIdx + 1) : '';
+
+    switch (ext) {
+      case 'bpmn':
+        detected = 'bpmn';
+        break;
+      case 'excalidraw':
+        detected = 'excalidraw';
+        break;
+      case 'd2':
+        detected = 'd2';
+        break;
+      case 'mmd':
+      case 'mermaid':
+        detected = 'mermaid';
+        break;
+      case 'dbml':
+        detected = 'dbml';
+        break;
+      case 'puml':
+      case 'plantuml':
+      case 'iuml':
+      case 'pu':
+        if (/C4_(Context|Container|Component|Dynamic|Deployment)/i.test(src)) {
+          detected = resolveEngineId('c4plantuml', src);
+        } else {
+          detected = 'plantuml';
+        }
+        break;
+      case 'dot':
+      case 'gv':
+        detected = 'graphviz';
+        break;
+      case 'dsl':
+        detected = 'structurizr';
+        break;
+      case 'ditaa':
+        detected = 'ditaa';
+        break;
+      case 'erd':
+        detected = 'erd';
+        break;
+      case 'nomnoml':
+        detected = 'nomnoml';
+        break;
+      case 'pikchr':
+        detected = 'pikchr';
+        break;
+      case 'uxf':
+        detected = 'umlet';
+        break;
+      case 'vhd':
+      case 'vhdl':
+      case 'v':
+      case 'sv':
+        detected = 'symbolator';
+        break;
+      case 'tex':
+      case 'tikz':
+        detected = 'tikz';
+        break;
+      case 'yml':
+      case 'yaml':
+        detected = 'wireviz';
+        break;
+      case 'clj':
+      case 'edn':
+        detected = 'bytefield';
+        break;
+      case 'json':
+        if (/"type"\s*:\s*"excalidraw"/i.test(src)) {
+          detected = 'excalidraw';
+        } else if (/"\$schema"\s*:\s*"[^"]*vega-lite/i.test(src)) {
+          detected = 'vegalite';
+        } else if (/"\$schema"\s*:\s*"[^"]*vega/i.test(src)) {
+          detected = 'vega';
+        } else if (/"signal"\s*:\s*\[/i.test(src)) {
+          detected = 'wavedrom';
+        }
+        break;
+      case 'xml':
+        if (/omg\.org\/spec\/BPMN/i.test(src) || /<bpmn:/i.test(src)) {
+          detected = 'bpmn';
+        } else if ((/<diagram\b/i.test(src) && /umlet/i.test(src)) || /<id>UML/i.test(src)) {
+          detected = 'umlet';
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  if (detected && ENGINES.some((e) => e.id === detected)) {
+    return detected;
+  }
+  return null;
+}
+
 function textToBase64UrlSafe(text) {
   const utf8 = new TextEncoder().encode(text);
   const compressed = pako.deflate(utf8, { level: 9 });
@@ -203,7 +323,9 @@ window.kroki = {
   D2_THEMES,
   loadExample,
   isExampleCode,
+  isExampleCodeSync,
   getEngineExtension,
+  detectEngineFromFile,
   encode: textToBase64UrlSafe,
   decode: base64UrlSafeToText,
   getEngineInfo,

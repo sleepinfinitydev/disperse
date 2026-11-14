@@ -6,7 +6,7 @@
 ### Core Principles
 - **Technology**: HTML5, CSS3, and Vanilla JavaScript (ES6+), with no UI frameworks, relying only on lightweight libraries for code editing, zoom/pan, iconography, and compression. All source code, comments, documentation, and UI text are in **English** (`lang="en"`).
 - **Zero-Text / Icon-First UI**: The interface contains no static text other than the `DISPERSE` brand title and footer credits (along with technical engine/format dropdown values and generated URLs/snippets). All actions and controls are represented using **vector icons (SVG)**.
-- **Stateless URL Sharing**: Any diagram can be shared via a self-contained URL carrying the compressed and encoded source code in Kroki's standard format.
+- **Stateless URL Sharing & Per-Language Local Persistence**: Any diagram can be shared via a self-contained URL carrying the compressed and encoded source code in Kroki's standard format. Simultaneously, each diagram language maintains an isolated workspace draft in `localStorage` so switching languages never causes cross-syntax rendering errors or work loss, while shared `#hash` URLs take precedence on load without overwriting existing local drafts until modified.
 
 ---
 
@@ -57,7 +57,7 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 
 ```
 +-----------------------------------------------------------------------+
-| DISPERSE  [ ↻ | Engine v | 📖 | Layout v | Theme v | Format v ] (☀/☾)(●) |  <- Header
+| DISPERSE  [ ↻ | ▶ | 📄+ | Engine v | 📖 | Layout v | Theme v | Format v ] (☀/☾)(●)(⛶) | <- Header
 +---------------------------+-------------------------------------------+
 |                           |                                           |
 |                           |                                           |
@@ -77,20 +77,28 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
    - Brand link (`#brand-link`) composed of the `favicon.svg` logo, the uppercase **`DISPERSE`** title in `--color-primary`, and a chain link icon (`link`), with caption `"Copy current page link (Alt+L)"`. Its `href` is always synchronized with the full current page URL (`window.location.href` including the diagram state). Clicking it (or pressing `Alt + L`) does not reload or reset the editor; instead, it automatically copies the current URL to the clipboard with visual confirmation (`✓`).
 2. **Center (Unified Segmented Toolbar, in order)**:
    - Contained within a single pill-shaped segmented bar (`.header-center`, `34px` uniform height with vertical dividers):
-     1. **Refresh Button (`#refresh-btn`)**: Refresh icon (`refresh-cw`) with caption `"Refresh preview (Ctrl+R)"`.
+     1. **Refresh Button (`#refresh-btn`)**: Refresh icon (`refresh-cw`) with caption `"Refresh preview (Ctrl+R)"` (updated to `"Refresh preview — unrendered changes (Ctrl+R)"` and highlighted in `--color-tertiary` via `.stale` when auto-render is disabled and the editor contains unrendered changes).
         - **Keyboard shortcut**: `Ctrl + R` (or `Cmd + R`), intercepting the browser event (`e.preventDefault()`) to refresh the diagram without reloading the page.
-     2. **Kroki Engine Dropdown (`#engine-select`)**: Lists all 28 engines supported by Kroki (32 entries in total, grouped into Featured Code Languages including 5 C4-PlantUML diagram types at the top, followed by a visual separator, the remaining code engines in alphabetical order, a second visual separator, and Embedded Visual Editors marked as `Beta` at the bottom) with caption `"Diagram language"` (updated to `"Diagram language (Experimental / Beta editor)"` when a `Beta` visual editor is active). Switching engines updates:
-        - The Kroki rendering endpoint (`c4plantuml-*` variants map to the `c4plantuml` Kroki endpoint).
-        - The editor's syntax highlighting mode.
-        - The **example code**: when the editor is empty or still displays the previous engine's stock template, switching engines loads the new engine's default example from `examples/{engine}.txt`; otherwise, user edits are preserved.
-        - The documentation link (`#docs-btn`) `href` to point to the active language's official documentation.
-     3. **Language Documentation Link (`#docs-btn`)**: Anchor with an open-book icon (`book-open`) and caption `"Language documentation"`, opening the selected language's official documentation in a new tab (`target="_blank"`).
-     4. **Layout Engine Dropdown (`#layout-select`)**: Selectable layout engines for D2 (`dagre`, `elk`, `tala`), with caption `"Layout engine (D2)"`. Enabled only when `d2` is selected and disabled for all other engines.
-     5. **Diagram Theme Dropdown (`#theme-select`)**: Selectable themes for D2 (`default`, `neutral-gray`, `flagship-terrastruct`, `cool-classics`, `mixed-berry-blue`, `grape-soda`, `aubergine`, `colorblind-clear`, `vanilla-nitro-cola`, `orange-creamsicle`, `shirley-temple`, `earth-tones`, `everglade-green`, `buttered-toast`, `dark-mauve`, `dark-flagship-terrastruct`, `terminal`, `terminal-grayscale`, `origami`, `c4`), with caption `"Diagram theme (D2)"`. Enabled only when `d2` is selected and disabled for all other engines.
-     6. **Output Format Dropdown (`#format-select`)**: `svg` (default) and `png`, with caption `"Output format"`.
+     2. **Auto-Render Toggle Button (`#autorender-btn`)**: Toggle button (`aria-pressed="true|false"`, `.active` when enabled, persisted in `localStorage` under `disperse-autorender` and enabled by default) with a play icon (`play`) and caption `"Toggle auto-render (Alt+R)"`.
+        - **Keyboard shortcut**: `Alt + R`.
+        - **When enabled (`true`, default)**: Typing in the code editor triggers a debounced (`500ms`) render of the diagram preview alongside state synchronization.
+        - **When disabled (`false`)**: Typing in the code editor still synchronizes the per-language `localStorage` draft, compressed URL `#hash`, sharing snippets, and local file auto-save (`syncState(false)`), without issuing Kroki HTTP requests or pushing partial code edits into WYSIWYG canvases, and marks `#refresh-btn` as `.stale`. Explicit context changes—initial page load, switching diagram language (`#engine-select`), resetting to example (`#new-btn`), opening/dropping a local file, changing D2 layout/theme or output format, manual refresh (`Ctrl/Cmd + R`), and re-enabling auto-render while `.stale`—always trigger an immediate render.
+     3. **New Diagram / Reset to Example Button (`#new-btn`)**: New-document icon (`file-plus`) with caption `"New diagram / Reset to example (Alt+N)"`.
+        - **Keyboard shortcut**: `Alt + N`.
+        - **Behavior**: Restores the active language's default example (`examples/{engine}.txt`), removes its saved `localStorage` draft (`disperse-draft:{engine}`), resets D2 layout/theme selectors to defaults when `d2` is active, clears Ace Editor's `UndoManager` history, detaches any open local file (`fileState`), and re-renders centered (`centerView: true`).
+        - **Confirmation guard**: Prompts `window.confirm(...)` before resetting whenever the current editor code differs from the active language's stock example or when an open local file has unsaved changes (`fileState.isDirty`).
+     4. **Kroki Engine Dropdown (`#engine-select`)**: Lists all 28 engines supported by Kroki (32 entries in total, grouped into Featured Code Languages including 5 C4-PlantUML diagram types at the top, followed by a visual separator, the remaining code engines in alphabetical order, a second visual separator, and Embedded Visual Editors marked as `Beta` at the bottom) with caption `"Diagram language"` (updated to `"Diagram language (Experimental / Beta editor)"` when a `Beta` visual editor is active). Switching engines performs an isolated workspace transition:
+        - **Local file guard & detachment**: If a local file is currently open (`fileState.name`), checks `fileState.isDirty` and asks `window.confirm(...)` before detaching (reverting `#engine-select` to the previous engine if cancelled). Detaching `fileState` prevents auto-save or `Ctrl+S` from accidentally overwriting a local file with source code from another language.
+        - **Outgoing & incoming per-language drafts**: Flushes the outgoing language's in-browser draft to `localStorage` (`disperse-draft:{prevEngine}`, when eligible), updates `disperse-last-engine`, and loads the newly selected language's saved draft from `localStorage` (`disperse-draft:{nextEngine}`)—or loads its default template from `examples/{nextEngine}.txt` when no saved draft exists.
+        - **Editor & preview update**: Updates the Kroki rendering endpoint (`c4plantuml-*` variants map to `c4plantuml`), updates Ace syntax highlighting mode and `#docs-btn` `href`, resets Ace's `UndoManager` so undo history never crosses language boundaries, adjusts the WYSIWYG splitter state, and **always renders** the newly loaded diagram immediately (even if auto-render is disabled).
+     5. **Language Documentation Link (`#docs-btn`)**: Anchor with an open-book icon (`book-open`) and caption `"Language documentation"`, opening the selected language's official documentation in a new tab (`target="_blank"`).
+     6. **Layout Engine Dropdown (`#layout-select`)**: Selectable layout engines for D2 (`dagre`, `elk`, `tala`), with caption `"Layout engine (D2)"`. Enabled only when `d2` is selected and disabled for all other engines.
+     7. **Diagram Theme Dropdown (`#theme-select`)**: Selectable themes for D2 (`default`, `neutral-gray`, `flagship-terrastruct`, `cool-classics`, `mixed-berry-blue`, `grape-soda`, `aubergine`, `colorblind-clear`, `vanilla-nitro-cola`, `orange-creamsicle`, `shirley-temple`, `earth-tones`, `everglade-green`, `buttered-toast`, `dark-mauve`, `dark-flagship-terrastruct`, `terminal`, `terminal-grayscale`, `origami`, `c4`), with caption `"Diagram theme (D2)"`. Enabled only when `d2` is selected and disabled for all other engines.
+     8. **Output Format Dropdown (`#format-select`)**: `svg` (default) and `png`, with caption `"Output format"`.
 3. **Right (Visual Preferences)**:
    - **Light / Dark Mode Button (`#theme-btn`)**: Circular button with a sun/moon icon and caption `"Toggle light/dark theme (Alt+T)"`.
    - **Preferred Color Button (`#color-swatch`)**: Circular button **of the exact same diameter** as the theme button, filled with the current preferred color (`rgb(0, 128, 192)` by default) and caption `"Preferred theme color"`. Clicking it opens the native `<input type="color">` (which has `tabindex="-1"` so keyboard focus stays on `#color-swatch`).
+   - **Fullscreen Button (`#fullscreen-btn`)**: Circular button of matching diameter with `maximize`/`minimize` icons and caption `"Toggle fullscreen (F11)"`.
 4. **Captions / Tooltips (`[data-tooltip]`)**:
    - All icon buttons and controls across the header, splitter, editor/viewer toolbars, and publishing footer display instant hover/focus captions indicating their action and keyboard shortcut where applicable (e.g., `Refresh preview (Ctrl+R)`, `Download diagram (Alt+D)`, `Save local file (Ctrl+S)`).
 
@@ -110,7 +118,8 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 - Automatically receives focus (`editor.focus()`) on application startup for text-first engines so users can begin typing immediately.
 - Line numbers, syntax highlighting matched to the diagram language, auto-closing brackets/quotes, `Tab` indentation, and code folding.
 - Editor theme synchronized with the `oklch` color system and light/dark mode.
-- Debounced preview update (`500ms` after typing stops) in addition to manual refresh via `Ctrl + R` or the refresh button.
+- Debounced state synchronization (`500ms` after typing stops): persists the active language's draft to `localStorage`, updates the URL `#hash` and sharing snippets, triggers local file auto-save when active, and—when auto-render (`#autorender-btn`, `Alt+R`) is enabled—updates the diagram preview. Manual refresh is always available via `Ctrl/Cmd + R` or `#refresh-btn`.
+- Isolated undo history: resetting the diagram, opening a local file, or switching languages resets Ace Editor's `UndoManager` so `Ctrl+Z` never undoes into a previous document or language.
 - Floating action bar for text zoom and editing mode:
   - Increase font size (`#editor-font-in`, `plus` icon, `Alt+Shift++`)
   - Decrease font size (`#editor-font-out`, `minus` icon, `Alt+Shift+-`)
@@ -148,6 +157,8 @@ Compact panel for obtaining ready-to-publish links, snippets, and managing local
    - **Editor (pencil icon)**: Points to this Disperse instance with state in the URL hash:
      `{current_origin}/#{engine}/{format}/{compressed_payload}`
    - **Local File (hard drive icon)**: Progressive local file workflow. Includes actions to Open (`Ctrl+O`), Save (`Ctrl+S`), Save As (`Ctrl+Shift+S`), and Toggle Auto-Save (`Alt+A`). It supports dragging and dropping files directly onto the window (via `#drop-overlay`).
+     - **Automatic Format & Language Detection**: Opening or dropping a local file inspects its filename extension (supporting compound extensions such as `.vg.json` and `.vl.json`, dedicated extensions such as `.d2`, `.mmd`/`.mermaid`, `.dbml`, `.puml`/`.plantuml`/`.iuml` with C4 diagram variant detection, `.bpmn`, `.excalidraw`, `.dot`/`.gv`, `.dsl`, `.ditaa`, `.erd`, `.nomnoml`, `.pikchr`, `.uxf`, `.vhd`/`.vhdl`/`.v`/`.sv`, `.tex`/`.tikz`, `.yml`/`.yaml`, `.clj`/`.edn`, and lightweight content inspection for generic `.json` and `.xml` files) and automatically switches `#engine-select` to the corresponding language after flushing any prior in-browser draft.
+     - **Safe Detachment & Reload Guard**: Manually switching languages in `#engine-select` or clicking New / Reset (`#new-btn`) detaches the linked local file (after confirming if `fileState.isDirty`). The browser `beforeunload` warning prompt is triggered **exclusively** when a local file is open with unsaved changes on disk (`fileState.name && fileState.isDirty`), avoiding unnecessary prompts during normal `localStorage`-backed browser editing.
 2. **Snippet output formats** (selectable via icons):
    - **Direct URL** (`link` icon):
      - Image: `https://kroki.io/mermaid/svg/eNpL...`
@@ -179,16 +190,19 @@ Compact panel for obtaining ready-to-publish links, snippets, and managing local
    - Compact wrapped header and touch-friendly controls (`>= 36px`).
 
 ### 4.5. Keyboard Shortcuts & Focus Flow
-All keyboard shortcuts are reflected in their corresponding control tooltips (`data-tooltip`) and `aria-label` attributes, and support both main keyboard keys and numeric keypad (`Numpad`) keys across international layouts:
+All keyboard shortcuts are reflected in their corresponding control tooltips (`data-tooltip`) and `aria-label` attributes, and support main keyboard keys, numeric keypad (`Numpad`) keys, and layout-independent `KeyboardEvent.code` matching across international and macOS `Option` layouts:
 
 | Shortcut | Action | Control |
 | :--- | :--- | :--- |
 | `Ctrl/Cmd + R` | Refresh diagram preview | `#refresh-btn` |
+| `Alt + R` | Toggle auto-render preview | `#autorender-btn` |
+| `Alt + N` | New diagram / Reset to example | `#new-btn` |
 | `Ctrl/Cmd + O` | Open local file | `#file-open-btn` |
 | `Ctrl/Cmd + S` | Save local file (or download source fallback) | `#file-save-btn` |
 | `Ctrl/Cmd + Shift + S` | Save local file as... | `#file-save-as-btn` |
 | `Alt + A` | Toggle local file auto-save | `#file-autosave-btn` |
 | `Alt + T` | Toggle light/dark theme | `#theme-btn` |
+| `F11` | Toggle fullscreen | `#fullscreen-btn` |
 | `Alt + V` | Toggle Vim mode in editor | `#editor-vim-mode` |
 | `Alt + L` | Copy current page link | `#brand-link` |
 | `Alt + 1` | Maximize editor panel | `#split-max-editor` |
@@ -257,15 +271,20 @@ Displayed at the bottom of `#engine-select` below the second disabled separator 
 
 ---
 
-## 6. Encoding, Compression, and Kroki Communication
+## 6. Encoding, Compression, Workspace Persistence, and Kroki Communication
 
 1. **Encoding Algorithm (Kroki Standard)**:
    - Encode editor text into UTF-8 (`TextEncoder`).
    - Compress using **Zlib Deflate** (level 9).
    - Convert the compressed buffer to **URL-safe Base64** (replacing `+` with `-` and `/` with `_`).
-2. **Decoding (Loading from URL)**:
-   - When opening Disperse with a `#engine/format/payload` hash, the URL-safe Base64 payload is decoded, inflated back to UTF-8, and loaded into the editor along with the specified engine and format.
-3. **Rendering**:
+2. **Decoding & Startup Precedence (`#hash` URL vs. `localStorage`)**:
+   - **With URL `#engine/format/payload[?layout=...&theme=...]` hash (Shared Link)**: The URL payload always takes precedence on startup—decoding and loading the specified engine, format, options, and source code. To protect the user's own local workspace, opening an external `#hash` URL whose content differs from the existing `localStorage` draft for that engine **does not overwrite** `disperse-draft:{engine}` until the user makes a modification in the editor/canvas (if the user switches languages without modifying it, their previous local draft remains intact).
+   - **Without URL `#hash` (Clean Root Visit)**: Restores the last active language from `disperse-last-engine` (defaulting to `d2`) and loads its saved draft from `disperse-draft:{engine}` (including D2 `layout`/`theme` when applicable), falling back to `examples/{engine}.txt` if no draft exists.
+3. **Per-Language `localStorage` Persistence**:
+   - Each of the 32 selectable entries in `#engine-select` stores its own draft independently under `disperse-draft:{engineId}` (JSON `{ code, layout?, theme? }`), alongside `disperse-last-engine` and `disperse-autorender` (`'true'` by default).
+   - Whenever an engine's code matches its stock template (`examples/{engineId}.txt`) and uses default options, `disperse-draft:{engineId}` is removed from `localStorage` to keep storage clean.
+   - While a local file (`fileState.name`) is open, edits track against that file rather than overwriting the language's scratchpad draft; any pending in-browser draft is flushed synchronously on `beforeunload`. All `localStorage` operations are wrapped in `try/catch` to handle private browsing or quota limits gracefully.
+4. **Rendering**:
    - Standard diagrams use `GET {kroki_base_url}/{engine}/{format}/{payload}` (where `{kroki_base_url}` defaults to `https://kroki.io` and can be configured at runtime via `window.DISPERSE_CONFIG.krokiBaseUrl`, resolving relative paths such as `/kroki` against `window.location.origin`).
    - If a syntax error occurs, the error body returned by Kroki is displayed in the `#viewer-error` overlay.
 
@@ -277,9 +296,9 @@ Clean file structure requiring no build step:
 - `index.html` — Semantic structure and CDN library imports.
 - `favicon.svg` — Vector brand icon and logo (a prism dispersing a beam into 4 tetradic graph nodes).
 - `css/styles.css` — Tetradic `oklch` color system, golden-ratio responsive layout, and light/dark themes.
-- `js/app.js` — Initialization, per-engine application state, global keyboard shortcuts (`Ctrl/Cmd` and `Alt`/`Alt+Shift`), magnetic splitter, local file workflow, and events.
+- `js/app.js` — Initialization, per-engine `localStorage` workspace persistence, auto-render and reset/new workflows, global keyboard shortcuts (`Ctrl/Cmd`, `Alt`/`Alt+Shift`, `F11`), magnetic splitter, local file workflow with format auto-detection, and events.
 - `js/theme.js` — `sRGB → Oklab → OKLCH` conversion, tetradic palette generation, dynamic brand icon coloring, and light/dark mode toggle.
-- `js/kroki.js` — Engine catalog, documentation links, cached lazy-loading of `examples/{engine}.txt`, compression/decompression, and Kroki URL builder.
+- `js/kroki.js` — Engine catalog, documentation links, file-extension/content language detection, cached lazy-loading of `examples/{engine}.txt`, compression/decompression, and Kroki URL builder.
 - `js/viewer.js` — Diagram viewer (SVG and PNG) with zoom, pan, error overlay, and file download.
 - `js/wysiwyg.js` — Lazy-loaded embedded WYSIWYG visual editors (`@excalidraw/excalidraw` and `bpmn-js`) with bidirectional Ace Editor / URL synchronization and client-side SVG/PNG export.
 - `examples/*.txt` — Individual default example files for each of the 32 selectable engine/template entries (28 Kroki engines including 5 C4-PlantUML diagram types).
@@ -318,11 +337,11 @@ Clean file structure requiring no build step:
 
 ---
 
-## 8. Kubernetes & Helm Chart Specification (`charts/disperse`)
+## 9. Kubernetes & Helm Chart Specification (`charts/disperse`)
 
 Disperse provides an official Helm v3 chart (`apiVersion: v2`, `type: application`) under `charts/disperse` designed around Kubernetes and Helm best practices while supporting flexible deployment topologies.
 
-### 8.1. Architectural Goals & Requirements Alignment
+### 9.1. Architectural Goals & Requirements Alignment
 
 1. **Dual Backend Operating Modes**:
    - **Mode A — Standalone Disperse with Public Kroki (`kroki.enabled: false`, default)**:
@@ -343,7 +362,7 @@ Disperse provides an official Helm v3 chart (`apiVersion: v2`, `type: applicatio
 
 ---
 
-### 8.2. Reconciling Kubernetes Best Practices with the Single-Service & Multi-Deployment Requirement
+### 9.2. Reconciling Kubernetes Best Practices with the Single-Service & Multi-Deployment Requirement
 
 A core Kubernetes networking constraint is that a `v1/Service` operates at **Layer 4 (TCP)** using Pod label selectors (`spec.selector`):
 - A `v1/Service` cannot natively perform Layer 7 HTTP path routing (`/` vs. `/kroki/`).
@@ -400,7 +419,7 @@ This architecture satisfies all requirements and adheres strictly to Helm and Ku
 
 ---
 
-### 8.3. Required Changes in Disperse Application & Container
+### 9.3. Required Changes in Disperse Application & Container
 
 To support the Helm chart's deployment modes without breaking standalone or local usage:
 
@@ -424,7 +443,7 @@ To support the Helm chart's deployment modes without breaking standalone or loca
 
 ---
 
-### 8.4. Kroki Deployment, Sidecar Containers & Hybrid (`local` / `remote` / `disabled`) Modes
+### 9.4. Kroki Deployment, Sidecar Containers & Hybrid (`local` / `remote` / `disabled`) Modes
 
 To render all **28 diagram engines** supported by Disperse (Section 4) plus optional `diagramsnet`, the `<fullname>-kroki` `Deployment` combines the core Kroki gateway container with up to **4 individually configurable companion engines**:
 
@@ -476,7 +495,7 @@ When `kroki.enabled: true`, disabling any sidecar (`kroki.sidecars.<name>.enable
 
 ---
 
-### 8.5. External Access: Ingress and Gateway API (`HTTPRoute`)
+### 9.5. External Access: Ingress and Gateway API (`HTTPRoute`)
 
 The chart provides native, mutually compatible templates for both Kubernetes Ingress and the modern Kubernetes Gateway API:
 
@@ -491,7 +510,7 @@ The chart provides native, mutually compatible templates for both Kubernetes Ing
 
 ---
 
-### 8.6. Extensibility via `extraManifests`
+### 9.6. Extensibility via `extraManifests`
 
 - Defined in `values.yaml` as `extraManifests: []` (`templates/extra-manifests.yaml`).
 - Accepts an array of arbitrary Kubernetes manifest objects (YAML maps) or raw YAML strings.
@@ -499,7 +518,7 @@ The chart provides native, mutually compatible templates for both Kubernetes Ing
 
 ---
 
-### 8.7. Chart File Structure & Values Schema
+### 9.7. Chart File Structure & Values Schema
 
 ```
 charts/disperse/
@@ -643,7 +662,7 @@ extraManifests: []
 
 ---
 
-### 8.8. Phased Implementation Roadmap & Future WYSIWYG Experiment
+### 9.8. Phased Implementation Roadmap & Future WYSIWYG Experiment
 
 Implementation of the runtime engine modes (`local` | `remote` | `disabled`) and the Helm chart will proceed incrementally across 5 phases, followed by the experimental interactive WYSIWYG track:
 

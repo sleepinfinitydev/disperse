@@ -1,3 +1,27 @@
+const STORAGE_LAST_ENGINE = 'disperse-last-engine';
+const STORAGE_AUTORENDER = 'disperse-autorender';
+const STORAGE_DRAFT_PREFIX = 'disperse-draft:';
+
+function safeGetStorage(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch (_) {
+    return null;
+  }
+}
+
+function safeSetStorage(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (_) {}
+}
+
+function safeRemoveStorage(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch (_) {}
+}
+
 let editor = null;
 let updateTimeout = null;
 let currentEngine = 'd2';
@@ -5,7 +29,10 @@ let isApplyingProgrammaticChange = false;
 let baselineContent = '';
 let isSavingInProgress = false;
 let pendingAutoSave = false;
-let isVimMode = localStorage.getItem('disperse-vim-mode') === 'true';
+let isVimMode = safeGetStorage('disperse-vim-mode') === 'true';
+let isAutoRender = safeGetStorage(STORAGE_AUTORENDER) !== 'false';
+let isPreviewStale = false;
+let canPersistCurrentDraft = true;
 
 const fileState = {
   handle: null,
@@ -14,6 +41,134 @@ const fileState = {
   isDirty: false,
   autoSave: false
 };
+
+function getDraftKey(engineId) {
+  return `${STORAGE_DRAFT_PREFIX}${engineId}`;
+}
+
+function getCurrentOptions() {
+  const layoutSelect = document.getElementById('layout-select');
+  const themeSelect = document.getElementById('theme-select');
+  return {
+    layout: layoutSelect ? layoutSelect.value : 'dagre',
+    theme: themeSelect ? themeSelect.value : 'default'
+  };
+}
+
+function isDefaultD2Options(engineId, options = {}) {
+  if (engineId !== 'd2') return true;
+  return (options.layout || 'dagre') === 'dagre' && (options.theme || 'default') === 'default';
+}
+
+function loadEngineDraft(engineId) {
+  if (!engineId) return null;
+  const raw = safeGetStorage(getDraftKey(engineId));
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && typeof parsed.code === 'string') {
+      return {
+        code: parsed.code,
+        layout: typeof parsed.layout === 'string' ? parsed.layout : 'dagre',
+        theme: typeof parsed.theme === 'string' ? parsed.theme : 'default'
+      };
+    }
+  } catch (_) {}
+  return null;
+}
+
+function writeDraftPayload(engineId, code, options = {}) {
+  const payload =
+    engineId === 'd2'
+      ? {
+          code,
+          layout: options.layout || 'dagre',
+          theme: options.theme || 'default'
+        }
+      : { code };
+  safeSetStorage(getDraftKey(engineId), JSON.stringify(payload));
+}
+
+async function persistEngineDraft(engineId, code, options = {}) {
+  if (!engineId || fileState.name || !canPersistCurrentDraft) return;
+  const defaultOpts = isDefaultD2Options(engineId, options);
+  const isExample = await window.kroki.isExampleCode(code, engineId);
+  if (fileState.name || !canPersistCurrentDraft) return;
+  if (engineId === currentEngine && editor && editor.getValue() !== code) return;
+  if (isExample && defaultOpts) {
+    safeRemoveStorage(getDraftKey(engineId));
+  } else {
+    writeDraftPayload(engineId, code, options);
+  }
+}
+
+function flushCurrentDraftSync() {
+  if (!currentEngine || fileState.name || !canPersistCurrentDraft || !editor) return;
+  const code = editor.getValue();
+  const options = getCurrentOptions();
+  const defaultOpts = isDefaultD2Options(currentEngine, options);
+  const isExample =
+    window.kroki && typeof window.kroki.isExampleCodeSync === 'function'
+      ? window.kroki.isExampleCodeSync(code, currentEngine)
+      : !code.trim();
+  if (isExample && defaultOpts) {
+    safeRemoveStorage(getDraftKey(currentEngine));
+  } else {
+    writeDraftPayload(currentEngine, code, options);
+  }
+}
+
+function resetEditorUndoHistory() {
+  if (!editor) return;
+  const session = editor.getSession ? editor.getSession() : editor.session;
+  if (session && typeof session.getUndoManager === 'function') {
+    const undoManager = session.getUndoManager();
+    if (undoManager && typeof undoManager.reset === 'function') {
+      undoManager.reset();
+    }
+  }
+}
+
+function detachLocalFile() {
+  fileState.handle = null;
+  fileState.name = '';
+  fileState.savedContent = null;
+  fileState.isDirty = false;
+  fileState.autoSave = false;
+  updateLocalFileUI();
+}
+
+function setPreviewStale(stale) {
+  isPreviewStale = Boolean(stale);
+  const refreshBtn = document.getElementById('refresh-btn');
+  if (!refreshBtn) return;
+  refreshBtn.classList.toggle('stale', isPreviewStale);
+  const label = isPreviewStale
+    ? 'Refresh preview — unrendered changes (Ctrl+R)'
+    : 'Refresh preview (Ctrl+R)';
+  refreshBtn.setAttribute('data-tooltip', label);
+  refreshBtn.setAttribute('aria-label', label);
+}
+
+function updateAutoRenderUI() {
+  const autoRenderBtn = document.getElementById('autorender-btn');
+  if (!autoRenderBtn) return;
+  autoRenderBtn.classList.toggle('active', isAutoRender);
+  autoRenderBtn.setAttribute('aria-pressed', String(isAutoRender));
+}
+
+function toggleAutoRender() {
+  isAutoRender = !isAutoRender;
+  safeSetStorage(STORAGE_AUTORENDER, String(isAutoRender));
+  updateAutoRenderUI();
+  if (isAutoRender && (isPreviewStale || updateTimeout)) {
+    if (updateTimeout) {
+      clearTimeout(updateTimeout);
+      updateTimeout = null;
+    }
+    syncState(true);
+  }
+}
 
 function isVerticalLayout() {
   return window.matchMedia('(max-width: 900px)').matches;
@@ -73,10 +228,20 @@ function initEditor() {
 
   editor.session.on('change', () => {
     if (isApplyingProgrammaticChange) return;
+    canPersistCurrentDraft = true;
     updateLocalFileUI();
+    if (!isAutoRender) {
+      setPreviewStale(true);
+    }
     clearTimeout(updateTimeout);
     updateTimeout = setTimeout(() => {
-      syncState(true);
+      updateTimeout = null;
+      if (isAutoRender) {
+        syncState(true);
+      } else {
+        syncState(false);
+        setPreviewStale(true);
+      }
       if (fileState.autoSave && fileState.handle && fileState.isDirty) {
         performAutoSave();
       }
@@ -496,6 +661,7 @@ function initSelects() {
     layoutSelect.value = 'dagre';
     layoutSelect.disabled = false;
     layoutSelect.addEventListener('change', () => {
+      canPersistCurrentDraft = true;
       syncState(true);
     });
   }
@@ -511,16 +677,42 @@ function initSelects() {
     themeSelect.value = 'default';
     themeSelect.disabled = false;
     themeSelect.addEventListener('change', () => {
+      canPersistCurrentDraft = true;
       syncState(true);
     });
   }
 
   engineSelect.addEventListener('change', async () => {
+    if (updateTimeout) {
+      clearTimeout(updateTimeout);
+      updateTimeout = null;
+    }
+
     const prevEngine = currentEngine;
     const nextEngine = engineSelect.value;
+    if (!nextEngine || nextEngine === prevEngine) return;
+
     const currentCode = editor ? editor.getValue() : '';
+    const prevOptions = getCurrentOptions();
+
+    if (fileState.name) {
+      updateLocalFileUI();
+      if (fileState.isDirty) {
+        const proceed = window.confirm(
+          `You have unsaved changes in "${fileState.name}". Switch language and detach local file anyway?`
+        );
+        if (!proceed) {
+          engineSelect.value = prevEngine;
+          return;
+        }
+      }
+      detachLocalFile();
+    } else if (canPersistCurrentDraft) {
+      await persistEngineDraft(prevEngine, currentCode, prevOptions);
+    }
 
     currentEngine = nextEngine;
+    safeSetStorage(STORAGE_LAST_ENGINE, nextEngine);
     setEditorModeForEngine(nextEngine);
 
     const nextIsWysiwyg = window.kroki.isWysiwygEngine(nextEngine);
@@ -531,27 +723,46 @@ function initSelects() {
       splitterCtrl.restoreFromWysiwyg();
     }
 
-    const isEmpty = !currentCode.trim();
-    const hasLoadedFile = Boolean(fileState.name);
-    const isStockExample =
-      isEmpty || (!hasLoadedFile && (await window.kroki.isExampleCode(currentCode, prevEngine)));
-
-    if (isStockExample) {
+    const savedDraft = loadEngineDraft(nextEngine);
+    if (savedDraft) {
+      if (nextEngine === 'd2') {
+        if (layoutSelect && window.kroki.D2_LAYOUTS.some((l) => l.id === savedDraft.layout)) {
+          layoutSelect.value = savedDraft.layout;
+        } else if (layoutSelect) {
+          layoutSelect.value = 'dagre';
+        }
+        if (themeSelect && window.kroki.D2_THEMES.some((t) => t.id === savedDraft.theme)) {
+          themeSelect.value = savedDraft.theme;
+        } else if (themeSelect) {
+          themeSelect.value = 'default';
+        }
+      }
+      window.kroki.loadExample(nextEngine).catch(() => {});
+      setEditorCode(savedDraft.code, true);
+      resetEditorUndoHistory();
+      canPersistCurrentDraft = true;
+      syncState(true, { centerView: true });
+    } else {
+      if (nextEngine === 'd2') {
+        if (layoutSelect) layoutSelect.value = 'dagre';
+        if (themeSelect) themeSelect.value = 'default';
+      }
       try {
         const exampleCode = await window.kroki.loadExample(nextEngine);
         if (currentEngine === nextEngine) {
           setEditorCode(exampleCode, true);
+          resetEditorUndoHistory();
+          canPersistCurrentDraft = true;
           syncState(true, { centerView: true });
         }
       } catch (err) {
         console.error('Failed to load example:', err);
       }
-    } else {
-      syncState(true, { centerView: true });
     }
   });
 
   formatSelect.addEventListener('change', () => {
+    canPersistCurrentDraft = true;
     syncState(true);
   });
 }
@@ -595,8 +806,16 @@ function syncState(renderDiagram = true, renderOpts = {}) {
   const code = editor.getValue();
   const isWysiwyg = window.kroki.isWysiwygEngine(engine);
 
+  if (renderDiagram) {
+    setPreviewStale(false);
+  }
+
+  if (!fileState.name && canPersistCurrentDraft) {
+    persistEngineDraft(engine, code, options);
+  }
+
   if (!code.trim() && !isWysiwyg) {
-    if (window.viewer && typeof window.viewer.showError === 'function') {
+    if (renderDiagram && window.viewer && typeof window.viewer.showError === 'function') {
       window.viewer.showError('Empty diagram source');
     }
     return;
@@ -699,52 +918,149 @@ async function loadFromUrl() {
         ? window.kroki.resolveEngineId(engine, decoded || '')
         : (window.kroki.ENGINES.some((e) => e.id === engine) ? engine : null);
 
-      if (resolvedEngine && engineSelect) {
-        engineSelect.value = resolvedEngine;
+      if (resolvedEngine && decoded !== null) {
+        if (engineSelect) {
+          engineSelect.value = resolvedEngine;
+        }
         currentEngine = resolvedEngine;
+        safeSetStorage(STORAGE_LAST_ENGINE, resolvedEngine);
         setEditorModeForEngine(resolvedEngine);
         if (window.kroki.isWysiwygEngine(resolvedEngine) && splitterCtrl) {
           splitterCtrl.collapseForWysiwyg();
         }
-      }
-      if (validFormat && formatSelect) {
-        formatSelect.value = format;
-      }
-
-      if (queryPart && resolvedEngine === 'd2') {
-        const params = new URLSearchParams(queryPart);
-        const layout = params.get('layout');
-        const theme = params.get('theme');
-        if (layout && layoutSelect && window.kroki.D2_LAYOUTS.some((l) => l.id === layout)) {
-          layoutSelect.value = layout;
+        if (validFormat && formatSelect) {
+          formatSelect.value = format;
         }
-        if (theme && themeSelect && window.kroki.D2_THEMES.some((t) => t.id === theme)) {
-          themeSelect.value = theme;
-        }
-      }
 
-      if (decoded !== null) {
+        let urlLayout = 'dagre';
+        let urlTheme = 'default';
+        if (queryPart && resolvedEngine === 'd2') {
+          const params = new URLSearchParams(queryPart);
+          const layout = params.get('layout');
+          const theme = params.get('theme');
+          if (layout && window.kroki.D2_LAYOUTS.some((l) => l.id === layout)) {
+            urlLayout = layout;
+          }
+          if (theme && window.kroki.D2_THEMES.some((t) => t.id === theme)) {
+            urlTheme = theme;
+          }
+        }
+        if (layoutSelect) layoutSelect.value = urlLayout;
+        if (themeSelect) themeSelect.value = urlTheme;
+
+        const existingDraft = loadEngineDraft(resolvedEngine);
+        if (existingDraft) {
+          const codeDiffers = (existingDraft.code || '').trimEnd() !== decoded.trimEnd();
+          const optsDiffer =
+            resolvedEngine === 'd2' &&
+            ((existingDraft.layout || 'dagre') !== urlLayout ||
+              (existingDraft.theme || 'default') !== urlTheme);
+          canPersistCurrentDraft = !(codeDiffers || optsDiffer);
+        } else {
+          canPersistCurrentDraft = true;
+        }
+
+        window.kroki.loadExample(resolvedEngine).catch(() => {});
         setEditorCode(decoded, true);
+        resetEditorUndoHistory();
         return;
       }
     }
   }
 
+  const savedLastEngine = safeGetStorage(STORAGE_LAST_ENGINE);
+  const initialEngine =
+    savedLastEngine && window.kroki.ENGINES.some((e) => e.id === savedLastEngine)
+      ? savedLastEngine
+      : 'd2';
+
+  if (engineSelect) {
+    engineSelect.value = initialEngine;
+  }
+  currentEngine = initialEngine;
+  setEditorModeForEngine(initialEngine);
+  if (window.kroki.isWysiwygEngine(initialEngine) && splitterCtrl) {
+    splitterCtrl.collapseForWysiwyg();
+  }
+
+  canPersistCurrentDraft = true;
+  const savedDraft = loadEngineDraft(initialEngine);
+  if (savedDraft) {
+    if (initialEngine === 'd2') {
+      if (layoutSelect && window.kroki.D2_LAYOUTS.some((l) => l.id === savedDraft.layout)) {
+        layoutSelect.value = savedDraft.layout;
+      } else if (layoutSelect) {
+        layoutSelect.value = 'dagre';
+      }
+      if (themeSelect && window.kroki.D2_THEMES.some((t) => t.id === savedDraft.theme)) {
+        themeSelect.value = savedDraft.theme;
+      } else if (themeSelect) {
+        themeSelect.value = 'default';
+      }
+    }
+    window.kroki.loadExample(initialEngine).catch(() => {});
+    setEditorCode(savedDraft.code, true);
+    resetEditorUndoHistory();
+    return;
+  }
+
   try {
     const defaultCode = await window.kroki.loadExample(currentEngine);
     setEditorCode(defaultCode, true);
+    resetEditorUndoHistory();
   } catch (err) {
     console.error('Failed to load initial example:', err);
   }
 }
 
-function hasUnsavedChanges() {
-  if (!editor) return false;
+async function resetToExample() {
+  if (!editor) return;
+  updateLocalFileUI();
+
   const currentCode = editor.getValue();
-  if (fileState.name) {
-    return currentCode !== fileState.savedContent;
+  const currentOptions = getCurrentOptions();
+  const isExample = await window.kroki.isExampleCode(currentCode, currentEngine);
+  const isDefaultOpts = isDefaultD2Options(currentEngine, currentOptions);
+
+  if (fileState.name && fileState.isDirty) {
+    const proceed = window.confirm(
+      `You have unsaved changes in "${fileState.name}". Discard changes, detach local file, and reset to the default example?`
+    );
+    if (!proceed) return;
+  } else if (!isExample || !isDefaultOpts) {
+    const proceed = window.confirm(
+      'Discard current changes and reset to the default example for this language?'
+    );
+    if (!proceed) return;
   }
-  return currentCode.trim() !== '' && currentCode !== baselineContent;
+
+  if (updateTimeout) {
+    clearTimeout(updateTimeout);
+    updateTimeout = null;
+  }
+
+  if (fileState.name) {
+    detachLocalFile();
+  }
+
+  safeRemoveStorage(getDraftKey(currentEngine));
+
+  if (currentEngine === 'd2') {
+    const layoutSelect = document.getElementById('layout-select');
+    const themeSelect = document.getElementById('theme-select');
+    if (layoutSelect) layoutSelect.value = 'dagre';
+    if (themeSelect) themeSelect.value = 'default';
+  }
+
+  try {
+    const exampleCode = await window.kroki.loadExample(currentEngine);
+    setEditorCode(exampleCode, true);
+    resetEditorUndoHistory();
+    canPersistCurrentDraft = true;
+    syncState(true, { centerView: true });
+  } catch (err) {
+    console.error('Failed to reset to example:', err);
+  }
 }
 
 function flashSaveButton() {
@@ -905,9 +1221,44 @@ async function performAutoSave() {
 async function loadFileIntoEditor(file, handle = null) {
   if (!file) return;
   try {
+    if (updateTimeout) {
+      clearTimeout(updateTimeout);
+      updateTimeout = null;
+    }
+
+    if (!fileState.name && canPersistCurrentDraft && editor) {
+      await persistEngineDraft(currentEngine, editor.getValue(), getCurrentOptions());
+    }
+
     const text = await file.text();
+    const fileName = file.webkitRelativePath || file.name || 'untitled.txt';
+
+    const detectedEngine =
+      window.kroki && typeof window.kroki.detectEngineFromFile === 'function'
+        ? window.kroki.detectEngineFromFile(fileName, text)
+        : null;
+
+    if (detectedEngine && detectedEngine !== currentEngine) {
+      const prevEngine = currentEngine;
+      const engineSelect = document.getElementById('engine-select');
+      if (engineSelect) {
+        engineSelect.value = detectedEngine;
+      }
+      currentEngine = detectedEngine;
+      safeSetStorage(STORAGE_LAST_ENGINE, detectedEngine);
+      setEditorModeForEngine(detectedEngine);
+
+      const nextIsWysiwyg = window.kroki.isWysiwygEngine(detectedEngine);
+      const prevIsWysiwyg = window.kroki.isWysiwygEngine(prevEngine);
+      if (nextIsWysiwyg && splitterCtrl) {
+        splitterCtrl.collapseForWysiwyg();
+      } else if (prevIsWysiwyg && !nextIsWysiwyg && splitterCtrl) {
+        splitterCtrl.restoreFromWysiwyg();
+      }
+    }
+
     fileState.handle = handle || null;
-    fileState.name = file.webkitRelativePath || file.name || 'untitled.txt';
+    fileState.name = fileName;
     fileState.savedContent = text;
     fileState.isDirty = false;
     baselineContent = text;
@@ -923,25 +1274,8 @@ async function loadFileIntoEditor(file, handle = null) {
       }
     }
 
-    if (/\.excalidraw$/i.test(fileState.name) && currentEngine !== 'excalidraw') {
-      const engineSelect = document.getElementById('engine-select');
-      if (engineSelect) {
-        engineSelect.value = 'excalidraw';
-        currentEngine = 'excalidraw';
-        setEditorModeForEngine('excalidraw');
-        if (splitterCtrl) splitterCtrl.collapseForWysiwyg();
-      }
-    } else if (/\.bpmn$/i.test(fileState.name) && currentEngine !== 'bpmn') {
-      const engineSelect = document.getElementById('engine-select');
-      if (engineSelect) {
-        engineSelect.value = 'bpmn';
-        currentEngine = 'bpmn';
-        setEditorModeForEngine('bpmn');
-        if (splitterCtrl) splitterCtrl.collapseForWysiwyg();
-      }
-    }
-
     setEditorCode(text, false);
+    resetEditorUndoHistory();
     updateLocalFileUI();
     syncState(true, { centerView: true });
   } catch (err) {
@@ -1040,7 +1374,7 @@ async function saveLocalFile() {
 
 function toggleVimMode() {
   isVimMode = !isVimMode;
-  localStorage.setItem('disperse-vim-mode', isVimMode);
+  safeSetStorage('disperse-vim-mode', isVimMode);
   
   const editorContainer = document.getElementById('editor-container');
   if (editor) {
@@ -1166,6 +1500,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   if (window.wysiwyg) {
     window.wysiwyg.onCodeChange((newCode) => {
+      canPersistCurrentDraft = true;
       setEditorCode(newCode, false);
       syncState(false);
       if (fileState.autoSave && fileState.handle && fileState.isDirty) {
@@ -1175,6 +1510,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   initSnippets();
   initProgressiveFileUI();
+  updateAutoRenderUI();
 
   await loadFromUrl();
   syncState(true, { centerView: true });
@@ -1186,21 +1522,41 @@ document.addEventListener('DOMContentLoaded', async () => {
   const refreshBtn = document.getElementById('refresh-btn');
   if (refreshBtn) {
     refreshBtn.addEventListener('click', () => {
+      if (updateTimeout) {
+        clearTimeout(updateTimeout);
+        updateTimeout = null;
+      }
       syncState(true, { centerView: true });
     });
+  }
+
+  const autoRenderBtn = document.getElementById('autorender-btn');
+  if (autoRenderBtn) {
+    autoRenderBtn.addEventListener('click', () => {
+      toggleAutoRender();
+    });
+  }
+
+  const newBtn = document.getElementById('new-btn');
+  if (newBtn) {
+    newBtn.addEventListener('click', () => resetToExample());
   }
 
   window.addEventListener(
     'keydown',
     (e) => {
       // Ctrl/Cmd bindings
-      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'r') {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key.toLowerCase() === 'r' || e.code === 'KeyR')) {
         e.preventDefault();
+        if (updateTimeout) {
+          clearTimeout(updateTimeout);
+          updateTimeout = null;
+        }
         syncState(true, { centerView: true });
-      } else if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'o') {
+      } else if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key.toLowerCase() === 'o' || e.code === 'KeyO')) {
         e.preventDefault();
         openLocalFile();
-      } else if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 's') {
+      } else if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key.toLowerCase() === 's' || e.code === 'KeyS')) {
         e.preventDefault();
         if (e.shiftKey) {
           saveLocalFileAs();
@@ -1211,33 +1567,69 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Alt bindings
       else if (e.altKey && !e.ctrlKey && !e.metaKey) {
         const key = e.key.toLowerCase();
+        const code = e.code;
         // On Windows with NumLock ON, Shift+Numpad0 is translated by the OS into Insert with shiftKey=false
-        const isShiftedNumpad0 = e.code === 'Numpad0' && (key === 'insert' || e.keyCode === 45);
+        const isShiftedNumpad0 = code === 'Numpad0' && (key === 'insert' || e.keyCode === 45);
 
         if (!e.shiftKey && !isShiftedNumpad0) {
-          switch (key) {
-            case 't': e.preventDefault(); document.getElementById('theme-btn')?.click(); break;
-            case 'v': e.preventDefault(); document.getElementById('editor-vim-mode')?.click(); break;
-            case 'a': e.preventDefault(); document.getElementById('file-autosave-btn')?.click(); break;
-            case 'd': e.preventDefault(); document.getElementById('download-btn')?.click(); break;
-            case '1': case '¡': e.preventDefault(); document.getElementById('split-max-editor')?.click(); break;
-            case '2': case '™': e.preventDefault(); document.getElementById('split-reset')?.click(); break;
-            case '3': case '£': e.preventDefault(); document.getElementById('split-max-viewer')?.click(); break;
-            case '+': case '=': e.preventDefault(); document.getElementById('zoom-in')?.click(); break;
-            case '-': e.preventDefault(); document.getElementById('zoom-out')?.click(); break;
-            case '0': case 'º': e.preventDefault(); document.getElementById('zoom-fit')?.click(); break;
-            case 'enter': e.preventDefault(); document.getElementById('maximize-preview')?.click(); break;
-            case 'l': e.preventDefault(); document.getElementById('brand-link')?.click(); break;
-            case 'i': e.preventDefault(); document.querySelector('button[data-input="out-image-text"]')?.click(); break;
-            case 'e': e.preventDefault(); document.querySelector('button[data-input="out-editor-text"]')?.click(); break;
-            case 'x': e.preventDefault(); if (toggleExportSection) toggleExportSection(); break;
+          if (key === 'r' || code === 'KeyR') {
+            e.preventDefault();
+            document.getElementById('autorender-btn')?.click();
+          } else if (key === 'n' || code === 'KeyN') {
+            e.preventDefault();
+            document.getElementById('new-btn')?.click();
+          } else if (key === 't' || code === 'KeyT') {
+            e.preventDefault();
+            document.getElementById('theme-btn')?.click();
+          } else if (key === 'v' || code === 'KeyV') {
+            e.preventDefault();
+            document.getElementById('editor-vim-mode')?.click();
+          } else if (key === 'a' || code === 'KeyA') {
+            e.preventDefault();
+            document.getElementById('file-autosave-btn')?.click();
+          } else if (key === 'd' || code === 'KeyD') {
+            e.preventDefault();
+            document.getElementById('download-btn')?.click();
+          } else if (key === '1' || key === '¡' || code === 'Digit1') {
+            e.preventDefault();
+            document.getElementById('split-max-editor')?.click();
+          } else if (key === '2' || key === '™' || code === 'Digit2') {
+            e.preventDefault();
+            document.getElementById('split-reset')?.click();
+          } else if (key === '3' || key === '£' || code === 'Digit3') {
+            e.preventDefault();
+            document.getElementById('split-max-viewer')?.click();
+          } else if (key === '+' || key === '=' || code === 'Equal' || code === 'NumpadAdd') {
+            e.preventDefault();
+            document.getElementById('zoom-in')?.click();
+          } else if (key === '-' || code === 'Minus' || code === 'NumpadSubtract') {
+            e.preventDefault();
+            document.getElementById('zoom-out')?.click();
+          } else if (key === '0' || key === 'º' || code === 'Digit0' || code === 'Numpad0') {
+            e.preventDefault();
+            document.getElementById('zoom-fit')?.click();
+          } else if (key === 'enter' || code === 'Enter' || code === 'NumpadEnter') {
+            e.preventDefault();
+            document.getElementById('maximize-preview')?.click();
+          } else if (key === 'l' || code === 'KeyL') {
+            e.preventDefault();
+            document.getElementById('brand-link')?.click();
+          } else if (key === 'i' || code === 'KeyI') {
+            e.preventDefault();
+            document.querySelector('button[data-input="out-image-text"]')?.click();
+          } else if (key === 'e' || code === 'KeyE') {
+            e.preventDefault();
+            document.querySelector('button[data-input="out-editor-text"]')?.click();
+          } else if (key === 'x' || code === 'KeyX') {
+            e.preventDefault();
+            if (toggleExportSection) toggleExportSection();
           }
         } else { // Alt + Shift
-          if (isShiftedNumpad0 || e.code === 'Digit0' || e.code === 'Numpad0' || e.keyCode === 48 || e.keyCode === 96 || e.keyCode === 45 || e.key === '0' || e.key === ')' || e.key === '=' || key === 'insert') {
+          if (isShiftedNumpad0 || code === 'Digit0' || code === 'Numpad0' || e.keyCode === 48 || e.keyCode === 96 || e.keyCode === 45 || e.key === '0' || e.key === ')' || e.key === '=' || key === 'insert') {
             e.preventDefault(); document.getElementById('editor-font-fit')?.click();
-          } else if (e.code === 'Equal' || e.code === 'NumpadAdd' || e.code === 'BracketRight' || e.keyCode === 187 || e.keyCode === 107 || e.key === '+') {
+          } else if (code === 'Equal' || code === 'NumpadAdd' || code === 'BracketRight' || e.keyCode === 187 || e.keyCode === 107 || e.key === '+') {
             e.preventDefault(); document.getElementById('editor-font-in')?.click();
-          } else if (e.code === 'Minus' || e.code === 'NumpadSubtract' || e.code === 'Slash' || e.keyCode === 189 || e.keyCode === 109 || e.key === '_' || e.key === '-') {
+          } else if (code === 'Minus' || code === 'NumpadSubtract' || code === 'Slash' || e.keyCode === 189 || e.keyCode === 109 || e.key === '_' || e.key === '-') {
             e.preventDefault(); document.getElementById('editor-font-out')?.click();
           }
         }
@@ -1247,7 +1639,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   );
 
   window.addEventListener('beforeunload', (e) => {
-    if (hasUnsavedChanges()) {
+    if (!fileState.name && canPersistCurrentDraft) {
+      flushCurrentDraftSync();
+    }
+    updateLocalFileUI();
+    if (Boolean(fileState.name && fileState.isDirty)) {
       e.preventDefault();
       e.returnValue = '';
     }
