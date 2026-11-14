@@ -669,7 +669,7 @@ ingress:
   className: ""
   annotations: {}
   hosts:
-    - host: disperse.local
+    - host: disperse.127.0.0.1.nip.io
       paths:
         - path: /
           pathType: Prefix
@@ -685,7 +685,7 @@ httpRoute:
     #   namespace: gateway-system
     #   sectionName: https
   hostnames: []
-    # - disperse.local
+    # - disperse.127.0.0.1.nip.io
   rules:
     - matches:
         - path:

@@ -79,14 +79,14 @@ In the bottom publishing bar:
 
 ### Tutorial 2: Deploy a Self-Hosted Disperse + Kroki Stack on Local k3s with Helm
 
-In this tutorial, you will deploy Disperse along with an in-cluster **Kroki** rendering backend onto a local **k3s** Kubernetes cluster using the official Helm chart included in this repository.
+In this tutorial, you will deploy Disperse along with an in-cluster **Kroki** rendering backend onto a local **[K3s](https://k3s.io)** Kubernetes cluster using the official Helm chart included in this repository, exposing it on `http://disperse.127.0.0.1.nip.io` via [nip.io](https://nip.io) wildcard DNS.
 
 #### Prerequisites
-- A running **k3s** cluster (single-node local setup is sufficient).
+- A running **[K3s](https://k3s.io)** cluster (single-node local setup is sufficient).
 - `helm` v3 and `kubectl` installed.
 
 #### Step 1: Point Helm and `kubectl` to your k3s cluster
-By default, k3s writes its kubeconfig to `/etc/rancher/k3s/k3s.yaml`. Export `KUBECONFIG` so both `kubectl` and `helm` use your local k3s cluster:
+By default, [K3s cluster access](https://docs.k3s.io/cluster-access) uses `/etc/rancher/k3s/k3s.yaml`. Export `KUBECONFIG` so both `kubectl` and `helm` communicate with your local k3s cluster:
 
 ```bash
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
@@ -95,20 +95,36 @@ kubectl get nodes
 
 *(Tip: If `/etc/rancher/k3s/k3s.yaml` is only readable by root, copy it to `~/.kube/config` and `chown $(id -u):$(id -g) ~/.kube/config`.)*
 
-#### Step 2: Clone the repository
+#### Step 2: Clone the repository and create a `values.yaml`
 ```bash
 git clone https://github.com/sleepinfinitydev/disperse.git
 cd disperse
 ```
 
-#### Step 3: Install the Helm chart with the self-hosted Kroki backend
-Install a release named `disperse` in a dedicated `disperse` namespace with the internal Kroki server enabled:
+Create a minimal `values-k3s.yaml` enabling the self-hosted Kroki backend and k3s's built-in Traefik `Ingress` on `disperse.127.0.0.1.nip.io` ([nip.io](https://nip.io) automatically resolves `*.127.0.0.1.nip.io` to `127.0.0.1` without editing `/etc/hosts` or conflicting with mDNS `.local` domains):
+
+```yaml
+# values-k3s.yaml
+kroki:
+  enabled: true
+
+ingress:
+  enabled: true
+  hosts:
+    - host: disperse.127.0.0.1.nip.io
+      paths:
+        - path: /
+          pathType: Prefix
+```
+
+#### Step 3: Install the Helm chart
+Install a release named `disperse` in a dedicated `disperse` namespace:
 
 ```bash
 helm upgrade --install disperse ./charts/disperse \
   --namespace disperse \
   --create-namespace \
-  --set kroki.enabled=true
+  -f values-k3s.yaml
 ```
 
 What this deploys in your k3s cluster:
@@ -116,6 +132,7 @@ What this deploys in your k3s cluster:
 - **`Deployment/disperse-kroki`**: The self-hosted `yuzutech/kroki` server rendering the 25 core diagram engines locally inside your cluster.
 - **`Service/disperse-kroki`**: An internal `ClusterIP` service (`:8000`) used by Disperse's Nginx to proxy `/kroki/*` requests.
 - **`Service/disperse`**: The single published Kubernetes service (`:8765`) serving both `/` (the web app) and `/kroki/` (the rendering API).
+- **`Ingress/disperse`**: Routes `http://disperse.127.0.0.1.nip.io/` through k3s's built-in Traefik Ingress controller to `Service/disperse`.
 
 #### Step 4: Verify the rollout and run the Helm test suite
 Wait for both deployments to become ready:
@@ -123,7 +140,7 @@ Wait for both deployments to become ready:
 ```bash
 kubectl -n disperse rollout status deployment/disperse
 kubectl -n disperse rollout status deployment/disperse-kroki
-kubectl -n disperse get pods,svc
+kubectl -n disperse get pods,svc,ingress
 ```
 
 Verify end-to-end connectivity between the single service, Disperse, and the internal Kroki `/kroki/health` endpoint using the chart's built-in test hook:
@@ -132,31 +149,10 @@ Verify end-to-end connectivity between the single service, Disperse, and the int
 helm test disperse --namespace disperse
 ```
 
-#### Step 5: Access Disperse on your machine
-Forward the published service port to your localhost:
-
-```bash
-kubectl -n disperse port-forward svc/disperse 8765:8765
-```
-
-Open **`http://localhost:8765`** in your browser:
-- Notice in the bottom publishing bar that D2, PlantUML, C4, GraphViz, DBML, and all 25 core engines generate local URLs pointing to **`http://localhost:8765/kroki/...`**.
+#### Step 5: Open Disperse in your browser
+Open **`http://disperse.127.0.0.1.nip.io`** in your browser *(or use `kubectl -n disperse port-forward svc/disperse 8765:8765` and visit `http://localhost:8765`)*:
+- Notice in the bottom publishing bar that D2, PlantUML, C4, GraphViz, DBML, and all 25 core engines generate local URLs pointing to **`http://disperse.127.0.0.1.nip.io/kroki/...`**.
 - Open the language menu: notice that `mermaid`, `Excalidraw`, and `BPMN` display **`🌐 (kroki.io)`** because they are configured in `remote` mode by default when sidecars are not deployed.
-
-#### Step 6: (Optional) Expose via k3s's built-in Traefik Ingress
-Since k3s ships with Traefik out of the box, you can expose Disperse on `http://disperse.local` without `port-forward`:
-
-```bash
-helm upgrade disperse ./charts/disperse \
-  --namespace disperse \
-  --reuse-values \
-  --set ingress.enabled=true \
-  --set ingress.hosts[0].host=disperse.local \
-  --set ingress.hosts[0].paths[0].path=/ \
-  --set ingress.hosts[0].paths[0].pathType=Prefix
-```
-
-Add `127.0.0.1 disperse.local` to `/etc/hosts` and open **`http://disperse.local`**.
 
 ---
 
@@ -164,7 +160,7 @@ Add `127.0.0.1 disperse.local` to `/etc/hosts` and open **`http://disperse.local
 
 ### How to Enable, Disable, or Route Engines (`local`, `remote`, `disabled`)
 
-When running a self-hosted Kroki backend (`kroki.enabled=true` or `KROKI_BASE_URL=/kroki`), the core `yuzutech/kroki` container renders 25 engines natively, while **Mermaid**, **BPMN**, and **Excalidraw** require separate companion services or an external fallback.
+When running a self-hosted Kroki backend (`kroki.enabled: true` or `KROKI_BASE_URL=/kroki`), the core `yuzutech/kroki` container renders 25 engines natively, while **Mermaid**, **BPMN**, and **Excalidraw** require separate companion services or an external fallback.
 
 Disperse lets you control each of these 3 engines **individually** using three modes:
 
@@ -175,27 +171,43 @@ Disperse lets you control each of these 3 engines **individually** using three m
 | **`disabled`** | Completely removes the engine from the UI selector and file auto-detection. | Hidden from menu | 100% private (unavailable) |
 
 #### In Helm (`charts/disperse`)
-Configure `kroki.sidecars.<engine>.mode` independently for `mermaid`, `bpmn`, and `excalidraw`:
+Configure `kroki.sidecars.<engine>.mode` independently for `mermaid`, `bpmn`, and `excalidraw` in your `values.yaml`:
+
+```yaml
+# values-hybrid.yaml
+# Disable Mermaid completely, keep Excalidraw & BPMN enabled via remote kroki.io with UI warning
+kroki:
+  enabled: true
+  sidecars:
+    mermaid:
+      mode: disabled
+    bpmn:
+      mode: remote
+    excalidraw:
+      mode: remote
+```
 
 ```bash
-# Example: Disable Mermaid completely, keep Excalidraw & BPMN enabled via remote kroki.io with UI warning
-helm upgrade --install disperse ./charts/disperse \
-  --namespace disperse \
-  --set kroki.enabled=true \
-  --set kroki.sidecars.mermaid.mode=disabled \
-  --set kroki.sidecars.bpmn.mode=remote \
-  --set kroki.sidecars.excalidraw.mode=remote
+helm upgrade --install disperse ./charts/disperse -n disperse -f values-hybrid.yaml
 ```
 
 For a **strict 100% on-premise / air-gapped environment** where no diagram may ever leave the cluster:
 
+```yaml
+# values-onprem.yaml
+kroki:
+  enabled: true
+  sidecars:
+    mermaid:
+      mode: disabled
+    bpmn:
+      mode: disabled
+    excalidraw:
+      mode: disabled
+```
+
 ```bash
-helm upgrade --install disperse ./charts/disperse \
-  --namespace disperse \
-  --set kroki.enabled=true \
-  --set kroki.sidecars.mermaid.mode=disabled \
-  --set kroki.sidecars.bpmn.mode=disabled \
-  --set kroki.sidecars.excalidraw.mode=disabled
+helm upgrade --install disperse ./charts/disperse -n disperse -f values-onprem.yaml
 ```
 
 #### In Docker (`docker run`)
@@ -215,7 +227,7 @@ docker run --rm -p 8765:8765 \
 
 ### How to Disable Specific Diagram Languages
 
-If your organization standardizes on a subset of languages (for example, hiding `tikz` and `umlet`), you can disable any engine ID from the dropdown selector:
+If your organization standardizes on a subset of languages (for example, hiding `tikz`, `umlet`, and `bytefield`), you can disable any engine ID from the dropdown selector:
 
 #### With Docker
 ```bash
@@ -225,9 +237,16 @@ docker run --rm -p 8765:8765 \
 ```
 
 #### With Helm
+```yaml
+# values.yaml
+disperse:
+  disabledEngines:
+    - tikz
+    - umlet
+    - bytefield
+```
 ```bash
-helm upgrade --install disperse ./charts/disperse \
-  --set 'disperse.disabledEngines={tikz,umlet,bytefield}'
+helm upgrade --install disperse ./charts/disperse -n disperse -f values.yaml
 ```
 
 ---
@@ -235,18 +254,25 @@ helm upgrade --install disperse ./charts/disperse \
 ### How to Connect to an External or Custom Kroki Server
 
 #### Option A: Direct Browser-to-Kroki Connection (CORS)
-If you already run a Kroki server accessible from users' browsers (e.g., `https://kroki.internal.example.com`):
+If you already run a Kroki server accessible from users' browsers (e.g., `https://kroki.example.com`):
 
 ```bash
 # Docker
 docker run --rm -p 8765:8765 \
-  -e KROKI_BASE_URL="https://kroki.internal.example.com" \
+  -e KROKI_BASE_URL="https://kroki.example.com" \
   ghcr.io/sleepinfinitydev/disperse:latest
+```
 
-# Helm (without deploying a second Kroki in this release)
-helm upgrade --install disperse ./charts/disperse \
-  --set kroki.enabled=false \
-  --set disperse.krokiBaseUrl="https://kroki.internal.example.com"
+```yaml
+# Helm (values.yaml — without deploying a second Kroki in this release)
+kroki:
+  enabled: false
+
+disperse:
+  krokiBaseUrl: "https://kroki.example.com"
+```
+```bash
+helm upgrade --install disperse ./charts/disperse -n disperse -f values.yaml
 ```
 
 #### Option B: Reverse-Proxied via Disperse's Nginx (`/kroki`)
@@ -271,21 +297,32 @@ Disperse's bottom credit line is configurable at runtime via the `FOOTER_CREDITS
 docker run --rm -p 8765:8765 \
   -e FOOTER_CREDITS='Internal Architecture Portal · <a href="https://intranet.example.com" target="_blank">Platform Engineering</a>' \
   ghcr.io/sleepinfinitydev/disperse:latest
+```
 
-# Helm
-helm upgrade --install disperse ./charts/disperse \
-  --set disperse.footerCredits='Internal Architecture Portal · <a href="https://intranet.example.com" target="_blank">Platform Engineering</a>'
+```yaml
+# Helm (values.yaml)
+disperse:
+  footerCredits: 'Internal Architecture Portal · <a href="https://intranet.example.com" target="_blank">Platform Engineering</a>'
+```
+```bash
+helm upgrade --install disperse ./charts/disperse -n disperse -f values.yaml
 ```
 
 #### Hide the footer credit line completely
-Set `FOOTER_CREDITS` to an empty string (`""`):
+Set `FOOTER_CREDITS` / `disperse.footerCredits` to an empty string (`""`):
 
 ```bash
 # Docker
 docker run --rm -p 8765:8765 -e FOOTER_CREDITS="" ghcr.io/sleepinfinitydev/disperse:latest
+```
 
-# Helm
-helm upgrade --install disperse ./charts/disperse --set disperse.footerCredits=""
+```yaml
+# Helm (values.yaml)
+disperse:
+  footerCredits: ""
+```
+```bash
+helm upgrade --install disperse ./charts/disperse -n disperse -f values.yaml
 ```
 
 ---
@@ -307,17 +344,17 @@ ingress:
     nginx.ingress.kubernetes.io/large-client-header-buffers: "4 16k"
     cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
-    - host: diagrams.example.com
+    - host: disperse.example.com
       paths:
         - path: /
           pathType: Prefix
   tls:
     - secretName: disperse-tls
       hosts:
-        - diagrams.example.com
+        - disperse.example.com
 ```
 ```bash
-helm upgrade --install disperse ./charts/disperse -f values-ingress.yaml
+helm upgrade --install disperse ./charts/disperse -n disperse -f values-ingress.yaml
 ```
 
 #### Using Kubernetes Gateway API (`HTTPRoute`)
@@ -333,10 +370,10 @@ httpRoute:
       namespace: gateway-system
       sectionName: https
   hostnames:
-    - diagrams.example.com
+    - disperse.example.com
 ```
 ```bash
-helm upgrade --install disperse ./charts/disperse -f values-gateway.yaml
+helm upgrade --install disperse ./charts/disperse -n disperse -f values-gateway.yaml
 ```
 
 ---

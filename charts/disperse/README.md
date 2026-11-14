@@ -25,22 +25,43 @@ helm upgrade --install disperse ./charts/disperse
 
 ### 2. Self-Hosted Kroki Mode (with Excalidraw & BPMN enabled remotely with UI warning)
 
+Create a concise `values.yaml`:
+
+```yaml
+kroki:
+  enabled: true
+  sidecars:
+    mermaid:
+      mode: remote
+    bpmn:
+      mode: remote
+    excalidraw:
+      mode: remote
+```
+
+Install or upgrade the release:
+
 ```bash
-helm upgrade --install disperse ./charts/disperse \
-  --set kroki.enabled=true \
-  --set kroki.sidecars.mermaid.mode=remote \
-  --set kroki.sidecars.bpmn.mode=remote \
-  --set kroki.sidecars.excalidraw.mode=remote
+helm upgrade --install disperse ./charts/disperse -f values.yaml
 ```
 
 ### 3. Strict On-Premise Mode (disable remote-only engines)
 
+```yaml
+# values-onprem.yaml
+kroki:
+  enabled: true
+  sidecars:
+    mermaid:
+      mode: disabled
+    bpmn:
+      mode: disabled
+    excalidraw:
+      mode: disabled
+```
+
 ```bash
-helm upgrade --install disperse ./charts/disperse \
-  --set kroki.enabled=true \
-  --set kroki.sidecars.mermaid.mode=disabled \
-  --set kroki.sidecars.bpmn.mode=disabled \
-  --set kroki.sidecars.excalidraw.mode=disabled
+helm upgrade --install disperse ./charts/disperse -f values-onprem.yaml
 ```
 
 ## Key Configuration Values

@@ -159,14 +159,14 @@ ingress:
     # nginx.ingress.kubernetes.io/large-client-header-buffers: "4 16k"
     # cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
-    - host: disperse.local
+    - host: disperse.127.0.0.1.nip.io
       paths:
         - path: /
           pathType: Prefix
   tls: []
   #  - secretName: disperse-tls
   #    hosts:
-  #      - disperse.local
+  #      - disperse.example.com
 
 # -----------------------------------------------------------------------------
 # External Access — Kubernetes Gateway API (gateway.networking.k8s.io/v1)
@@ -180,7 +180,7 @@ httpRoute:
     #   namespace: gateway-system
     #   sectionName: https
   hostnames: []
-    # - disperse.local
+    # - disperse.127.0.0.1.nip.io
   rules:
     - matches:
         - path:
