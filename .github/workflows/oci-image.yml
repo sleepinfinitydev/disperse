@@ -4,8 +4,14 @@ on:
   push:
     branches:
       - main
-      - feat-helm-charts
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -25,8 +31,14 @@ jobs:
           fi
           helm version
 
-      - name: Lint Helm chart
-        run: helm lint --strict ./charts/disperse
+      - name: Lint and template Helm chart
+        run: |
+          helm lint --strict ./charts/disperse
+          helm template disperse ./charts/disperse > /dev/null
+          helm template disperse ./charts/disperse \
+            --set kroki.enabled=true \
+            --set ingress.enabled=true \
+            --set kroki.ingress.enabled=true > /dev/null
 
       - name: Compute image and chart tags
         id: meta
@@ -69,13 +81,14 @@ jobs:
           fi
 
       - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           echo "$GHCR_TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-      - name: Build and push OCI container image
+      - name: Build OCI container image
         run: |
           IMAGE="${{ steps.meta.outputs.image }}"
           BUILD_ARGS=""
@@ -86,11 +99,16 @@ jobs:
           # shellcheck disable=SC2086
           docker build $BUILD_ARGS -f Containerfile .
 
+      - name: Push OCI container image
+        if: github.event_name != 'pull_request'
+        run: |
+          IMAGE="${{ steps.meta.outputs.image }}"
           for tag in ${{ steps.meta.outputs.image_tags }}; do
             docker push "${IMAGE}:${tag}"
           done
 
       - name: Package and push OCI Helm chart
+        if: github.event_name != 'pull_request'
         run: |
           CHART_OCI_REPO="${{ steps.meta.outputs.chart_oci_repo }}"
           APP_VERSION="${{ steps.meta.outputs.app_version }}"
@@ -105,6 +123,7 @@ jobs:
           done
 
       - name: Write job summary
+        if: github.event_name != 'pull_request'
         run: |
           IMAGE="${{ steps.meta.outputs.image }}"
           CHART_REF="${{ steps.meta.outputs.chart_oci_repo }}/disperse"
