@@ -52,12 +52,16 @@ spec:
               value: {{ include "disperse.krokiBaseUrl" . | quote }}
             - name: KROKI_REMOTE_URL
               value: {{ include "disperse.krokiRemoteUrl" . | quote }}
+            - name: DRAWIO_BASE_URL
+              value: {{ include "disperse.drawioBaseUrl" . | quote }}
             - name: ENGINE_MODE_MERMAID
               value: {{ include "disperse.engineMode" (dict "root" . "engine" "mermaid") | quote }}
             - name: ENGINE_MODE_BPMN
               value: {{ include "disperse.engineMode" (dict "root" . "engine" "bpmn") | quote }}
             - name: ENGINE_MODE_EXCALIDRAW
               value: {{ include "disperse.engineMode" (dict "root" . "engine" "excalidraw") | quote }}
+            - name: ENGINE_MODE_DIAGRAMSNET
+              value: {{ include "disperse.engineMode" (dict "root" . "engine" "diagramsnet") | quote }}
             {{- if .Values.disperse.disabledEngines }}
             - name: KROKI_DISABLED_ENGINES
               value: {{ join "," .Values.disperse.disabledEngines | quote }}

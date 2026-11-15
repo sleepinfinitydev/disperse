@@ -1,0 +1,49 @@
+{{- $drawio := .Values.drawio | default dict -}}
+{{- $dIng := $drawio.ingress | default dict -}}
+{{- if and $drawio.enabled $dIng.enabled -}}
+{{- $drawioFullName := include "disperse.drawioFullname" . -}}
+{{- $drawioSvcPort := int (include "disperse.drawioPort" .) -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $drawioFullName }}
+  labels:
+    {{- include "disperse.drawioLabels" . | nindent 4 }}
+  {{- with (mergeOverwrite (deepCopy (.Values.commonAnnotations | default dict)) ($dIng.annotations | default dict)) }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if $dIng.className }}
+  ingressClassName: {{ $dIng.className | quote }}
+  {{- end }}
+  {{- if $dIng.tls }}
+  tls:
+    {{- range $dIng.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      {{- if .secretName }}
+      secretName: {{ .secretName }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range $dIng.hosts }}
+    - {{- if .host }}
+      host: {{ .host | quote }}
+      {{- end }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path | default "/" }}
+            pathType: {{ .pathType | default "Prefix" }}
+            backend:
+              service:
+                name: {{ $drawioFullName }}
+                port:
+                  number: {{ $drawioSvcPort }}
+          {{- end }}
+    {{- end }}
+{{- end }}

@@ -1,5 +1,7 @@
 {{- $testImg := (.Values.test | default dict).image | default dict -}}
 {{- $krokiSvcPort := int (include "disperse.krokiPort" .) -}}
+{{- $drawioSvcPort := int (include "disperse.drawioPort" .) -}}
+{{- $drawio := .Values.drawio | default dict -}}
 apiVersion: v1
 kind: Pod
 metadata:
@@ -38,5 +40,8 @@ spec:
           wget -qO- "http://{{ include "disperse.fullname" . }}:{{ .Values.service.port }}/js/config.js" >/dev/null
           {{- if .Values.kroki.enabled }}
           wget -qO- "http://{{ include "disperse.krokiFullname" . }}:{{ $krokiSvcPort }}/health" >/dev/null
+          {{- end }}
+          {{- if $drawio.enabled }}
+          wget -qO- "http://{{ include "disperse.drawioFullname" . }}:{{ $drawioSvcPort }}/" >/dev/null
           {{- end }}
   restartPolicy: Never

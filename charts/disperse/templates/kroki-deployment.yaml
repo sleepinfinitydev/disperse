@@ -4,13 +4,16 @@
 {{- $mermaidCfg := $sidecars.mermaid | default dict -}}
 {{- $bpmnCfg := $sidecars.bpmn | default dict -}}
 {{- $excalidrawCfg := $sidecars.excalidraw | default dict -}}
+{{- $diagramsnetCfg := $sidecars.diagramsnet | default dict -}}
 {{- $mermaidLocal := eq (include "disperse.engineMode" (dict "root" . "engine" "mermaid")) "local" -}}
 {{- $bpmnLocal := eq (include "disperse.engineMode" (dict "root" . "engine" "bpmn")) "local" -}}
 {{- $excalidrawLocal := eq (include "disperse.engineMode" (dict "root" . "engine" "excalidraw")) "local" -}}
-{{- $anyLocalSidecar := or $mermaidLocal $bpmnLocal $excalidrawLocal -}}
+{{- $diagramsnetLocal := eq (include "disperse.engineMode" (dict "root" . "engine" "diagramsnet")) "local" -}}
+{{- $anyLocalSidecar := or $mermaidLocal $bpmnLocal $excalidrawLocal $diagramsnetLocal -}}
 {{- $mermaidPort := int ($mermaidCfg.port | default 8002) -}}
 {{- $bpmnPort := int ($bpmnCfg.port | default 8003) -}}
 {{- $excalidrawPort := int ($excalidrawCfg.port | default 8004) -}}
+{{- $diagramsnetPort := int ($diagramsnetCfg.port | default 8005) -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -84,6 +87,12 @@ spec:
               value: "127.0.0.1"
             - name: KROKI_EXCALIDRAW_PORT
               value: {{ $excalidrawPort | quote }}
+            {{- end }}
+            {{- if $diagramsnetLocal }}
+            - name: KROKI_DIAGRAMSNET_HOST
+              value: "127.0.0.1"
+            - name: KROKI_DIAGRAMSNET_PORT
+              value: {{ $diagramsnetPort | quote }}
             {{- end }}
             {{- with .Values.kroki.env }}
             {{- toYaml . | nindent 12 }}
@@ -244,6 +253,56 @@ spec:
             - name: kroki-tmp
               mountPath: /home/kroki
               subPath: excalidraw-home
+            - name: dshm
+              mountPath: /dev/shm
+        {{- end }}
+        {{- if $diagramsnetLocal }}
+        - name: diagramsnet
+          {{- with .Values.kroki.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: {{ include "disperse.krokiSidecarImage" (dict "root" . "sidecar" $diagramsnetCfg "defaultRepo" "yuzutech/kroki-diagramsnet") | quote }}
+          imagePullPolicy: {{ ($diagramsnetCfg.image | default dict).pullPolicy | default .Values.kroki.image.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - name: diagramsnet
+              containerPort: {{ $diagramsnetPort }}
+              protocol: TCP
+          env:
+            - name: KROKI_PORT
+              value: {{ $diagramsnetPort | quote }}
+            - name: KROKI_DIAGRAMNET_PORT
+              value: {{ $diagramsnetPort | quote }}
+            - name: KROKI_DIAGRAMSNET_PORT
+              value: {{ $diagramsnetPort | quote }}
+            - name: KROKI_SAFE_MODE
+              value: {{ .Values.kroki.safeMode | default "SECURE" | quote }}
+            {{- with $diagramsnetCfg.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          livenessProbe:
+            tcpSocket:
+              port: diagramsnet
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            tcpSocket:
+              port: diagramsnet
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          {{- with $diagramsnetCfg.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: kroki-tmp
+              mountPath: /tmp
+              subPath: diagramsnet-tmp
+            - name: kroki-tmp
+              mountPath: /home/kroki
+              subPath: diagramsnet-home
             - name: dshm
               mountPath: /dev/shm
         {{- end }}

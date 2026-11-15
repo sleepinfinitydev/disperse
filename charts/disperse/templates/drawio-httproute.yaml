@@ -1,0 +1,53 @@
+{{- $drawio := .Values.drawio | default dict -}}
+{{- $dHr := $drawio.httpRoute | default dict -}}
+{{- if and $drawio.enabled $dHr.enabled -}}
+{{- $drawioFullName := include "disperse.drawioFullname" . -}}
+{{- $drawioSvcPort := int (include "disperse.drawioPort" .) -}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $drawioFullName }}
+  labels:
+    {{- include "disperse.drawioLabels" . | nindent 4 }}
+    {{- with $dHr.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with (mergeOverwrite (deepCopy (.Values.commonAnnotations | default dict)) ($dHr.annotations | default dict)) }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with $dHr.parentRefs }}
+  parentRefs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $dHr.hostnames }}
+  hostnames:
+    {{- range . }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range $dHr.rules }}
+    - {{- with .matches }}
+      matches:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .filters }}
+      filters:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .timeouts }}
+      timeouts:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .backendRefs }}
+      backendRefs:
+        {{- toYaml .backendRefs | nindent 8 }}
+      {{- else }}
+      backendRefs:
+        - name: {{ $drawioFullName }}
+          port: {{ $drawioSvcPort }}
+      {{- end }}
+    {{- end }}
+{{- end }}

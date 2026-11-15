@@ -1,9 +1,9 @@
 apiVersion: v2
 name: disperse
-description: "Helm chart for Disperse (Diagrams as Code SPA + optional Kroki backend). Install: helm upgrade --install disperse oci://ghcr.io/sleepinfinitydev/charts/disperse"
+description: "Helm chart for Disperse (Diagrams as Code SPA + optional Kroki & Draw.io backends). Install: helm upgrade --install disperse oci://ghcr.io/sleepinfinitydev/charts/disperse"
 type: application
-version: 0.1.0
-appVersion: "latest"
+version: 0.2.0
+appVersion: "0.2.0"
 icon: https://raw.githubusercontent.com/sleepinfinitydev/disperse/main/favicon.svg
 home: https://github.com/sleepinfinitydev/disperse
 sources:
@@ -18,9 +18,11 @@ keywords:
   - c4
   - excalidraw
   - bpmn
+  - drawio
+  - diagramsnet
 maintainers:
   - name: sleepinfinity.dev
     url: https://sleepinfinity.dev
 annotations:
   org.opencontainers.image.source: https://github.com/sleepinfinitydev/disperse
-  org.opencontainers.image.description: "Helm chart for Disperse (Diagrams as Code SPA + optional Kroki backend). Install: helm upgrade --install disperse oci://ghcr.io/sleepinfinitydev/charts/disperse"
+  org.opencontainers.image.description: "Helm chart for Disperse (Diagrams as Code SPA + optional Kroki & Draw.io backends). Install: helm upgrade --install disperse oci://ghcr.io/sleepinfinitydev/charts/disperse"
