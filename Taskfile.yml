@@ -47,17 +47,20 @@ tasks:
       - python3 -m http.server {{.PORT}}
 
   package:
-    desc: "Package minimal static web assets into deployable .zip archives (disperse-{{.VERSION}}.zip and disperse.zip)"
+    desc: "Package minimal static web assets into deployable .tar.gz archives (disperse-{{.VERSION}}.tar.gz and disperse.tar.gz)"
     cmds:
       - |
         STAGE_DIR="$(mktemp -d)"
         trap 'rm -rf "$STAGE_DIR"' EXIT
-        cp index.html favicon.svg "$STAGE_DIR/"
+        cp index.html favicon.svg LICENSE "$STAGE_DIR/"
         cp -r css js examples "$STAGE_DIR/"
-        rm -f disperse-{{.VERSION}}.zip disperse.zip
-        (cd "$STAGE_DIR" && zip -r -q "{{.USER_WORKING_DIR}}/disperse-{{.VERSION}}.zip" index.html favicon.svg css js examples -x "*.DS_Store" "*.bak" "*.swp" "*~")
-        cp disperse-{{.VERSION}}.zip disperse.zip
-        echo "Created disperse-{{.VERSION}}.zip and disperse.zip"
+        find "$STAGE_DIR" \( -name "*.DS_Store" -o -name "*.bak" -o -name "*.swp" -o -name "*~" \) -delete
+        find "$STAGE_DIR" -type d -exec chmod 0755 {} +
+        find "$STAGE_DIR" -type f -exec chmod 0644 {} +
+        rm -f disperse-{{.VERSION}}.tar.gz disperse.tar.gz
+        tar --owner=0 --group=0 -C "$STAGE_DIR" -czf "{{.USER_WORKING_DIR}}/disperse-{{.VERSION}}.tar.gz" index.html favicon.svg LICENSE css js examples
+        cp disperse-{{.VERSION}}.tar.gz disperse.tar.gz
+        echo "Created disperse-{{.VERSION}}.tar.gz and disperse.tar.gz"
 
   build:
     desc: "Build the OCI container image tagged with version, git commit hash, and latest"

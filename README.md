@@ -30,7 +30,7 @@ This documentation is organized according to the [Diátaxis](https://diataxis.fr
    - [How to Work with Local Files and Auto-Save](#how-to-work-with-local-files-and-auto-save)
 3. [**Reference** *(Information-oriented)*](#3-reference)
    - [Published OCI Artifacts (`ghcr.io`)](#published-oci-artifacts-ghcrio)
-   - [Published Static Web Packages (`.zip`)](#published-static-web-packages-zip)
+   - [Published Static Web Packages (`.tar.gz`)](#published-static-web-packages-targz)
    - [12-Factor Environment Variables](#12-factor-environment-variables)
    - [Helm Chart Values (`charts/disperse`)](#helm-chart-values-chartsdisperse)
    - [Keyboard Shortcuts](#keyboard-shortcuts)
@@ -197,45 +197,43 @@ Open **`http://disperse.127.0.0.1.nip.io`** in your browser:
 
 Because Disperse is a pure HTML5/CSS3/ES6 static single-page application (**SPA**) with no server-side runtime or build step, you can deploy it directly on any traditional Linux web server **without Docker or Kubernetes**.
 
-In this tutorial, you will download the official minimal `.zip` package onto a **Debian** server (e.g., Debian 12 Bookworm / Debian 13 Trixie), optionally customize `/var/www/disperse/js/config.js`, and serve it with **Caddy**, **Nginx**, or **Apache (`apache2`)**.
+In this tutorial, you will download the official minimal `.tar.gz` package onto a **Debian** server (e.g., Debian 12 Bookworm / Debian 13 Trixie), optionally customize `/var/www/disperse/js/config.js`, and serve it with **Caddy**, **Nginx**, or **Apache (`apache2`)**.
 
 #### Prerequisites
-- A **Debian** host with `sudo` privileges.
-- `curl` and `unzip` installed:
+- A **Debian** host with `sudo` privileges (`tar` and `gzip` are pre-installed on Debian).
+- `curl` installed:
   ```bash
-  sudo apt update && sudo apt install -y curl unzip
+  sudo apt update && sudo apt install -y curl
   ```
 
-#### Step 1: Download, verify, and extract the static `.zip` package
-Download `disperse.zip` and `SHA256SUMS` from GitHub Releases, verify the archive checksum, and extract the files into `/var/www/disperse`:
+#### Step 1: Download, verify, and extract the static `.tar.gz` package
+Download `disperse.tar.gz` and `SHA256SUMS` from GitHub Releases, verify the archive checksum, and extract the files into `/var/www/disperse`:
 
 ```bash
 cd /tmp
-curl -fsSLO https://github.com/sleepinfinitydev/disperse/releases/latest/download/disperse.zip
+curl -fsSLO https://github.com/sleepinfinitydev/disperse/releases/latest/download/disperse.tar.gz
 curl -fsSLO https://github.com/sleepinfinitydev/disperse/releases/latest/download/SHA256SUMS
 sha256sum -c --ignore-missing SHA256SUMS
 
 sudo mkdir -p /var/www/disperse
-sudo unzip -o -q disperse.zip -d /var/www/disperse
+sudo tar -xzf disperse.tar.gz -C /var/www/disperse
 sudo chown -R www-data:www-data /var/www/disperse
-sudo find /var/www/disperse -type d -exec chmod 0755 {} +
-sudo find /var/www/disperse -type f -exec chmod 0644 {} +
-rm -f /tmp/disperse.zip /tmp/SHA256SUMS
+rm -f /tmp/disperse.tar.gz /tmp/SHA256SUMS
 ```
 
 > **Pinning a specific version, testing a branch preview, or packaging locally**:
 > - **Pin a specific version (`v0.2.0`)**:
 >   ```bash
->   curl -fsSLO https://github.com/sleepinfinitydev/disperse/releases/download/v0.2.0/disperse-0.2.0.zip
+>   curl -fsSLO https://github.com/sleepinfinitydev/disperse/releases/download/v0.2.0/disperse-0.2.0.tar.gz
 >   ```
 > - **Branch preview from GitHub Releases (`v0.2.0-<branch>`)**:
 >   ```bash
->   curl -fsSLO https://github.com/sleepinfinitydev/disperse/releases/download/v0.2.0-feat-static-deploy/disperse-0.2.0-feat-static-deploy.zip
+>   curl -fsSLO https://github.com/sleepinfinitydev/disperse/releases/download/v0.2.0-feat-static-deploy/disperse-0.2.0-feat-static-deploy.tar.gz
 >   ```
-> - **Build the `.zip` locally from source**: Run `task package` (produces `disperse-0.2.0.zip` and `disperse.zip`).
+> - **Build the `.tar.gz` locally from source**: Run `task package` (produces `disperse-0.2.0.tar.gz` and `disperse.tar.gz`).
 
-The extracted `/var/www/disperse` directory contains only the essential runtime assets (~200 KB uncompressed):
-- `index.html` and `favicon.svg`
+The extracted `/var/www/disperse` directory contains only the essential runtime assets and license (~235 KB uncompressed):
+- `index.html`, `favicon.svg`, and `LICENSE` (GPLv3)
 - `css/styles.css`
 - `js/` (`config.js`, `theme.js`, `kroki.js`, `viewer.js`, `wysiwyg.js`, `app.js`)
 - `examples/*.txt` (33 starter diagram templates)
@@ -367,7 +365,12 @@ Choose **one** of the following web servers (replace `disperse.example.com` with
 #### Step 4: Open Disperse in your browser
 Open **`http://disperse.example.com`** (or `http://<server-ip>`) in your browser:
 - Because `/js/config.js` is served with `Cache-Control: no-store, no-cache, must-revalidate`, any future edits to `/var/www/disperse/js/config.js` take effect immediately on browser refresh without restarting Caddy, Nginx, or Apache.
-- To upgrade Disperse in the future while preserving your custom `js/config.js`, back up `cp /var/www/disperse/js/config.js /tmp/config.js.bak`, unzip the new `disperse.zip` into `/var/www/disperse`, and restore `cp /tmp/config.js.bak /var/www/disperse/js/config.js`.
+- To upgrade Disperse in the future while preserving your custom `js/config.js`, pass `--exclude='js/config.js'` when extracting the new archive:
+  ```bash
+  curl -fsSL https://github.com/sleepinfinitydev/disperse/releases/latest/download/disperse.tar.gz \
+    | sudo tar -xzf - -C /var/www/disperse --exclude='js/config.js'
+  sudo chown -R www-data:www-data /var/www/disperse
+  ```
 
 ---
 
@@ -821,14 +824,14 @@ Both the container image and the Helm chart are published to GitHub Container Re
 
 ---
 
-### Published Static Web Packages (`.zip`)
+### Published Static Web Packages (`.tar.gz`)
 
-Minimal static web server packages (`.zip`) containing strictly the runtime files needed by **Caddy**, **Nginx**, or **Apache** (`index.html`, `favicon.svg`, `css/`, `js/` with pre-populated `js/config.js` defaults, and `examples/`) are built and published by `.github/workflows/static-package.yml` to both **GitHub Releases** and **GitHub Actions Artifacts**:
+Minimal static web server packages (`.tar.gz`) containing strictly the runtime files needed by **Caddy**, **Nginx**, or **Apache** (`index.html`, `favicon.svg`, `LICENSE` (GPLv3), `css/`, `js/` with pre-populated `js/config.js` defaults, and `examples/`) are built and published by `.github/workflows/static-package.yml` to both **GitHub Releases** and **GitHub Actions Artifacts**:
 
 | Channel | Release Tag / Artifact Name | `main` Files & Direct Download URLs | Branch Preview Files (e.g. `feat-static-deploy`) |
 | :--- | :--- | :--- | :--- |
-| **GitHub Releases** | `v0.2.0` (`latest` on `main`)<br/>`v0.2.0-<branch>` *(prerelease)* | `disperse-0.2.0.zip`, `disperse.zip`, `SHA256SUMS`<br/>`https://github.com/sleepinfinitydev/disperse/releases/latest/download/disperse.zip` | `disperse-0.2.0-<branch>.zip`, `disperse-0.2.0-<branch>-<git-short-sha>.zip`, `disperse.zip`, `SHA256SUMS` *(marked `prerelease`, never `latest`)* |
-| **GitHub Actions Artifacts** | `disperse-static-<version>` | `disperse-0.2.0.zip`, `disperse.zip`, `SHA256SUMS` *(90-day retention)* | `disperse-0.2.0-<branch>.zip`, `disperse-0.2.0-<branch>-<git-short-sha>.zip`, `disperse.zip`, `SHA256SUMS` |
+| **GitHub Releases** | `v0.2.0` (`latest` on `main`)<br/>`v0.2.0-<branch>` *(prerelease)* | `disperse-0.2.0.tar.gz`, `disperse.tar.gz`, `SHA256SUMS`<br/>`https://github.com/sleepinfinitydev/disperse/releases/latest/download/disperse.tar.gz` | `disperse-0.2.0-<branch>.tar.gz`, `disperse-0.2.0-<branch>-<git-short-sha>.tar.gz`, `disperse.tar.gz`, `SHA256SUMS` *(marked `prerelease`, never `latest`)* |
+| **GitHub Actions Artifacts** | `disperse-static-<version>` | `disperse-0.2.0.tar.gz`, `disperse.tar.gz`, `SHA256SUMS` *(90-day retention)* | `disperse-0.2.0-<branch>.tar.gz`, `disperse-0.2.0-<branch>-<git-short-sha>.tar.gz`, `disperse.tar.gz`, `SHA256SUMS` |
 
 ---
 
@@ -960,7 +963,7 @@ ENGINE_MODE_EXCALIDRAW=remote KROKI_BASE_URL=http://localhost:8000 task run PORT
 DRAWIO_BASE_URL=http://localhost:8080 task run
 FOOTER_CREDITS="" task run
 
-# Package minimal static .zip archives (disperse-0.2.0.zip and disperse.zip) for Caddy/Nginx/Apache
+# Package minimal static .tar.gz archives (disperse-0.2.0.tar.gz and disperse.tar.gz) for Caddy/Nginx/Apache
 task package
 
 # Build OCI image (auto-detects podman or docker, tags :0.2.0, :<git-hash>, and :latest)

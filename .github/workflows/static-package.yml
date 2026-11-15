@@ -1,4 +1,4 @@
-name: Publish Static Web Package (.zip)
+name: Publish Static Web Package (.tar.gz)
 
 on:
   push:
@@ -37,8 +37,8 @@ jobs:
             echo "pkg_version=${BASE_VERSION}" >> "$GITHUB_OUTPUT"
             echo "release_tag=v${BASE_VERSION}" >> "$GITHUB_OUTPUT"
             echo "release_title=Disperse v${BASE_VERSION}" >> "$GITHUB_OUTPUT"
-            echo "primary_zip=disperse-${BASE_VERSION}.zip" >> "$GITHUB_OUTPUT"
-            echo "zip_files=disperse-${BASE_VERSION}.zip disperse.zip" >> "$GITHUB_OUTPUT"
+            echo "primary_archive=disperse-${BASE_VERSION}.tar.gz" >> "$GITHUB_OUTPUT"
+            echo "archive_files=disperse-${BASE_VERSION}.tar.gz disperse.tar.gz" >> "$GITHUB_OUTPUT"
           else
             BRANCH_SLUG="$(printf '%s' "${GITHUB_REF_NAME}" \
               | tr '[:upper:]' '[:lower:]' \
@@ -55,51 +55,52 @@ jobs:
             echo "pkg_version=${PKG_VER}" >> "$GITHUB_OUTPUT"
             echo "release_tag=v${PKG_VER}" >> "$GITHUB_OUTPUT"
             echo "release_title=Disperse v${PKG_VER} (Branch Preview)" >> "$GITHUB_OUTPUT"
-            echo "primary_zip=disperse-${PKG_VER}.zip" >> "$GITHUB_OUTPUT"
-            echo "zip_files=disperse-${PKG_VER}.zip disperse-${COMMIT_PKG_VER}.zip disperse.zip" >> "$GITHUB_OUTPUT"
+            echo "primary_archive=disperse-${PKG_VER}.tar.gz" >> "$GITHUB_OUTPUT"
+            echo "archive_files=disperse-${PKG_VER}.tar.gz disperse-${COMMIT_PKG_VER}.tar.gz disperse.tar.gz" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build and verify minimal static .zip package
+      - name: Build and verify minimal static .tar.gz package
         run: |
           STAGE_DIR="$(mktemp -d)"
           DIST_DIR="${RUNNER_TEMP}/dist"
           mkdir -p "$DIST_DIR"
 
-          # Copy only the essential files required by static web servers (Caddy, Nginx, Apache)
-          cp index.html favicon.svg "$STAGE_DIR/"
+          # Copy only the essential files required by static web servers (Caddy, Nginx, Apache) + GPLv3 LICENSE
+          cp index.html favicon.svg LICENSE "$STAGE_DIR/"
           cp -r css js examples "$STAGE_DIR/"
 
-          PRIMARY_ZIP="${{ steps.meta.outputs.primary_zip }}"
-          (
-            cd "$STAGE_DIR"
-            zip -r -q "${DIST_DIR}/${PRIMARY_ZIP}" \
-              index.html \
-              favicon.svg \
-              css \
-              js \
-              examples \
-              -x "*.DS_Store" "*.bak" "*.swp" "*~"
-          )
+          find "$STAGE_DIR" \( -name "*.DS_Store" -o -name "*.bak" -o -name "*.swp" -o -name "*~" \) -delete
+          find "$STAGE_DIR" -type d -exec chmod 0755 {} +
+          find "$STAGE_DIR" -type f -exec chmod 0644 {} +
 
-          for z in ${{ steps.meta.outputs.zip_files }}; do
-            if [ "$z" != "$PRIMARY_ZIP" ]; then
-              cp "${DIST_DIR}/${PRIMARY_ZIP}" "${DIST_DIR}/${z}"
+          PRIMARY_ARCHIVE="${{ steps.meta.outputs.primary_archive }}"
+          tar --owner=0 --group=0 -C "$STAGE_DIR" -czf "${DIST_DIR}/${PRIMARY_ARCHIVE}" \
+            index.html \
+            favicon.svg \
+            LICENSE \
+            css \
+            js \
+            examples
+
+          for a in ${{ steps.meta.outputs.archive_files }}; do
+            if [ "$a" != "$PRIMARY_ARCHIVE" ]; then
+              cp "${DIST_DIR}/${PRIMARY_ARCHIVE}" "${DIST_DIR}/${a}"
             fi
           done
 
           (
             cd "$DIST_DIR"
-            sha256sum ${{ steps.meta.outputs.zip_files }} > SHA256SUMS
+            sha256sum ${{ steps.meta.outputs.archive_files }} > SHA256SUMS
           )
 
-          # Verify required runtime files are present and non-runtime files are excluded
-          CONTENTS="$(unzip -Z1 "${DIST_DIR}/${PRIMARY_ZIP}")"
-          for req in "index.html" "favicon.svg" "css/styles.css" "js/config.js" "js/app.js" "js/kroki.js" "js/theme.js" "js/viewer.js" "js/wysiwyg.js" "examples/d2.txt"; do
-            echo "$CONTENTS" | grep -Fxq "$req" || { echo "Missing required file in zip: $req"; exit 1; }
+          # Verify required runtime files and LICENSE are present and non-runtime files are excluded
+          CONTENTS="$(tar -tzf "${DIST_DIR}/${PRIMARY_ARCHIVE}" | sed 's|^\./||')"
+          for req in "index.html" "favicon.svg" "LICENSE" "css/styles.css" "js/config.js" "js/app.js" "js/kroki.js" "js/theme.js" "js/viewer.js" "js/wysiwyg.js" "examples/d2.txt"; do
+            echo "$CONTENTS" | grep -Fxq "$req" || { echo "Missing required file in tar.gz: $req"; exit 1; }
           done
           for forbidden in "Containerfile" "Taskfile.yml" "README.md" "SPEC.md" "AGENTS.md" "charts/disperse/Chart.yaml"; do
             if echo "$CONTENTS" | grep -Fxq "$forbidden"; then
-              echo "Unexpected non-runtime file in zip: $forbidden"
+              echo "Unexpected non-runtime file in tar.gz: $forbidden"
               exit 1
             fi
           done
@@ -107,17 +108,17 @@ jobs:
           ls -lh "$DIST_DIR"
           cat "${DIST_DIR}/SHA256SUMS"
 
-      - name: Upload static .zip package to GitHub Actions Artifacts
+      - name: Upload static .tar.gz package to GitHub Actions Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: disperse-static-${{ steps.meta.outputs.pkg_version }}
           path: |
-            ${{ runner.temp }}/dist/*.zip
+            ${{ runner.temp }}/dist/*.tar.gz
             ${{ runner.temp }}/dist/SHA256SUMS
           if-no-files-found: error
           retention-days: 90
 
-      - name: Publish static .zip package to GitHub Releases
+      - name: Publish static .tar.gz package to GitHub Releases
         if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -126,7 +127,7 @@ jobs:
           TAG="${{ steps.meta.outputs.release_tag }}"
           TITLE="${{ steps.meta.outputs.release_title }}"
           IS_MAIN="${{ steps.meta.outputs.is_main }}"
-          PRIMARY_ZIP="${{ steps.meta.outputs.primary_zip }}"
+          PRIMARY_ARCHIVE="${{ steps.meta.outputs.primary_archive }}"
           REPO="${GITHUB_REPOSITORY}"
 
           NOTES_FILE="$(mktemp)"
@@ -134,18 +135,18 @@ jobs:
             echo "Minimal static web server distribution of **Disperse** (\`${{ steps.meta.outputs.pkg_version }}\`, commit \`${{ steps.meta.outputs.git_hash }}\`) for **Caddy**, **Nginx**, **Apache**, or any static HTTP server."
             echo ""
             echo "### Included Contents"
-            echo "- \`index.html\`, \`favicon.svg\`, \`css/\`, \`js/\` (with pre-populated \`js/config.js\` defaults), and \`examples/\`."
+            echo "- \`index.html\`, \`favicon.svg\`, \`LICENSE\` (GPLv3), \`css/\`, \`js/\` (with pre-populated \`js/config.js\` defaults), and \`examples/\`."
             echo ""
             echo "### Quick Deploy on Debian"
             echo "\`\`\`bash"
             if [ "$IS_MAIN" = "true" ]; then
-              echo "curl -fsSLO https://github.com/${REPO}/releases/latest/download/disperse.zip"
+              echo "curl -fsSLO https://github.com/${REPO}/releases/latest/download/disperse.tar.gz"
               echo "sudo mkdir -p /var/www/disperse"
-              echo "sudo unzip -o -q disperse.zip -d /var/www/disperse"
+              echo "sudo tar -xzf disperse.tar.gz -C /var/www/disperse"
             else
-              echo "curl -fsSLO https://github.com/${REPO}/releases/download/${TAG}/${PRIMARY_ZIP}"
+              echo "curl -fsSLO https://github.com/${REPO}/releases/download/${TAG}/${PRIMARY_ARCHIVE}"
               echo "sudo mkdir -p /var/www/disperse"
-              echo "sudo unzip -o -q ${PRIMARY_ZIP} -d /var/www/disperse"
+              echo "sudo tar -xzf ${PRIMARY_ARCHIVE} -C /var/www/disperse"
             fi
             echo "\`\`\`"
             echo ""
@@ -157,7 +158,11 @@ jobs:
 
           cd "$DIST_DIR"
           if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
-            gh release upload "$TAG" ${{ steps.meta.outputs.zip_files }} SHA256SUMS --clobber --repo "$REPO"
+            # Clean up any legacy .zip assets if present on the release
+            for old_asset in $(gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[].name' | grep '\.zip$' || true); do
+              gh release delete-asset "$TAG" "$old_asset" --yes --repo "$REPO" || true
+            done
+            gh release upload "$TAG" ${{ steps.meta.outputs.archive_files }} SHA256SUMS --clobber --repo "$REPO"
             if [ "$IS_MAIN" = "true" ]; then
               gh release edit "$TAG" --title "$TITLE" --notes-file "$NOTES_FILE" --latest --prerelease=false --repo "$REPO"
             else
@@ -165,14 +170,14 @@ jobs:
             fi
           else
             if [ "$IS_MAIN" = "true" ]; then
-              gh release create "$TAG" ${{ steps.meta.outputs.zip_files }} SHA256SUMS \
+              gh release create "$TAG" ${{ steps.meta.outputs.archive_files }} SHA256SUMS \
                 --target "${GITHUB_SHA}" \
                 --title "$TITLE" \
                 --notes-file "$NOTES_FILE" \
                 --latest \
                 --repo "$REPO"
             else
-              gh release create "$TAG" ${{ steps.meta.outputs.zip_files }} SHA256SUMS \
+              gh release create "$TAG" ${{ steps.meta.outputs.archive_files }} SHA256SUMS \
                 --target "${GITHUB_SHA}" \
                 --title "$TITLE" \
                 --notes-file "$NOTES_FILE" \
@@ -186,15 +191,15 @@ jobs:
           DIST_DIR="${RUNNER_TEMP}/dist"
           TAG="${{ steps.meta.outputs.release_tag }}"
           IS_MAIN="${{ steps.meta.outputs.is_main }}"
-          PRIMARY_ZIP="${{ steps.meta.outputs.primary_zip }}"
+          PRIMARY_ARCHIVE="${{ steps.meta.outputs.primary_archive }}"
           REPO="${GITHUB_REPOSITORY}"
 
           {
-            echo "## Published Static Web Package (\`.zip\`)"
+            echo "## Published Static Web Package (\`.tar.gz\`)"
             echo ""
             echo "### Archives"
-            for z in ${{ steps.meta.outputs.zip_files }}; do
-              echo "- \`${z}\`"
+            for a in ${{ steps.meta.outputs.archive_files }}; do
+              echo "- \`${a}\`"
             done
             echo "- \`SHA256SUMS\`"
             echo ""
@@ -207,13 +212,13 @@ jobs:
               echo "### Quick Download & Extract (GitHub Releases: \`${TAG}\`)"
               echo "\`\`\`bash"
               if [ "$IS_MAIN" = "true" ]; then
-                echo "# Download latest release .zip"
-                echo "curl -fsSLO https://github.com/${REPO}/releases/latest/download/disperse.zip"
-                echo "sudo mkdir -p /var/www/disperse && sudo unzip -o -q disperse.zip -d /var/www/disperse"
+                echo "# Download latest release .tar.gz"
+                echo "curl -fsSLO https://github.com/${REPO}/releases/latest/download/disperse.tar.gz"
+                echo "sudo mkdir -p /var/www/disperse && sudo tar -xzf disperse.tar.gz -C /var/www/disperse"
               else
-                echo "# Download branch preview .zip (${TAG})"
-                echo "curl -fsSLO https://github.com/${REPO}/releases/download/${TAG}/${PRIMARY_ZIP}"
-                echo "sudo mkdir -p /var/www/disperse && sudo unzip -o -q ${PRIMARY_ZIP} -d /var/www/disperse"
+                echo "# Download branch preview .tar.gz (${TAG})"
+                echo "curl -fsSLO https://github.com/${REPO}/releases/download/${TAG}/${PRIMARY_ARCHIVE}"
+                echo "sudo mkdir -p /var/www/disperse && sudo tar -xzf ${PRIMARY_ARCHIVE} -C /var/www/disperse"
               fi
               echo "\`\`\`"
             fi
