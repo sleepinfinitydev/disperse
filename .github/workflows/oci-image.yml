@@ -37,8 +37,16 @@ jobs:
           helm template disperse ./charts/disperse > /dev/null
           helm template disperse ./charts/disperse \
             --set kroki.enabled=true \
+            --set drawio.enabled=true \
             --set ingress.enabled=true \
-            --set kroki.ingress.enabled=true > /dev/null
+            --set kroki.ingress.enabled=true \
+            --set drawio.ingress.enabled=true > /dev/null
+          helm template disperse ./charts/disperse \
+            --set kroki.enabled=true \
+            --set drawio.enabled=true \
+            --set httpRoute.enabled=true \
+            --set kroki.httpRoute.enabled=true \
+            --set drawio.httpRoute.enabled=true > /dev/null
 
       - name: Compute image and chart tags
         id: meta
@@ -54,11 +62,11 @@ jobs:
 
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
             echo "is_main=true" >> "$GITHUB_OUTPUT"
-            echo "app_version=${GIT_HASH}" >> "$GITHUB_OUTPUT"
+            echo "app_version=${BASE_VERSION}" >> "$GITHUB_OUTPUT"
             echo "image_tags=${GIT_HASH} ${BASE_VERSION} latest" >> "$GITHUB_OUTPUT"
             echo "chart_versions=${BASE_VERSION}" >> "$GITHUB_OUTPUT"
             echo "primary_chart_version=${BASE_VERSION}" >> "$GITHUB_OUTPUT"
-            echo "primary_image_tag=latest" >> "$GITHUB_OUTPUT"
+            echo "primary_image_tag=${BASE_VERSION}" >> "$GITHUB_OUTPUT"
           else
             BRANCH_SLUG="$(printf '%s' "${GITHUB_REF_NAME}" \
               | tr '[:upper:]' '[:lower:]' \

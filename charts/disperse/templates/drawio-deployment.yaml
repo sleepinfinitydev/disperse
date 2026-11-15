@@ -1,0 +1,98 @@
+{{- $drawio := .Values.drawio | default dict -}}
+{{- if $drawio.enabled -}}
+{{- $drawioPort := int (include "disperse.drawioContainerPort" .) -}}
+{{- $drawioImg := $drawio.image | default dict -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "disperse.drawioFullname" . }}
+  labels:
+    {{- include "disperse.drawioLabels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ $drawio.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "disperse.drawioSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with (mergeOverwrite (deepCopy (.Values.commonAnnotations | default dict)) ($drawio.podAnnotations | default dict)) }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "disperse.drawioLabels" . | nindent 8 }}
+        {{- with $drawio.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "disperse.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "disperse.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      {{- with $drawio.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: drawio
+          {{- with $drawio.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: {{ include "disperse.drawioImage" . | quote }}
+          imagePullPolicy: {{ $drawioImg.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - name: http
+              containerPort: {{ $drawioPort }}
+              protocol: TCP
+          env:
+            - name: DRAWIO_BASE_URL
+              value: {{ include "disperse.drawioBaseUrl" . | quote }}
+            - name: LETS_ENCRYPT_ENABLED
+              value: "false"
+            {{- with $drawio.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          {{- with $drawio.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: drawio-tmp
+              mountPath: /tmp
+      volumes:
+        - name: drawio-tmp
+          emptyDir: {}
+      {{- with $drawio.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $drawio.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $drawio.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

@@ -1,0 +1,28 @@
+{{- $drawio := .Values.drawio | default dict -}}
+{{- if $drawio.enabled -}}
+{{- $svc := $drawio.service | default dict -}}
+{{- $svcType := $svc.type | default "ClusterIP" -}}
+{{- $drawioPort := int (include "disperse.drawioPort" .) -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "disperse.drawioFullname" . }}
+  labels:
+    {{- include "disperse.drawioLabels" . | nindent 4 }}
+  {{- with (mergeOverwrite (deepCopy (.Values.commonAnnotations | default dict)) ($svc.annotations | default dict)) }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $svcType }}
+  ports:
+    - port: {{ $drawioPort }}
+      targetPort: {{ if and $svc.targetPort (kindIs "string" $svc.targetPort) (not (regexMatch "^[0-9]+$" $svc.targetPort)) }}{{ $svc.targetPort }}{{ else }}http{{ end }}
+      protocol: TCP
+      name: http
+      {{- if and (or (eq $svcType "NodePort") (eq $svcType "LoadBalancer")) $svc.nodePort }}
+      nodePort: {{ $svc.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "disperse.drawioSelectorLabels" . | nindent 4 }}
+{{- end }}

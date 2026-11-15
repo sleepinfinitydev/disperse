@@ -102,6 +102,7 @@
       "properties": {
         "krokiBaseUrl": { "type": "string" },
         "krokiRemoteUrl": { "type": "string" },
+        "drawioBaseUrl": { "type": "string" },
         "engineModes": { "type": "object" },
         "footerCredits": { "type": ["string", "null"] },
         "disabledEngines": {
@@ -154,9 +155,31 @@
             "shmSize": { "type": "string" },
             "mermaid": { "$ref": "#/definitions/sidecarSpec" },
             "bpmn": { "$ref": "#/definitions/sidecarSpec" },
-            "excalidraw": { "$ref": "#/definitions/sidecarSpec" }
+            "excalidraw": { "$ref": "#/definitions/sidecarSpec" },
+            "diagramsnet": { "$ref": "#/definitions/sidecarSpec" }
           }
         },
+        "ingress": { "$ref": "#/definitions/ingressSpec" },
+        "httpRoute": { "$ref": "#/definitions/httpRouteSpec" }
+      }
+    },
+    "drawio": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "replicaCount": { "type": "integer", "minimum": 0 },
+        "remoteFallbackUrl": { "type": "string" },
+        "image": { "$ref": "#/definitions/imageSpec" },
+        "service": { "$ref": "#/definitions/serviceSpec" },
+        "env": { "type": "array" },
+        "podAnnotations": { "type": "object" },
+        "podLabels": { "type": "object" },
+        "podSecurityContext": { "type": "object" },
+        "securityContext": { "type": "object" },
+        "resources": { "type": "object" },
+        "nodeSelector": { "type": "object" },
+        "tolerations": { "type": "array" },
+        "affinity": { "type": "object" },
         "ingress": { "$ref": "#/definitions/ingressSpec" },
         "httpRoute": { "$ref": "#/definitions/httpRouteSpec" }
       }

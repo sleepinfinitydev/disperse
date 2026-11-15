@@ -1,7 +1,8 @@
 FROM nginxinc/nginx-unprivileged:stable
 
 LABEL org.opencontainers.image.source="https://github.com/sleepinfinitydev/disperse" \
-      org.opencontainers.image.description="Disperse — Diagrams as Code SPA. Run with: docker run --rm -p 8765:8765 ghcr.io/sleepinfinitydev/disperse:latest"
+      org.opencontainers.image.version="0.2.0" \
+      org.opencontainers.image.description="Disperse — Diagrams as Code SPA. Run with: docker run --rm -p 8765:8765 ghcr.io/sleepinfinitydev/disperse:0.2.0"
 
 USER root
 
@@ -15,11 +16,13 @@ COPY --chown=101:0 examples/ /usr/share/nginx/html/examples/
 ENV PORT=8765
 ENV KROKI_BASE_URL="https://kroki.io"
 ENV KROKI_REMOTE_URL="https://kroki.io"
+ENV DRAWIO_BASE_URL="https://embed.diagrams.net"
 ENV ENGINE_MODE_MERMAID="local"
 ENV ENGINE_MODE_BPMN="local"
 ENV ENGINE_MODE_EXCALIDRAW="local"
+ENV ENGINE_MODE_DIAGRAMSNET="local"
 ENV KROKI_DISABLED_ENGINES=""
-ENV FOOTER_CREDITS='Made with <i data-lucide="heart" class="heart-icon"></i> in Betanzos · Copyleft <i data-lucide="copyright" class="copyleft-icon"></i> (<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer">GPLv3</a>) by <a href="https://sleepinfinity.dev" target="_blank" rel="noopener noreferrer">sleepinfinity.dev</a> · <a href="https://github.com/sleepinfinitydev/disperse" target="_blank" rel="noopener noreferrer">Disperse</a> was built on the shoulders of giants: <a href="https://kroki.io" target="_blank" rel="noopener noreferrer">Kroki</a>, <a href="https://excalidraw.com" target="_blank" rel="noopener noreferrer">Excalidraw</a>, <a href="https://bpmn.io" target="_blank" rel="noopener noreferrer">bpmn.io</a>, <a href="https://ace.c9.io" target="_blank" rel="noopener noreferrer">Ace</a>, <a href="https://github.com/timmywil/panzoom" target="_blank" rel="noopener noreferrer">Panzoom</a>, <a href="https://github.com/nodeca/pako" target="_blank" rel="noopener noreferrer">Pako</a>, <a href="https://lucide.dev" target="_blank" rel="noopener noreferrer">Lucide</a>, and inspired by <a href="https://niolesk.top" target="_blank" rel="noopener noreferrer">Niolesk</a>.'
+ENV FOOTER_CREDITS='Made with <i data-lucide="heart" class="heart-icon"></i> in Betanzos · Copyleft <i data-lucide="copyright" class="copyleft-icon"></i> (<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer">GPLv3</a>) by <a href="https://sleepinfinity.dev" target="_blank" rel="noopener noreferrer">sleepinfinity.dev</a> · <a href="https://github.com/sleepinfinitydev/disperse" target="_blank" rel="noopener noreferrer">Disperse</a> was built on the shoulders of giants: <a href="https://kroki.io" target="_blank" rel="noopener noreferrer">Kroki</a>, <a href="https://excalidraw.com" target="_blank" rel="noopener noreferrer">Excalidraw</a>, <a href="https://bpmn.io" target="_blank" rel="noopener noreferrer">bpmn.io</a>, <a href="https://www.diagrams.net" target="_blank" rel="noopener noreferrer">diagrams.net</a>, <a href="https://ace.c9.io" target="_blank" rel="noopener noreferrer">Ace</a>, <a href="https://github.com/timmywil/panzoom" target="_blank" rel="noopener noreferrer">Panzoom</a>, <a href="https://github.com/nodeca/pako" target="_blank" rel="noopener noreferrer">Pako</a>, <a href="https://lucide.dev" target="_blank" rel="noopener noreferrer">Lucide</a>, and inspired by <a href="https://niolesk.top" target="_blank" rel="noopener noreferrer">Niolesk</a>.'
 ENV NGINX_ENTRYPOINT_QUIET_LOGS=1
 EXPOSE 8765
 
@@ -57,15 +60,18 @@ normalize_mode() {
 
 KROKI_URL_VAL="${KROKI_BASE_URL:-https://kroki.io}"
 KROKI_REMOTE_VAL="${KROKI_REMOTE_URL:-https://kroki.io}"
+DRAWIO_URL_VAL="${DRAWIO_BASE_URL:-https://embed.diagrams.net}"
 FOOTER_VAL="${DISPERSE_FOOTER_CREDITS-${FOOTER_CREDITS}}"
 
 MODE_MERMAID=$(normalize_mode "${ENGINE_MODE_MERMAID:-${ENABLE_MERMAID:-local}}")
 MODE_BPMN=$(normalize_mode "${ENGINE_MODE_BPMN:-${ENABLE_BPMN:-local}}")
 MODE_EXCALIDRAW=$(normalize_mode "${ENGINE_MODE_EXCALIDRAW:-${ENABLE_EXCALIDRAW:-local}}")
+MODE_DIAGRAMSNET=$(normalize_mode "${ENGINE_MODE_DIAGRAMSNET:-${ENABLE_DIAGRAMSNET:-local}}")
 DISABLED_VAL=$(escape_js "${KROKI_DISABLED_ENGINES:-}")
 
 ESCAPED_KROKI_URL=$(escape_js "$KROKI_URL_VAL")
 ESCAPED_KROKI_REMOTE=$(escape_js "$KROKI_REMOTE_VAL")
+ESCAPED_DRAWIO_URL=$(escape_js "$DRAWIO_URL_VAL")
 ESCAPED_FOOTER=$(escape_js "$FOOTER_VAL")
 
 RUNTIME_CFG="/tmp/disperse-config.js"
@@ -74,11 +80,13 @@ window.DISPERSE_CONFIG = Object.assign(
   {
     krokiBaseUrl: "${ESCAPED_KROKI_URL}",
     krokiRemoteUrl: "${ESCAPED_KROKI_REMOTE}",
+    drawioBaseUrl: "${ESCAPED_DRAWIO_URL}",
     footerCredits: "${ESCAPED_FOOTER}",
     engineModes: {
       mermaid: "${MODE_MERMAID}",
       bpmn: "${MODE_BPMN}",
-      excalidraw: "${MODE_EXCALIDRAW}"
+      excalidraw: "${MODE_EXCALIDRAW}",
+      diagramsnet: "${MODE_DIAGRAMSNET}"
     },
     disabledEngines: "${DISABLED_VAL}"
   },

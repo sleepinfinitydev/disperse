@@ -7,7 +7,7 @@
 - **Technology**: HTML5, CSS3, and Vanilla JavaScript (ES6+), with no UI frameworks, relying only on lightweight libraries for code editing, zoom/pan, iconography, and compression. All source code, comments, documentation, and UI text are in **English** (`lang="en"`).
 - **Zero-Text / Icon-First UI**: The interface contains no static text other than the `DISPERSE` brand title and footer credits (along with technical engine/format dropdown values and generated URLs/snippets). All actions and controls are represented using **vector icons (SVG)**.
 - **Stateless URL Sharing & Per-Language Local Persistence**: Any diagram can be shared via a self-contained URL carrying the compressed and encoded source code in Kroki's standard format. Simultaneously, each diagram language maintains an isolated workspace draft in `localStorage` so switching languages never causes cross-syntax rendering errors or work loss, while shared `#hash` URLs take precedence on load without overwriting existing local drafts until modified.
-- **12-Factor Configuration via Environment Variables**: Disperse strictly adheres to the **[Twelve-Factor App (Factor III: Config)](https://12factor.net/config)** methodology for deployment and runtime configuration. Environment-specific settings (such as listening port `PORT`, rendering backend `KROKI_BASE_URL`, and customizable footer credits `FOOTER_CREDITS`) are injected via environment variables at runtime into `js/config.js` (`window.DISPERSE_CONFIG`) without modifying source code or rebuilding container images, while providing sensible defaults out of the box.
+- **12-Factor Configuration via Environment Variables**: Disperse strictly adheres to the **[Twelve-Factor App (Factor III: Config)](https://12factor.net/config)** methodology for deployment and runtime configuration. Environment-specific settings (such as listening port `PORT`, rendering backend `KROKI_BASE_URL`, embedded Draw.io editor endpoint `DRAWIO_BASE_URL`, companion engine modes `ENGINE_MODE_*`, and customizable footer credits `FOOTER_CREDITS`) are injected via environment variables at runtime into `js/config.js` (`window.DISPERSE_CONFIG`) without modifying source code or rebuilding container images, while providing sensible defaults out of the box.
 
 ---
 
@@ -88,7 +88,7 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
         - **Keyboard shortcut**: `Alt + N`.
         - **Behavior**: Restores the active language's default example (`examples/{engine}.txt`), removes its saved `localStorage` draft (`disperse-draft:{engine}`), resets D2 layout/theme selectors to defaults when `d2` is active, clears Ace Editor's `UndoManager` history, detaches any open local file (`fileState`), and re-renders centered (`centerView: true`).
         - **Confirmation guard**: Prompts `window.confirm(...)` before resetting whenever the current editor code differs from the active language's stock example or when an open local file has unsaved changes (`fileState.isDirty`).
-     4. **Kroki Engine Dropdown (`#engine-select`)**: Lists all 28 engines supported by Kroki (32 entries in total, grouped into Featured Code Languages including 5 C4-PlantUML diagram types at the top, followed by a visual separator, the remaining code engines in alphabetical order, a second visual separator, and Embedded Visual Editors marked as `Beta` at the bottom) with caption `"Diagram language"` (updated to `"Diagram language (Experimental / Beta editor)"` when a `Beta` visual editor is active). Switching engines performs an isolated workspace transition:
+     4. **Kroki Engine Dropdown (`#engine-select`)**: Lists all 29 engines supported by Kroki (33 entries in total, grouped into Featured Code Languages including 5 C4-PlantUML diagram types at the top, followed by a visual separator, the remaining code engines in alphabetical order, a second visual separator, and Embedded Visual Editors marked as `Beta` at the bottom) with caption `"Diagram language"` (updated to `"Diagram language (Experimental / Beta editor)"` when a `Beta` visual editor is active). Switching engines performs an isolated workspace transition:
         - **Local file guard & detachment**: If a local file is currently open (`fileState.name`), checks `fileState.isDirty` and asks `window.confirm(...)` before detaching (reverting `#engine-select` to the previous engine if cancelled). Detaching `fileState` prevents auto-save or `Ctrl+S` from accidentally overwriting a local file with source code from another language.
         - **Outgoing & incoming per-language drafts**: Flushes the outgoing language's in-browser draft to `localStorage` (`disperse-draft:{prevEngine}`, when eligible), updates `disperse-last-engine`, and loads the newly selected language's saved draft from `localStorage` (`disperse-draft:{nextEngine}`)—or loads its default template from `examples/{nextEngine}.txt` when no saved draft exists.
         - **Editor & preview update**: Updates the Kroki rendering endpoint (`c4plantuml-*` variants map to `c4plantuml`), updates Ace syntax highlighting mode and `#docs-btn` `href`, resets Ace's `UndoManager` so undo history never crosses language boundaries, adjusts the WYSIWYG splitter state, and **always renders** the newly loaded diagram immediately (even if auto-render is disabled).
@@ -106,11 +106,11 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
 ### 4.2. Main Area (Editor + Preview)
 - Occupies all available vertical space between header and footer (`flex: 1`).
 - **Golden Ratio by default ($\varphi \approx 1.618$)**:
-  - **Left Panel (Editor)**: $38.2\%$ of total width ($1 - 1/\varphi$) for text-first engines, and **collapsed ($0\%$) by default** when a graphical WYSIWYG engine (`excalidraw`, `bpmn`) is active.
+  - **Left Panel (Editor)**: $38.2\%$ of total width ($1 - 1/\varphi$) for text-first engines, and **collapsed ($0\%$) by default** when a graphical WYSIWYG engine (`excalidraw`, `bpmn`, `diagramsnet`) is active.
   - **Right Panel (Preview / WYSIWYG Editor)**: $61.8\%$ of total width ($1/\varphi$) for text-first engines, and **$100\%$ by default** when a graphical WYSIWYG engine is active.
 - **Resizable Splitter (`#splitter`)**:
   - Draggable bar via mouse/touch (`pointerdown` / `pointermove` with `setPointerCapture`) to resize both panels freely across the full range (`0%` - `100%`), allowing complete collapse of the editor or preview panel.
-  - **Automatic WYSIWYG Collapse & Restore**: Selecting a graphical WYSIWYG engine (`Excalidraw (Editor)` or `BPMN (Editor)`) or opening an `#excalidraw/...` / `#bpmn/...` URL automatically collapses the code editor panel to `0%` so the visual canvas occupies the entire workspace. Users can expand the code editor at any time (via dragging `#splitter`, double-clicking it, or pressing `Alt+2` / `Alt+Enter`) to inspect or edit the live synchronized code. Switching back to a text-based engine automatically restores the `38.2%` split.
+  - **Automatic WYSIWYG Collapse & Restore**: Selecting a graphical WYSIWYG engine (`Excalidraw (Editor · Beta)`, `BPMN (Editor · Beta)`, or `Draw.io (Editor · Beta)`) or opening an `#excalidraw/...`, `#bpmn/...`, or `#diagramsnet/...` URL automatically collapses the code editor panel to `0%` so the visual canvas occupies the entire workspace. Users can expand the code editor at any time (via dragging `#splitter`, double-clicking it, or pressing `Alt+2` / `Alt+Enter`) to inspect or edit the live synchronized code. Switching back to a text-based engine automatically restores the `38.2%` split.
   - **Magnetic Snap**: When dragging near the default golden ratio ($38.2\% \pm 1.6\%$), the splitter snaps into place and highlights with `--color-tertiary`.
   - Double-clicking the splitter also restores the golden ratio ($38.2\% / 61.8\%$).
   - **Quick-Split Buttons**: Three quick-action buttons inside the splitter grip allow instant layout adjustments via click or keyboard shortcuts: Maximize editor (`#split-max-editor`, `Alt+1`), Reset split (`#split-reset`, `Alt+2`), and Maximize preview (`#split-max-viewer`, `Alt+3`).
@@ -132,13 +132,14 @@ The application occupies `100vw x 100dvh` (`100vh` fallback) with no global page
   - Full **Zoom** (mouse wheel, pinch gesture, `+` / `-` buttons) and **Pan** (canvas drag) support.
   - Works uniformly for both **SVG** and **PNG** outputs.
 - **Embedded WYSIWYG Visual Editor (`#wysiwyg-container`)**:
-  - Activated automatically when a graphical WYSIWYG engine (`Excalidraw (Editor)` or `BPMN (Editor)`) is selected or when a `.excalidraw` / `.bpmn` file is opened/dropped.
-  - Lazy-loads each visual editor on demand into isolated panes (`#wysiwyg-excalidraw`, `#wysiwyg-bpmn`) without impacting initial page load for other languages:
+  - Activated automatically when a graphical WYSIWYG engine (`Excalidraw (Editor · Beta)`, `BPMN (Editor · Beta)`, or `Draw.io (Editor · Beta)`) is selected or when a `.excalidraw`, `.bpmn`, or `.drawio` / `.dio` / `.drawio.xml` file is opened/dropped.
+  - Lazy-loads each visual editor on demand into isolated panes (`#wysiwyg-excalidraw`, `#wysiwyg-bpmn`, `#wysiwyg-diagramsnet`) without impacting initial page load for other languages:
     - **Excalidraw**: `@excalidraw/excalidraw` (`https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/excalidraw.production.min.js` with `window.EXCALIDRAW_ASSET_PATH = 'https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/'`).
     - **BPMN**: `bpmn-js` (`https://unpkg.com/bpmn-js@17.11.1/dist/bpmn-modeler.production.min.js` and its `diagram-js.css`, `bpmn-js.css`, and `bpmn-embedded.css` stylesheets).
+    - **Draw.io / diagrams.net**: Embedded `<iframe>` speaking the official JSON `postMessage` protocol (`?embed=1&proto=json&spin=1&ui=kennedy&configure=1&modified=0&noSaveBtn=1&saveAndExit=0&noExitBtn=1&libraries=1&dark=0|1`), loaded from `DRAWIO_BASE_URL` (`https://embed.diagrams.net` by default, or a self-hosted `jgraph/drawio` instance; custom `?ui=...` query parameters in `DRAWIO_BASE_URL` are preserved). Configures `compressXml: false` for readable `<mxfile>` XML in the Ace editor and `passThroughKeys` so Disperse's global keyboard shortcuts (`Ctrl+O/S/R`, `Alt+1/2/3/T/D/N/...`) continue working seamlessly even when focus is inside the cross-origin iframe.
   - **Bidirectional Real-Time Synchronization**:
-    - **Canvas → Code Editor & URLs**: Drawing or modifying elements on the Excalidraw canvas (`serializeAsJSON`) or BPMN modeler (`commandStack.changed` → `saveXML({ format: true })`) updates the Ace code editor, recalculates the compressed URL hash (`#excalidraw/...`, `#bpmn/...`) and Kroki/Disperse sharing snippets (`https://kroki.io/excalidraw/svg/...`, `https://kroki.io/bpmn/svg/...`), and triggers local file auto-save when active.
-    - **Code Editor / File → Canvas**: Editing the JSON/XML in the Ace editor, loading a URL, or opening/dropping a `.excalidraw` or `.bpmn` file restores and updates the live visual scene (`updateScene` / `importXML`).
+    - **Canvas → Code Editor & URLs**: Drawing or modifying elements on the Excalidraw canvas (`serializeAsJSON`), BPMN modeler (`commandStack.changed` → `saveXML({ format: true })`), or Draw.io canvas (`autosave` / `save` JSON `postMessage` → pretty-formatted `<mxfile>` XML) updates the Ace code editor, recalculates the compressed URL hash (`#excalidraw/...`, `#bpmn/...`, `#diagramsnet/...`) and Kroki/Disperse sharing snippets (`https://kroki.io/excalidraw/svg/...`, `https://kroki.io/bpmn/svg/...`, `{kroki_base_url}/diagramsnet/{svg|png}/...`), and triggers local file auto-save when active.
+    - **Code Editor / File → Canvas**: Editing the JSON/XML in the Ace editor, loading a URL, or opening/dropping a `.excalidraw`, `.bpmn`, or `.drawio` file validates and updates the live visual scene (`updateScene` / `importXML` / `postMessage({ action: 'load' })`).
   - **Payload Size Guard & Disabled Library (Excalidraw)**: Disables the Excalidraw image tool (`UIOptions.tools.image: false`), blocks pasting binary/image elements (`onPaste`), strips binary `files` during serialization so Base64 images cannot bloat the JSON or exceed Kroki's GET URL length limits, and disables Excalidraw's Library button, sidebar, and `"Add to library"` context menu item.
   - **Theme, Style Isolation & Native Controls**: Synchronizes with Disperse's light/dark mode (`Alt+T`), scopes Disperse's root layout and form selectors (`body > header`, `body > main`, `body > footer`, `:where(:not(#wysiwyg-container *))`) so they never override internal WYSIWYG semantic elements (such as Excalidraw's bottom `<footer class="layer-ui__wrapper__footer">` bar containing zoom, undo/redo, and help controls), disables `@panzoom/panzoom` pointer capture while a WYSIWYG editor is active (`panzoom-exclude` / `setPanzoomEnabled(false)`), and hides Disperse's floating `.viewer-actions` toolbar (`#viewer-container.wysiwyg-active .viewer-actions { display: none }`) so each visual editor's native canvas interactions are used without interference (while global shortcuts such as `Alt++`, `Alt+-`, `Alt+0`, `Alt+Enter`, and `Alt+D` remain available).
 - Floating action bar (icon-only):
@@ -158,7 +159,7 @@ Compact panel for obtaining ready-to-publish links, snippets, and managing local
    - **Editor (pencil icon)**: Points to this Disperse instance with state in the URL hash:
      `{current_origin}/#{engine}/{format}/{compressed_payload}`
    - **Local File (hard drive icon)**: Progressive local file workflow. Includes actions to Open (`Ctrl+O`), Save (`Ctrl+S`), Save As (`Ctrl+Shift+S`), and Toggle Auto-Save (`Alt+A`). It supports dragging and dropping files directly onto the window (via `#drop-overlay`).
-     - **Automatic Format & Language Detection**: Opening or dropping a local file inspects its filename extension (supporting compound extensions such as `.vg.json` and `.vl.json`, dedicated extensions such as `.d2`, `.mmd`/`.mermaid`, `.dbml`, `.puml`/`.plantuml`/`.iuml` with C4 diagram variant detection, `.bpmn`, `.excalidraw`, `.dot`/`.gv`, `.dsl`, `.ditaa`, `.erd`, `.nomnoml`, `.pikchr`, `.uxf`, `.vhd`/`.vhdl`/`.v`/`.sv`, `.tex`/`.tikz`, `.yml`/`.yaml`, `.clj`/`.edn`, and lightweight content inspection for generic `.json` and `.xml` files) and automatically switches `#engine-select` to the corresponding language after flushing any prior in-browser draft.
+     - **Automatic Format & Language Detection**: Opening or dropping a local file inspects its filename extension (supporting compound extensions such as `.vg.json`, `.vl.json`, and `.drawio.xml`, dedicated extensions such as `.d2`, `.mmd`/`.mermaid`, `.dbml`, `.puml`/`.plantuml`/`.iuml` with C4 diagram variant detection, `.bpmn`, `.drawio`/`.dio`, `.excalidraw`, `.dot`/`.gv`, `.dsl`, `.ditaa`, `.erd`, `.nomnoml`, `.pikchr`, `.uxf`, `.vhd`/`.vhdl`/`.v`/`.sv`, `.tex`/`.tikz`, `.yml`/`.yaml`, `.clj`/`.edn`, and lightweight content inspection for generic `.json` and `.xml` files—including `<mxfile` / `<mxGraphModel` detection for Draw.io) and automatically switches `#engine-select` to the corresponding language after flushing any prior in-browser draft.
      - **Safe Detachment & Reload Guard**: Manually switching languages in `#engine-select` or clicking New / Reset (`#new-btn`) detaches the linked local file (after confirming if `fileState.isDirty`). The browser `beforeunload` warning prompt is triggered **exclusively** when a local file is open with unsaved changes on disk (`fileState.name && fileState.isDirty`), avoiding unnecessary prompts during normal `localStorage`-backed browser editing.
 2. **Snippet output formats** (selectable via icons):
    - **Direct URL** (`link` icon):
@@ -181,7 +182,7 @@ Compact panel for obtaining ready-to-publish links, snippets, and managing local
    - Maximizing the preview (`Alt+Enter` / `#maximize-preview`) automatically collapses `#export-section` if it is expanded and restores its previous height when exiting maximized preview (unless manually adjusted in the meantime).
 5. **Footer credits (`#footer-credits`)**:
    - **Default value**: Centered bottom credit line acknowledging the project, its license, and its dependencies, rendered with Lucide vector icons (`heart` tinted in `--color-tertiary` and horizontally flipped `copyright` icon representing copyleft) instead of native Unicode emojis/glyphs to avoid platform-specific rendering anomalies:
-     `Made with <heart> in Betanzos · Copyleft <copyleft> (GPLv3) by sleepinfinity.dev · Disperse was built on the shoulders of giants: Kroki, Excalidraw, bpmn.io, Ace, Panzoom, Pako, Lucide, and inspired by Niolesk.`
+     `Made with <heart> in Betanzos · Copyleft <copyleft> (GPLv3) by sleepinfinity.dev · Disperse was built on the shoulders of giants: Kroki, Excalidraw, bpmn.io, diagrams.net, Ace, Panzoom, Pako, Lucide, and inspired by Niolesk.`
    - **12-Factor Environment Variable Customization (`FOOTER_CREDITS`)**:
      - Customizable at runtime via the `FOOTER_CREDITS` environment variable (or `DISPERSE_FOOTER_CREDITS`), exposed to the frontend as `window.DISPERSE_CONFIG.footerCredits` (`js/config.js`) and applied by `initFooterCredits()` in `js/app.js` prior to `lucide.createIcons()`.
      - Supports plain text, HTML links (`<a href="...">`), and inline Lucide icon tags (`<i data-lucide="..."></i>`), which automatically inherit the active theme's typography and `--color-primary` link styling.
@@ -232,7 +233,7 @@ All keyboard shortcuts are reflected in their corresponding control tooltips (`d
 
 ## 5. Supported Kroki Engines
 
-The engine dropdown covers all 28 engines from the public Kroki API (32 selectable entries in total), each mapped to its corresponding Ace Editor syntax mode, official documentation URL, and default template in `examples/{id}.txt`.
+The engine dropdown covers all 29 engines from the Kroki ecosystem (33 selectable entries in total), each mapped to its corresponding Ace Editor syntax mode, official documentation URL, and default template in `examples/{id}.txt`.
 
 ### 5.1. Featured Code Languages (Top of List)
 Displayed at the top of `#engine-select` above the first disabled separator (`──────────────`):
@@ -274,6 +275,7 @@ Displayed below the first separator and above the second disabled separator (`�
 Displayed at the bottom of `#engine-select` below the second disabled separator (`──────────────`):
 31. `excalidraw` (`Excalidraw (Editor · Beta)` — Embedded interactive Excalidraw WYSIWYG editor + JSON, `wysiwyg: true`, `beta: true`)
 32. `bpmn` (`BPMN (Editor · Beta)` — Embedded interactive BPMN 2.0 WYSIWYG modeler via `bpmn-js` + XML, `wysiwyg: true`, `beta: true`)
+33. `diagramsnet` (`Draw.io (Editor · Beta)` — Embedded interactive Draw.io / diagrams.net WYSIWYG editor via `<iframe>` + `<mxfile>` XML, `wysiwyg: true`, `beta: true`)
 
 ---
 
@@ -287,7 +289,7 @@ Displayed at the bottom of `#engine-select` below the second disabled separator 
    - **With URL `#engine/format/payload[?layout=...&theme=...]` hash (Shared Link)**: The URL payload always takes precedence on startup—decoding and loading the specified engine, format, options, and source code. To protect the user's own local workspace, opening an external `#hash` URL whose content differs from the existing `localStorage` draft for that engine **does not overwrite** `disperse-draft:{engine}` until the user makes a modification in the editor/canvas (if the user switches languages without modifying it, their previous local draft remains intact). If the `#hash` URL specifies a known engine that has been administratively disabled on the instance (`disabled`), Disperse preserves `window.location.hash` intact, displays the decoded source code in the editor without persisting it, and shows an explicit notice in `#viewer-error`.
    - **Without URL `#hash` (Clean Root Visit)**: Restores the last active language from `disperse-last-engine` (defaulting to `d2`) and loads its saved draft from `disperse-draft:{engine}` (including D2 `layout`/`theme` when applicable), falling back to `examples/{engine}.txt` if no draft exists.
 3. **Per-Language `localStorage` Persistence**:
-   - Each of the 32 selectable entries in `#engine-select` stores its own draft independently under `disperse-draft:{engineId}` (JSON `{ code, layout?, theme? }`), alongside `disperse-last-engine` and `disperse-autorender` (`'true'` by default).
+   - Each of the 33 selectable entries in `#engine-select` stores its own draft independently under `disperse-draft:{engineId}` (JSON `{ code, layout?, theme? }`), alongside `disperse-last-engine` and `disperse-autorender` (`'true'` by default).
    - Whenever an engine's code matches its stock template (`examples/{engineId}.txt`) and uses default options, `disperse-draft:{engineId}` is removed from `localStorage` to keep storage clean.
    - While a local file (`fileState.name`) is open, edits track against that file rather than overwriting the language's scratchpad draft; any pending in-browser draft is flushed synchronously on `beforeunload`. All `localStorage` operations are wrapped in `try/catch` to handle private browsing or quota limits gracefully.
 4. **Rendering & SVG Sanitization**:
@@ -303,16 +305,16 @@ Clean file structure requiring no build step:
 - `index.html` — Semantic structure and CDN library imports.
 - `favicon.svg` — Vector brand icon and logo (a prism dispersing a beam into 4 tetradic graph nodes).
 - `css/styles.css` — Tetradic `oklch` color system, golden-ratio responsive layout, and light/dark themes.
-- `js/config.js` — 12-Factor runtime configuration object (`window.DISPERSE_CONFIG`) providing default values (`krokiBaseUrl`, `footerCredits`) and generated at container startup from environment variables by Nginx's entrypoint script (`Containerfile`).
+- `js/config.js` — 12-Factor runtime configuration object (`window.DISPERSE_CONFIG`) providing default values (`krokiBaseUrl`, `krokiRemoteUrl`, `drawioBaseUrl`, `engineModes`, `footerCredits`) and generated at container startup from environment variables by Nginx's entrypoint script (`Containerfile`).
 - `js/app.js` — Initialization (including `initFooterCredits()`), per-engine `localStorage` workspace persistence, auto-render and reset/new workflows, global keyboard shortcuts (`Ctrl/Cmd`, `Alt`/`Alt+Shift`, `F11`), magnetic splitter, local file workflow with format auto-detection, and events.
 - `js/theme.js` — `sRGB → Oklab → OKLCH` conversion, tetradic palette generation, dynamic brand icon coloring, and light/dark mode toggle.
 - `js/kroki.js` — Engine catalog, documentation links, file-extension/content language detection, cached lazy-loading of `examples/{engine}.txt`, compression/decompression, and Kroki URL builder.
 - `js/viewer.js` — Diagram viewer (SVG and PNG) with `DOMParser`-based SVG XSS sanitization, zoom, pan, error overlay, and file download.
-- `js/wysiwyg.js` — Lazy-loaded embedded WYSIWYG visual editors (`@excalidraw/excalidraw` and `bpmn-js`) with bidirectional Ace Editor / URL synchronization and client-side SVG/PNG export.
-- `examples/*.txt` — Individual default example files for each of the 32 selectable engine/template entries (28 Kroki engines including 5 C4-PlantUML diagram types).
+- `js/wysiwyg.js` — Lazy-loaded embedded WYSIWYG visual editors (`@excalidraw/excalidraw`, `bpmn-js`, and Draw.io / `diagrams.net` via JSON `postMessage` `<iframe>`) with bidirectional Ace Editor / URL synchronization and client-side SVG/PNG export.
+- `examples/*.txt` — Individual default example files for each of the 33 selectable engine/template entries (29 Kroki engines including 5 C4-PlantUML diagram types).
 - `assets/screenshot.png` — Application screenshot referenced in `README.md`.
 
-### External Libraries (via CDN)
+### External Libraries (via CDN / Embedded Endpoint)
 - **Code Editor**: **Ace Editor** (`ace.js`, `keybinding-vim.min.js`).
 - **Zoom & Pan**: **`@panzoom/panzoom`** (`panzoom.min.js`).
 - **Compression**: **`pako`** (`pako.min.js`).
@@ -320,6 +322,7 @@ Clean file structure requiring no build step:
 - **WYSIWYG Visual Editors (Lazy-Loaded on Demand)**:
   - **`@excalidraw/excalidraw`** (`https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/excalidraw.production.min.js` with `react@18.3.1` and `react-dom@18.3.1`).
   - **`bpmn-js`** (`https://unpkg.com/bpmn-js@17.11.1/dist/bpmn-modeler.production.min.js` and stylesheets).
+  - **Draw.io / `diagrams.net`** (`https://embed.diagrams.net` by default, or self-hosted `jgraph/drawio` configured via `DRAWIO_BASE_URL`).
 
 ---
 
@@ -328,46 +331,47 @@ Clean file structure requiring no build step:
 ### 8.1. Twelve-Factor App Configuration Model (Factor III: Config)
 Disperse follows the **[Twelve-Factor App](https://12factor.net/config)** methodology for all deployment and runtime configuration:
 1. **Strict Separation of Config from Code**: No deployment-specific URLs, ports, or organizational branding/footer credits need to be hardcoded or require rebuilding the application or OCI image.
-2. **Environment Variables as the Single Configuration Interface**: All runtime configuration—both in standalone OCI containers and in Kubernetes (`charts/disperse`)—is supplied strictly via standard environment variables (`PORT`, `KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `ENGINE_MODE_*`, `KROKI_DISABLED_ENGINES`, `FOOTER_CREDITS`).
+2. **Environment Variables as the Single Configuration Interface**: All runtime configuration—both in standalone OCI containers and in Kubernetes (`charts/disperse`)—is supplied strictly via standard environment variables (`PORT`, `KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `DRAWIO_BASE_URL`, `ENGINE_MODE_*`, `KROKI_DISABLED_ENGINES`, `FOOTER_CREDITS`).
 3. **Sensible Defaults**: Every environment variable has a documented default value embedded in `js/config.js` and `Containerfile`, ensuring zero-configuration startup out of the box.
 4. **Runtime Injection for Static SPA (`js/config.js` -> `window.DISPERSE_CONFIG`)**:
    - In **OCI containers (`Containerfile`)**, the unprivileged Nginx entrypoint script (`/docker-entrypoint.d/40-disperse.sh`) reads the container's environment variables on startup, writes `/tmp/disperse-config.js` (and `/usr/share/nginx/html/js/config.js` when writable), and configures `/tmp/disperse-nginx.conf` to serve `/js/config.js` with `Cache-Control: no-store, no-cache, must-revalidate`—compatible with `readOnlyRootFilesystem: true` when `/tmp` is mounted as a `tmpfs` / `emptyDir`.
-   - In **local development (`Taskfile.yml` `task run`)**, `js/config.js` is generated from `KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `ENGINE_MODE_*`, `KROKI_DISABLED_ENGINES`, and `FOOTER_CREDITS` / `DISPERSE_FOOTER_CREDITS` (properly honoring `FOOTER_CREDITS=""` to hide the footer) before starting `python3 -m http.server`, and restored via `defer` on exit.
+   - In **local development (`Taskfile.yml` `task run`)**, `js/config.js` is generated from `KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `DRAWIO_BASE_URL`, `ENGINE_MODE_*`, `KROKI_DISABLED_ENGINES`, and `FOOTER_CREDITS` / `DISPERSE_FOOTER_CREDITS` (properly honoring `FOOTER_CREDITS=""` to hide the footer) before starting `python3 -m http.server`, and restored via `defer` on exit.
 
 | Environment Variable | `window.DISPERSE_CONFIG` Key | Default Value | Description |
 | :--- | :--- | :--- | :--- |
 | `PORT` | *(Server / Nginx)* | `8765` | Unprivileged HTTP listening port for the container (`UID 101`) or local server. |
-| `FOOTER_CREDITS` *(alias: `DISPERSE_FOOTER_CREDITS`)* | `footerCredits` | `'Made with <i data-lucide="heart" class="heart-icon"></i> in Betanzos · Copyleft <i data-lucide="copyright" class="copyleft-icon"></i> (<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer">GPLv3</a>) by <a href="https://sleepinfinity.dev" target="_blank" rel="noopener noreferrer">sleepinfinity.dev</a> · <a href="https://github.com/sleepinfinitydev/disperse" target="_blank" rel="noopener noreferrer">Disperse</a> was built on the shoulders of giants: <a href="https://kroki.io" target="_blank" rel="noopener noreferrer">Kroki</a>, <a href="https://excalidraw.com" target="_blank" rel="noopener noreferrer">Excalidraw</a>, <a href="https://bpmn.io" target="_blank" rel="noopener noreferrer">bpmn.io</a>, <a href="https://ace.c9.io" target="_blank" rel="noopener noreferrer">Ace</a>, <a href="https://github.com/timmywil/panzoom" target="_blank" rel="noopener noreferrer">Panzoom</a>, <a href="https://github.com/nodeca/pako" target="_blank" rel="noopener noreferrer">Pako</a>, <a href="https://lucide.dev" target="_blank" rel="noopener noreferrer">Lucide</a>, and inspired by <a href="https://niolesk.top" target="_blank" rel="noopener noreferrer">Niolesk</a>.'` | Custom text/HTML (supporting `<a>` links and `<i data-lucide="...">` icons) rendered in `#footer-credits`. Setting `FOOTER_CREDITS=""` hides the footer credit line completely. |
+| `FOOTER_CREDITS` *(alias: `DISPERSE_FOOTER_CREDITS`)* | `footerCredits` | `'Made with <i data-lucide="heart" class="heart-icon"></i> in Betanzos · Copyleft <i data-lucide="copyright" class="copyleft-icon"></i> (<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer">GPLv3</a>) by <a href="https://sleepinfinity.dev" target="_blank" rel="noopener noreferrer">sleepinfinity.dev</a> · <a href="https://github.com/sleepinfinitydev/disperse" target="_blank" rel="noopener noreferrer">Disperse</a> was built on the shoulders of giants: <a href="https://kroki.io" target="_blank" rel="noopener noreferrer">Kroki</a>, <a href="https://excalidraw.com" target="_blank" rel="noopener noreferrer">Excalidraw</a>, <a href="https://bpmn.io" target="_blank" rel="noopener noreferrer">bpmn.io</a>, <a href="https://www.diagrams.net" target="_blank" rel="noopener noreferrer">diagrams.net</a>, <a href="https://ace.c9.io" target="_blank" rel="noopener noreferrer">Ace</a>, <a href="https://github.com/timmywil/panzoom" target="_blank" rel="noopener noreferrer">Panzoom</a>, <a href="https://github.com/nodeca/pako" target="_blank" rel="noopener noreferrer">Pako</a>, <a href="https://lucide.dev" target="_blank" rel="noopener noreferrer">Lucide</a>, and inspired by <a href="https://niolesk.top" target="_blank" rel="noopener noreferrer">Niolesk</a>.'` | Custom text/HTML (supporting `<a>` links and `<i data-lucide="...">` icons) rendered in `#footer-credits`. Setting `FOOTER_CREDITS=""` hides the footer credit line completely. |
 | `KROKI_BASE_URL` | `krokiBaseUrl` | `'https://kroki.io'` | Primary base URL of the Kroki rendering API (supports absolute URLs or relative paths). |
 | `KROKI_REMOTE_URL` | `krokiRemoteUrl` | `'https://kroki.io'` | Fallback external Kroki URL used by companion engines configured in `remote` mode when `KROKI_BASE_URL` differs. |
-| `ENGINE_MODE_MERMAID`, `ENGINE_MODE_BPMN`, `ENGINE_MODE_EXCALIDRAW` | `engineModes.{mermaid,bpmn,excalidraw}` | `'local'` | Per-engine mode (`local` \| `remote` \| `disabled`). When `remote` (and `KROKI_BASE_URL !== KROKI_REMOTE_URL`), adds `🌐 (<host>)` and a non-confidential warning tooltip in `#engine-select` and routes requests to `KROKI_REMOTE_URL`. When `disabled`, hides the engine from `#engine-select`. |
+| `DRAWIO_BASE_URL` | `drawioBaseUrl` | `'https://embed.diagrams.net'` | Base URL of the embedded Draw.io / `diagrams.net` visual editor (`<iframe>`). On self-hosted instances (`KROKI_BASE_URL !== KROKI_REMOTE_URL`), keeping the public `diagrams.net` / `draw.io` host displays `🌐 (<host>)` and a non-confidential warning tooltip in `#engine-select`, while pointing `DRAWIO_BASE_URL` to a self-hosted `jgraph/drawio` endpoint runs 100% privately without external warnings. |
+| `ENGINE_MODE_MERMAID`, `ENGINE_MODE_BPMN`, `ENGINE_MODE_EXCALIDRAW`, `ENGINE_MODE_DIAGRAMSNET` | `engineModes.{mermaid,bpmn,excalidraw,diagramsnet}` | `'local'` | Per-engine mode (`local` \| `remote` \| `disabled`). When `remote` (and `KROKI_BASE_URL !== KROKI_REMOTE_URL`), adds `🌐 (<host>)` and a non-confidential warning tooltip in `#engine-select` and routes Kroki requests to `KROKI_REMOTE_URL`. When `disabled`, hides the engine from `#engine-select`. |
 | `KROKI_DISABLED_ENGINES` | `disabledEngines` | `''` | Optional comma-separated list of engine IDs to hide from `#engine-select`. |
 
 ### 8.2. Containerization & Local Tooling
-- **`Containerfile`**: Builds a hardened, non-root OCI image based on **`nginxinc/nginx-unprivileged:stable`** (`USER 101`, group `0`-writable assets for OpenShift/Kubernetes compatibility), linked to the repository via `LABEL org.opencontainers.image.source` and `org.opencontainers.image.description`, copying only the required static assets (`index.html`, `favicon.svg`, `css/`, `js/`, and `examples/`, scoped by `.dockerignore`). Nginx serves static files exclusively (no reverse proxy) on port `8765` (`ENV PORT=8765`, `EXPOSE 8765`).
+- **`Containerfile`**: Builds a hardened, non-root OCI image (`0.2.0`) based on **`nginxinc/nginx-unprivileged:stable`** (`USER 101`, group `0`-writable assets for OpenShift/Kubernetes compatibility), linked to the repository via `LABEL org.opencontainers.image.source`, `org.opencontainers.image.version="0.2.0"`, and `org.opencontainers.image.description`, copying only the required static assets (`index.html`, `favicon.svg`, `css/`, `js/`, and `examples/`, scoped by `.dockerignore`). Nginx serves static files exclusively (no reverse proxy) on port `8765` (`ENV PORT=8765`, `EXPOSE 8765`).
   - **Runtime Configuration (`/docker-entrypoint.d/40-disperse.sh`)**:
     - Validates `PORT` is numeric (`8765` fallback) and writes `/tmp/disperse-nginx.conf` (included from `/etc/nginx/nginx.conf`).
-    - Escapes `\`, `"`, `\r`, `\t`, and `\n` safely when generating `/tmp/disperse-config.js` from `KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `ENGINE_MODE_MERMAID`, `ENGINE_MODE_BPMN`, `ENGINE_MODE_EXCALIDRAW`, `KROKI_DISABLED_ENGINES`, and `FOOTER_CREDITS` / `DISPERSE_FOOTER_CREDITS`.
+    - Escapes `\`, `"`, `\r`, `\t`, and `\n` safely when generating `/tmp/disperse-config.js` from `KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `DRAWIO_BASE_URL`, `ENGINE_MODE_MERMAID`, `ENGINE_MODE_BPMN`, `ENGINE_MODE_EXCALIDRAW`, `ENGINE_MODE_DIAGRAMSNET`, `KROKI_DISABLED_ENGINES`, and `FOOTER_CREDITS` / `DISPERSE_FOOTER_CREDITS`.
     - Serves `/js/config.js` with `Cache-Control: no-store, no-cache, must-revalidate` and runs cleanly under `--read-only --tmpfs /tmp --cap-drop=ALL`.
-- **`README.md`**: Organized following the **[Diátaxis](https://diataxis.fr/)** documentation framework (Tutorials for Docker and local K3s + Helm deployment, How-To Guides for sidecar modes and separate Ingress/Gateway API exposure, Reference tables, and Architecture/Privacy Explanations).
+- **`README.md`**: Organized following the **[Diátaxis](https://diataxis.fr/)** documentation framework (Tutorials for Docker and local K3s + Helm deployment, How-To Guides for sidecar modes, self-hosted Draw.io, and separate Ingress/Gateway API exposure, Reference tables, and Architecture/Privacy Explanations).
 - **Running the Container**:
   ```bash
   # Default configuration
-  docker run --rm -p 8765:8765 ghcr.io/sleepinfinitydev/disperse:latest
+  docker run --rm -p 8765:8765 ghcr.io/sleepinfinitydev/disperse:0.2.0
 
   # Custom footer credits via 12-Factor environment variable
   docker run --rm -p 8765:8765 \
     -e FOOTER_CREDITS='Internal Diagrams · <a href="https://example.com" target="_blank">Platform Team</a>' \
-    ghcr.io/sleepinfinitydev/disperse:latest
+    ghcr.io/sleepinfinitydev/disperse:0.2.0
   ```
 - **`Taskfile.yml`**: Provides development and packaging tasks:
-  - `task run`: Generates `js/config.js` from 12-Factor environment variables (`KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `ENGINE_MODE_*`, `KROKI_DISABLED_ENGINES`, `FOOTER_CREDITS` / `DISPERSE_FOOTER_CREDITS`), starts `python3 -m http.server` on port `8765` by default (`PORT=...`), and restores `js/config.js` via `defer` upon exit.
-  - `task build`: Builds the container image (`ghcr.io/sleepinfinitydev/disperse` by default, configurable via `IMAGE=...`) tagged with both the short Git commit hash (`git rev-parse --short HEAD`) and `latest`, auto-detecting `podman` or `docker`.
-  - `task push`: Builds and pushes both tags (`:{{.GIT_HASH}}` and `:latest`) to the container registry.
-- **GitHub Actions (`.github/workflows/oci-image.yml`)**: Lints the Helm chart (`helm lint --strict`), builds and pushes the OCI container image (`ghcr.io/sleepinfinitydev/disperse`), and packages and pushes the OCI Helm chart (`oci://ghcr.io/sleepinfinitydev/charts/disperse`, separated under `/charts` and linked to the repository via `org.opencontainers.image.source` annotation) using `GITHUB_TOKEN` (`contents: read`, `packages: write`):
-  - **Triggers**: Runs automatically on `push` to `main` (and temporarily on `feat-helm-charts` while validating the Helm branch prior to merging into `main`), and supports manual execution from any branch via `workflow_dispatch`.
-  - **`main` Tagging**: Publishes container image tags `:<git-short-hash>`, `:<chart-version>`, and `:latest`, alongside Helm chart version `<chart-version>` (e.g., `0.1.0`) packaged with `--app-version <git-short-hash>`.
-  - **Branch / Preview Tagging (Non-`main`)**: Never publishes `latest` or stable SemVer versions. Instead, publishes sanitized branch container image tags `:<branch>-<git-short-hash>` and `:<branch>`, alongside SemVer 2.0 prerelease Helm chart versions `<chart-version>-<branch>` (rolling branch preview, e.g., `0.1.0-feat-helm-charts`) and `<chart-version>-<branch>.g<git-short-hash>` (immutable commit snapshot), packaged with `--app-version <branch>-<git-short-hash>` so deploying the branch chart automatically pulls the matching branch container image.
+  - `task run`: Generates `js/config.js` from 12-Factor environment variables (`KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `DRAWIO_BASE_URL`, `ENGINE_MODE_*`, `KROKI_DISABLED_ENGINES`, `FOOTER_CREDITS` / `DISPERSE_FOOTER_CREDITS`), starts `python3 -m http.server` on port `8765` by default (`PORT=...`), and restores `js/config.js` via `defer` upon exit.
+  - `task build`: Builds the container image (`ghcr.io/sleepinfinitydev/disperse` by default, configurable via `IMAGE=...` and `VERSION=0.2.0`) tagged with `:{{.VERSION}}` (`0.2.0`), the short Git commit hash (`:{{.GIT_HASH}}`), and `:latest`, auto-detecting `podman` or `docker`.
+  - `task push`: Builds and pushes all three tags (`:{{.VERSION}}`, `:{{.GIT_HASH}}`, and `:latest`) to the container registry.
+- **GitHub Actions (`.github/workflows/oci-image.yml`)**: Lints and templates the Helm chart (`helm lint --strict`), builds and pushes the OCI container image (`ghcr.io/sleepinfinitydev/disperse`), and packages and pushes the OCI Helm chart (`oci://ghcr.io/sleepinfinitydev/charts/disperse`, separated under `/charts` and linked to the repository via `org.opencontainers.image.source` annotation) using `GITHUB_TOKEN` (`contents: read`, `packages: write`):
+  - **Triggers**: Runs automatically on `push` and `pull_request` to `main` (validation-only on `pull_request`), and supports manual execution from any branch via `workflow_dispatch`.
+  - **`main` Tagging**: Publishes container image tags `:<git-short-hash>`, `:<chart-version>` (`0.2.0`), and `:latest`, alongside Helm chart version `<chart-version>` (`0.2.0`) packaged with `--app-version <chart-version>` (`0.2.0`) so chart `0.2.0` deploys image `0.2.0`.
+  - **Branch / Preview Tagging (Non-`main`)**: Never publishes `latest` or stable SemVer versions. Instead, publishes sanitized branch container image tags `:<branch>-<git-short-hash>` and `:<branch>`, alongside SemVer 2.0 prerelease Helm chart versions `<chart-version>-<branch>` (rolling branch preview, e.g., `0.2.0-feat-drawio-editor`) and `<chart-version>-<branch>.g<git-short-hash>` (immutable commit snapshot), packaged with `--app-version <branch>-<git-short-hash>` so deploying the branch chart automatically pulls the matching branch container image.
 
 ---
 
@@ -377,52 +381,56 @@ Disperse provides an official Helm v3 chart (`apiVersion: v2`, `type: applicatio
 
 ### 9.1. Architectural Goals & Decoupled Topology
 
-1. **Dual Backend Operating Modes**:
-   - **Mode A — Standalone Disperse with External Kroki (`kroki.enabled: false`, default)**:
+1. **Modular Backend Operating Modes**:
+   - **Mode A — Standalone Disperse with External Kroki & Draw.io (`kroki.enabled: false`, `drawio.enabled: false`, default)**:
      - Deploys only the `disperse` `Deployment` (static SPA served by `nginxinc/nginx-unprivileged` as `UID 101`).
-     - The browser communicates directly with `https://kroki.io` (or any custom private Kroki server defined in `disperse.krokiBaseUrl`).
-   - **Mode B — Full Self-Hosted Stack (`kroki.enabled: true`)**:
-     - Deploys a **second `Deployment`** (`<fullname>-kroki`) running `yuzutech/kroki` along with configurable companion sidecars (`mermaid`, `bpmn`, `excalidraw`) inside the same Pod over `127.0.0.1`.
+     - The browser communicates directly with `https://kroki.io` and `https://embed.diagrams.net` (or any custom private servers defined in `disperse.krokiBaseUrl` and `disperse.drawioBaseUrl`).
+   - **Mode B — Self-Hosted Kroki Rendering Stack (`kroki.enabled: true`)**:
+     - Deploys a **second `Deployment`** (`<fullname>-kroki`) running `yuzutech/kroki` along with configurable companion sidecars (`mermaid`, `bpmn`, `excalidraw`, `diagramsnet`) inside the same Pod over `127.0.0.1`.
      - Isolates the lightweight static frontend (`disperse`) from the JVM + headless Chromium rendering stack (`kroki`), enabling independent scaling, resource quotas, rollouts, and node scheduling.
+   - **Mode C — Optional Self-Hosted Draw.io Visual Editor (`drawio.enabled: true`)**:
+     - Deploys a **third `Deployment`** (`<fullname>-drawio`) running `jgraph/drawio` (`:8080`, `UID 1001`, `GID 999`) so embedded Draw.io visual editing runs 100% privately inside the cluster instead of loading `https://embed.diagrams.net`.
+     - **Why Draw.io Uses Both a Kroki Sidecar and an Optional `Deployment` (Unlike Excalidraw & BPMN)**:
+       - Excalidraw (`@excalidraw/excalidraw`) and BPMN (`bpmn-js`) are client-side JavaScript libraries mounted directly into a `<div>` inside Disperse's DOM, whereas Draw.io is a full Tomcat web application integrated via `<iframe>` + `postMessage` (`?embed=1&proto=json`).
+       - The `yuzutech/kroki-diagramsnet` sidecar (`127.0.0.1:8005` inside `<fullname>-kroki`) is a headless Node.js + Chromium worker containing only `export3.html` (no interactive editor UI) used strictly by Kroki to render static `SVG`/`PNG` images for direct Kroki URLs (`/diagramsnet/svg/...`), whereas `<fullname>-drawio` (`jgraph/drawio:32.6.10`) serves the interactive visual editor UI directly to the user's browser over its own `Service` and `Ingress`/`HTTPRoute`.
 2. **Decoupled Services & Independent Ingress / Gateway API Routing (No Nginx Reverse Proxy)**:
-   - Disperse's Nginx container serves static SPA assets exclusively; it does **not** reverse-proxy Kroki traffic.
-   - Instead, Disperse (`<fullname>:8765`) and Kroki (`<fullname>-kroki:8000`, when `kroki.enabled: true`) each expose their own dedicated Kubernetes `Service` and optional **`Ingress` (`ingress.*` / `kroki.ingress.*`)** or **Gateway API `HTTPRoute` (`httpRoute.*` / `kroki.httpRoute.*`)**:
+   - Disperse's Nginx container serves static SPA assets exclusively; it does **not** reverse-proxy Kroki or Draw.io traffic.
+   - Instead, Disperse (`<fullname>:8765`), Kroki (`<fullname>-kroki:8000`, when `kroki.enabled: true`), and Draw.io (`<fullname>-drawio:8080`, when `drawio.enabled: true`) each expose their own dedicated Kubernetes `Service` and optional **`Ingress` (`ingress.*` / `kroki.ingress.*` / `drawio.ingress.*`)** or **Gateway API `HTTPRoute` (`httpRoute.*` / `kroki.httpRoute.*` / `drawio.httpRoute.*`)**:
 
 ```
-                        Browser Client
-              ┌────────────────┴────────────────┐
-              │                                 │
-              ▼ (disperse.*)                    ▼ (kroki.* or kroki.io)
-   ┌──────────────────────┐          ┌──────────────────────────────────────┐
-   │ Ingress / HTTPRoute  │          │ Ingress / HTTPRoute                  │
-   │  Service: <fullname> │          │  Service: <fullname>-kroki (:8000)   │
-   │       (:8765)        │          └──────────────────┬───────────────────┘
-   └──────────┬───────────┘                             │
-              ▼                                         ▼
-   ┌──────────────────────┐          ┌──────────────────────────────────────┐
-   │ Deployment 1:        │          │ Deployment 2: <fullname>-kroki       │
-   │  <fullname>          │          │  ┌────────────────────────────────┐  │
-   │  nginx-unprivileged  │          │  │ Main: yuzutech/kroki (:8000)   │  │
-   │  (UID 101, static)   │          │  └───────┬────────┬────────┬──────┘  │
-   └──────────────────────┘          │          │127.0.0.1 (Pod loopback)   │
-                                     │          ▼        ▼        ▼         │
-                                     │  ┌──────────┐┌────────┐┌──────────┐  │
-                                     │  │ mermaid  ││  bpmn  ││excalidraw│  │
-                                     │  │ (:8002)  ││(:8003) ││ (:8004)  │  │
-                                     │  └──────────┘└────────┘└──────────┘  │
-                                     └──────────────────────────────────────┘
+                                       Browser Client
+           ┌─────────────────────────────────┼──────────────────────────────────┐
+           │                                 │                                  │
+           ▼ (disperse.*)                    ▼ (kroki.* or kroki.io)            ▼ (drawio.* or embed.diagrams.net)
+┌──────────────────────┐      ┌───────────────────────────────────────────┐  ┌──────────────────────────┐
+│ Ingress / HTTPRoute  │      │ Ingress / HTTPRoute                       │  │ Ingress / HTTPRoute      │
+│  Service: <fullname> │      │  Service: <fullname>-kroki (:8000)        │  │  Svc: <fullname>-drawio  │
+│       (:8765)        │      └────────────────────┬──────────────────────┘  │         (:8080)          │
+└──────────┬───────────┘                           │                         └────────────┬─────────────┘
+           ▼                                       ▼                                      ▼
+┌──────────────────────┐      ┌───────────────────────────────────────────┐  ┌──────────────────────────┐
+│ Deployment 1:        │      │ Deployment 2: <fullname>-kroki            │  │ Deployment 3 (optional): │
+│  <fullname>          │      │  ┌─────────────────────────────────────┐  │  │  <fullname>-drawio       │
+│  nginx-unprivileged  │      │  │ Main: yuzutech/kroki (:8000)        │  │  │  jgraph/drawio (:8080)   │
+│  (UID 101, static)   │      │  └───┬─────────┬──────────┬──────────┬─┘  │  │  (UID 1001, GID 999)     │
+└──────────────────────┘      │      │127.0.0.1 (Pod loopback)       │    │  └──────────────────────────┘
+                              │      ▼         ▼          ▼          ▼    │
+                              │  ┌───────┐ ┌──────┐ ┌──────────┐ ┌──────┐ │
+                              │  │mermaid│ │ bpmn │ │excalidraw│ │drawio│ │
+                              │  │(:8002)│ │(:8003│ │ (:8004)  │ │(:8005│ │
+                              │  └───────┘ └──────┘ └──────────┘ └──────┘ │
+                              └───────────────────────────────────────────┘
 ```
 
    - **Why Decoupled Routing Is Superior**:
-     - Upstream `yuzutech/kroki` serves requests at `/` (`/{engine}/{format}/{payload}`) and natively emits `Access-Control-Allow-Origin: *` CORS headers.
-     - Exposing Kroki on its own hostname (e.g., `kroki.127.0.0.1.nip.io` alongside `disperse.127.0.0.1.nip.io`) works identically across **every** Kubernetes Ingress controller (K3s Traefik, `ingress-nginx`, Cilium, HAProxy, AWS ALB) and Gateway API implementation without vendor-specific regex path-rewrite annotations or CRDs, and eliminates an unnecessary L7 hop through Nginx.
-     - Switching between public Kroki (`kroki.io`), an existing corporate Kroki server, or the chart's built-in Kroki stack reduces to changing a single backend URL (`KROKI_BASE_URL` / `disperse.krokiBaseUrl`).
-3. **Automatic `KROKI_BASE_URL` Resolution in Helm (`disperse.krokiBaseUrl`)**:
-   - When `disperse.krokiBaseUrl` is explicitly set, that URL is used verbatim.
-   - Otherwise, when `kroki.enabled: true`, the chart automatically derives `KROKI_BASE_URL` from `kroki.ingress.hosts[0]` (`https://` when `kroki.ingress.tls` is configured, else `http://`), or from `kroki.httpRoute.hostnames[0]` (`https://` when `kroki.httpRoute.https` or an HTTPS/TLS `sectionName` is used), falling back to `http://localhost:<kroki.service.port>` for local `kubectl port-forward` usage.
-   - When `kroki.enabled: false` and `disperse.krokiBaseUrl` is empty, it defaults to `https://kroki.io`.
+     - Upstream `yuzutech/kroki` serves requests at `/` (`/{engine}/{format}/{payload}`) and natively emits `Access-Control-Allow-Origin: *` CORS headers, while `jgraph/drawio` serves its embeddable webapp at `/` (`/?embed=1&proto=json...`).
+     - Exposing Kroki and Draw.io on their own hostnames (e.g., `kroki.127.0.0.1.nip.io` and `drawio.127.0.0.1.nip.io` alongside `disperse.127.0.0.1.nip.io`) works identically across **every** Kubernetes Ingress controller (K3s Traefik, `ingress-nginx`, Cilium, HAProxy, AWS ALB) and Gateway API implementation without vendor-specific regex path-rewrite annotations or CRDs, and eliminates an unnecessary L7 hop through Nginx.
+     - Switching between public endpoints (`kroki.io`, `embed.diagrams.net`), existing corporate servers, or the chart's built-in Kroki and Draw.io stacks reduces to changing backend URLs (`KROKI_BASE_URL` / `DRAWIO_BASE_URL`).
+3. **Automatic `KROKI_BASE_URL` and `DRAWIO_BASE_URL` Resolution in Helm**:
+   - **`disperse.krokiBaseUrl`**: When explicitly set, used verbatim. Otherwise, when `kroki.enabled: true`, automatically derives from `kroki.ingress.hosts[0]` (`https://` if TLS, else `http://`), or `kroki.httpRoute.hostnames[0]`, falling back to `http://localhost:<kroki.service.port>` for `kubectl port-forward`; when `kroki.enabled: false`, defaults to `https://kroki.io`.
+   - **`disperse.drawioBaseUrl`**: When explicitly set, used verbatim. Otherwise, when `drawio.enabled: true`, automatically derives from `drawio.ingress.hosts[0]` (`https://` if TLS, else `http://`), or `drawio.httpRoute.hostnames[0]`, falling back to `http://localhost:<drawio.service.port>` (`http://localhost:8080`) for `kubectl port-forward`; when `drawio.enabled: false`, defaults to `drawio.remoteFallbackUrl` (`https://embed.diagrams.net`).
 4. **Pure 12-Factor Injection (No `ConfigMap` Duplication)**:
-   - `templates/deployment.yaml` injects all runtime configuration (`PORT`, `KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `ENGINE_MODE_MERMAID`, `ENGINE_MODE_BPMN`, `ENGINE_MODE_EXCALIDRAW`, `KROKI_DISABLED_ENGINES`, `FOOTER_CREDITS`, plus `disperse.env` overrides) directly as container environment variables consumed by `40-disperse.sh`, mounting only a single `emptyDir` at `/tmp`.
+   - `templates/deployment.yaml` injects all runtime configuration (`PORT`, `KROKI_BASE_URL`, `KROKI_REMOTE_URL`, `DRAWIO_BASE_URL`, `ENGINE_MODE_MERMAID`, `ENGINE_MODE_BPMN`, `ENGINE_MODE_EXCALIDRAW`, `ENGINE_MODE_DIAGRAMSNET`, `KROKI_DISABLED_ENGINES`, `FOOTER_CREDITS`, plus `disperse.env` overrides) directly as container environment variables consumed by `40-disperse.sh`, mounting only a single `emptyDir` at `/tmp`.
 5. **Extensibility via `extraManifests`**:
    - Built-in `extraManifests` list rendered through Helm's `tpl` engine so operators can bundle arbitrary Kubernetes resources (e.g., `Gateway`, `Certificate`, `NetworkPolicy`, `ServiceMonitor`) with full access to chart context and helpers.
 
@@ -430,7 +438,7 @@ Disperse provides an official Helm v3 chart (`apiVersion: v2`, `type: applicatio
 
 ### 9.2. Companion Sidecars & Tri-State (`local` | `remote` | `disabled`) Modes
 
-To render all **28 diagram engines** supported by Disperse, the `<fullname>-kroki` `Deployment` combines the core `yuzutech/kroki` container (25 built-in engines) with **3 individually configurable headless-Chromium companion sidecars** (`mermaid`, `bpmn`, `excalidraw`):
+To render all **29 diagram engines** supported by Disperse, the `<fullname>-kroki` `Deployment` combines the core `yuzutech/kroki` container (25 built-in engines) with **4 individually configurable headless-Chromium companion sidecars** (`mermaid`, `bpmn`, `excalidraw`, `diagramsnet`):
 
 | Container / Engine | Helm Setting | Disperse Container Env Var | Default Mode (`kroki.enabled=true`) | Image (when `mode: local`) | Port |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -438,17 +446,20 @@ To render all **28 diagram engines** supported by Disperse, the `<fullname>-krok
 | **`mermaid`** | `kroki.sidecars.mermaid.mode` | `ENGINE_MODE_MERMAID` | `"local"` | `docker.io/yuzutech/kroki-mermaid:0.33.0` | `8002` |
 | **`bpmn`** | `kroki.sidecars.bpmn.mode` | `ENGINE_MODE_BPMN` | `"local"` | `docker.io/yuzutech/kroki-bpmn:0.33.0` | `8003` |
 | **`excalidraw`** | `kroki.sidecars.excalidraw.mode` | `ENGINE_MODE_EXCALIDRAW` | `"local"` | `docker.io/yuzutech/kroki-excalidraw:0.33.0` | `8004` |
+| **`diagramsnet`** | `kroki.sidecars.diagramsnet.mode` | `ENGINE_MODE_DIAGRAMSNET` | `"local"` | `docker.io/yuzutech/kroki-diagramsnet:0.33.0` | `8005` |
+
+*(Additionally, when `drawio.enabled: true`, Deployment `<fullname>-drawio` runs `docker.io/jgraph/drawio:32.6.10` on port `8080` to host the interactive Draw.io visual editor inside the cluster.)*
 
 #### Tri-State Mode Semantics
-- **`mode: "local"` *(default when `kroki.enabled: true`)*:** Deploys the corresponding `yuzutech/kroki-<engine>` sidecar container inside `<fullname>-kroki` (wired over `127.0.0.1` via `KROKI_<ENGINE>_HOST` / `KROKI_<ENGINE>_PORT`, with a shared `/dev/shm` `Memory` `emptyDir` volume sized via `kroki.sidecars.shmSize`, default `256Mi`) and routes requests to `KROKI_BASE_URL`. Guarantees **100% in-cluster diagram rendering privacy**.
-- **`mode: "remote"`:** Omits the sidecar container from `<fullname>-kroki` (saving ~150–400 MB Chromium RAM per sidecar). When `KROKI_BASE_URL !== KROKI_REMOTE_URL`, Disperse marks the engine in `#engine-select` with `<label> 🌐 (<remote_host>)`, highlights `#engine-select` in `--color-tertiary`, displays a `"⚠️ External service (<host>, non-confidential)"` tooltip, and routes rendering/snippet URLs for that engine directly to `KROKI_REMOTE_URL` (`https://kroki.io` by default).
+- **`mode: "local"` *(default when `kroki.enabled: true`)*:** Deploys the corresponding `yuzutech/kroki-<engine>` sidecar container inside `<fullname>-kroki` (wired over `127.0.0.1` via `KROKI_<ENGINE>_HOST` / `KROKI_<ENGINE>_PORT`, with a shared `/dev/shm` `Memory` `emptyDir` volume sized via `kroki.sidecars.shmSize`, default `256Mi`) and routes Kroki requests to `KROKI_BASE_URL`. Guarantees **100% in-cluster diagram rendering privacy**. (For `diagramsnet`, if `drawio.enabled` is `false` and `DRAWIO_BASE_URL` points to public `embed.diagrams.net`, Disperse still marks `Draw.io (Editor · Beta)` with `🌐 (embed.diagrams.net)` to indicate the visual editor iframe is loaded externally until `drawio.enabled: true` or a private `DRAWIO_BASE_URL` is configured.)
+- **`mode: "remote"`:** Omits the sidecar container from `<fullname>-kroki` (saving ~150–400 MB Chromium RAM per sidecar). When `KROKI_BASE_URL !== KROKI_REMOTE_URL`, Disperse marks the engine in `#engine-select` with `<label> 🌐 (<remote_host>)`, highlights `#engine-select` in `--color-tertiary`, displays a `"⚠️ External service (<host>, non-confidential)"` tooltip, and routes rendering/snippet URLs for that engine directly to `KROKI_REMOTE_URL` (`https://kroki.io` by default; note that public `https://kroki.io` does not currently run the experimental `kroki-diagramsnet` companion container).
 - **`mode: "disabled"`:** Omits the sidecar container and removes the engine from `#engine-select` and file auto-detection.
 - **Standalone / External Kroki Guard (`kroki.enabled: false`)**: When `kroki.enabled: false`, `kroki.sidecars` is ignored so connecting Disperse to an external private `disperse.krokiBaseUrl` routes all engines to `disperse.krokiBaseUrl` by default (unless explicitly overridden in `disperse.engineModes`).
 
 #### Kubernetes Hardening & Best Practices
-1. **PodSecurity `restricted` Compliance Across Both Deployments**:
-   - **`disperse` (`UID/GID 101`)** and **`kroki` + sidecars (`UID/GID 1001`)** run with `runAsNonRoot: true`, `readOnlyRootFilesystem: true`, `allowPrivilegeEscalation: false`, `seccompProfile: RuntimeDefault`, and `capabilities.drop: ["ALL"]` (including the `helm test` Pod running as `UID 65534`).
-   - Isolated `emptyDir` `subPath` mounts provide writable `/tmp` and `/home/kroki` directories for each container in `<fullname>-kroki`.
+1. **PodSecurity `restricted` Compliance Across All Deployments**:
+   - **`disperse` (`UID/GID 101`)**, **`kroki` + sidecars (`UID/GID 1001`)**, and **`drawio` (`UID 1001`, `GID 999`)** run with `runAsNonRoot: true`, `allowPrivilegeEscalation: false`, `seccompProfile: RuntimeDefault`, and `capabilities.drop: ["ALL"]` (including the `helm test` Pod running as `UID 65534`).
+   - `disperse` and `kroki` + sidecars enforce `readOnlyRootFilesystem: true` with isolated `emptyDir` `subPath` mounts providing writable `/tmp` and `/home/kroki` directories (`drawio` sets `readOnlyRootFilesystem: false` as `jgraph/drawio`'s entrypoint configures Tomcat `$CATALINA_HOME` at startup under `UID 1001`).
 2. **Preventing the `KROKI_PORT` Collision**:
    - Sets `enableServiceLinks: false` on `<fullname>-kroki` so Kubernetes never injects `KROKI_PORT=tcp://...` environment variables that would crash `yuzutech/kroki`.
 3. **URI & Payload Sizing**:
@@ -460,7 +471,7 @@ To render all **28 diagram engines** supported by Disperse, the `<fullname>-krok
 
 ```
 charts/disperse/
-├── Chart.yaml                   # Chart metadata (apiVersion: v2, type: application)
+├── Chart.yaml                   # Chart metadata (apiVersion: v2, version: 0.2.0, appVersion: "0.2.0")
 ├── .helmignore                  # Ignored files when packaging
 ├── README.md                    # Chart documentation & quick-start examples
 ├── values.yaml                  # Default configuration values
@@ -477,10 +488,14 @@ charts/disperse/
     ├── kroki-service.yaml       # Conditional Kroki Service (<fullname>-kroki:8000)
     ├── kroki-ingress.yaml       # Conditional Ingress for Kroki (if kroki.enabled & kroki.ingress.enabled)
     ├── kroki-httproute.yaml     # Conditional HTTPRoute for Kroki (if kroki.enabled & kroki.httpRoute.enabled)
+    ├── drawio-deployment.yaml   # Conditional Draw.io Deployment (if drawio.enabled)
+    ├── drawio-service.yaml      # Conditional Draw.io Service (<fullname>-drawio:8080)
+    ├── drawio-ingress.yaml      # Conditional Ingress for Draw.io (if drawio.enabled & drawio.ingress.enabled)
+    ├── drawio-httproute.yaml    # Conditional HTTPRoute for Draw.io (if drawio.enabled & drawio.httpRoute.enabled)
     ├── pdb.yaml                 # Optional PodDisruptionBudget (if pdb.enabled)
     ├── extra-manifests.yaml     # Templated extra Kubernetes manifests (if extraManifests)
     └── tests/
-        └── test-connection.yaml # Helm test hook verifying Disperse `/`, `/js/config.js` & Kroki `/health`
+        └── test-connection.yaml # Helm test hook verifying Disperse, Kroki (/health), and Draw.io (/)
 ```
 
 #### Key `values.yaml` Structure Overview
@@ -494,12 +509,13 @@ replicaCount: 1
 image:
   registry: ghcr.io
   repository: sleepinfinitydev/disperse
-  tag: "" # Defaults to .Chart.AppVersion ("latest")
+  tag: "" # Defaults to .Chart.AppVersion ("0.2.0")
   pullPolicy: IfNotPresent
 
 disperse:
   krokiBaseUrl: ""     # Auto-derived when empty
   krokiRemoteUrl: ""   # Defaults to kroki.remoteFallbackUrl ("https://kroki.io")
+  drawioBaseUrl: ""    # Auto-derived when empty ("https://embed.diagrams.net" when drawio.enabled=false)
   engineModes: {}      # Optional overrides when kroki.enabled=false
   footerCredits: null  # null = default credits, "" = hide footer, "<string>" = custom HTML/text
   disabledEngines: []
@@ -540,10 +556,36 @@ kroki:
     excalidraw:
       mode: "local"    # "local" | "remote" | "disabled"
       port: 8004
+    diagramsnet:
+      mode: "local"    # "local" | "remote" | "disabled"
+      port: 8005
   ingress:
     enabled: false
     hosts:
       - host: kroki.127.0.0.1.nip.io
+        paths:
+          - path: /
+            pathType: Prefix
+  httpRoute:
+    enabled: false
+    https: false
+
+drawio:
+  enabled: false
+  replicaCount: 1
+  remoteFallbackUrl: "https://embed.diagrams.net"
+  image:
+    registry: docker.io
+    repository: jgraph/drawio
+    tag: "32.6.10"
+  service:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+  ingress:
+    enabled: false
+    hosts:
+      - host: drawio.127.0.0.1.nip.io
         paths:
           - path: /
             pathType: Prefix
@@ -573,31 +615,14 @@ extraManifests: []
 #### Implemented
 - **Hardened Unprivileged 12-Factor Container (`Containerfile`)**: `nginxinc/nginx-unprivileged:stable` (`UID 101`, `readOnlyRootFilesystem: true` with `/tmp` runtime config & server block, `Cache-Control: no-store` on `/js/config.js`, static SPA only without reverse proxy).
 - **Client-Side SVG XSS Sanitization (`js/viewer.js`)**: `DOMParser`-based sanitizer (`parseAndSanitizeSvg`) stripping scripts, unsafe SMIL mutations, `on*` handlers, external `<use>`, unsafe URIs, and CSS vectors while preserving `<foreignObject>` HTML labels and `@font-face` fonts.
-- **Decoupled Helm Chart (`charts/disperse`)**: Independent `Deployment`, `Service`, `Ingress`, and Gateway API `HTTPRoute` resources for Disperse (`<fullname>`) and Kroki (`<fullname>-kroki`), with automatic `KROKI_BASE_URL` derivation, `PodSecurity` `restricted` compliance (`UID 101` / `UID 1001` / `UID 65534`), and full tri-state companion sidecar support (`local` | `remote` | `disabled`) for **Mermaid (`:8002`)**, **BPMN (`:8003`)**, and **Excalidraw (`:8004`)**.
-- **Embedded Bidirectional WYSIWYG Editors (`js/wysiwyg.js`)**: Interactive `@excalidraw/excalidraw` and `bpmn-js` (`BpmnModeler`) visual editors with real-time code/URL synchronization and client-side SVG/PNG export.
-- **OCI Image & Helm Chart CI/CD (`.github/workflows/oci-image.yml`)**: Automated strict linting and publishing to `ghcr.io/sleepinfinitydev/disperse` (image) and `oci://ghcr.io/sleepinfinitydev/charts/disperse` (Helm chart) with isolated SemVer 2.0 prerelease tags on non-`main` branches.
+- **Decoupled Helm Chart (`charts/disperse`, `0.2.0`)**: Independent `Deployment`, `Service`, `Ingress`, and Gateway API `HTTPRoute` resources for Disperse (`<fullname>`), Kroki (`<fullname>-kroki`), and Draw.io (`<fullname>-drawio`), with automatic `KROKI_BASE_URL` and `DRAWIO_BASE_URL` derivation, `PodSecurity` `restricted` compliance (`UID 101` / `UID 1001` / `UID 65534`), and full tri-state companion sidecar support (`local` | `remote` | `disabled`) for **Mermaid (`:8002`)**, **BPMN (`:8003`)**, **Excalidraw (`:8004`)**, and **Diagrams.net (`:8005`)**.
+- **Embedded Bidirectional WYSIWYG Editors (`js/wysiwyg.js`)**: Interactive `@excalidraw/excalidraw`, `bpmn-js` (`BpmnModeler`), and Draw.io / `diagrams.net` (`<iframe>` + JSON `postMessage` protocol with `passThroughKeys` and uncompressed `<mxfile>` XML formatting) visual editors with real-time code/URL synchronization, theme switching, and client-side SVG/PNG export. *(Note: Unlike Excalidraw, BPMN 2.0, and Draw.io—all of which persist explicit `x`/`y` coordinates in their source format—Mermaid is a declarative auto-layout DSL and intentionally remains a text-first code language.)*
+- **OCI Image & Helm Chart CI/CD (`.github/workflows/oci-image.yml`)**: Automated strict linting and publishing (`0.2.0`) to `ghcr.io/sleepinfinitydev/disperse` (image) and `oci://ghcr.io/sleepinfinitydev/charts/disperse` (Helm chart) with isolated SemVer 2.0 prerelease tags on non-`main` branches.
 
 #### Pending Implementation Plan
 
-1. **Branch Validation & Merge Cleanup (`feat-helm-charts` -> `main`)**:
-   - Validate end-to-end deployment directly from GHCR (`helm upgrade --install disperse oci://ghcr.io/sleepinfinitydev/charts/disperse --version 0.1.0-feat-helm-charts`) on a live Kubernetes cluster (e.g., K3s) in both standalone (`kroki.enabled: false`) and self-hosted (`kroki.enabled: true` with sidecars and Ingress/HTTPRoute) modes.
-   - Upon merging `feat-helm-charts` into `main`, remove `feat-helm-charts` from `on.push.branches` in `.github/workflows/oci-image.yml` so automatic pushes run on `main` while future feature branches use manual `workflow_dispatch`.
-
-2. **Diagrams.net / Draw.io Full Support (Engine + Sidecar + Embedded WYSIWYG Editor)**:
-   - **Disperse Frontend & Runtime Config**:
-     - Add `diagramsnet` (`mode: 'xml'`, `wysiwyg: true`, `beta: true`) to `ENGINES` in `js/kroki.js` alongside a stock example `examples/diagramsnet.txt`.
-     - Add automatic file detection in `detectEngineFromFile()` for `.drawio` extensions and generic `.xml` files containing `<mxfile` / `<mxGraphModel`.
-     - Add `ENGINE_MODE_DIAGRAMSNET` (`local` | `remote` | `disabled`) to `Containerfile`, `Taskfile.yml`, `window.DISPERSE_CONFIG.engineModes.diagramsnet`, and `charts/disperse`.
-   - **Helm Chart Kroki Sidecar (`charts/disperse`)**:
-     - Integrate `yuzutech/kroki-diagramsnet:0.33.0` (`:8005`, `KROKI_DIAGRAMSNET_HOST=127.0.0.1`, `KROKI_DIAGRAMSNET_PORT=8005`) into `templates/kroki-deployment.yaml`, `values.yaml` (`kroki.sidecars.diagramsnet`), and `values.schema.json` with tri-state `mode` (`local` | `remote` | `disabled`, defaulting to `disabled` or `local` as desired).
-   - **Embedded Visual Editor (`js/wysiwyg.js` & Optional Self-Hosted Editor in Chart)**:
-     - Integrate `diagrams.net` in `js/wysiwyg.js` via `iframe` + JSON `postMessage` protocol (`?embed=1&proto=json&spin=1&ui=min`), synchronizing `autosave`/`save`/`export` events bidirectionally with the Ace XML editor, URL `#hash`, and Kroki snippets.
-     - Support dual `remote` vs. `local` editor hosting: use `https://embed.diagrams.net` in `remote` mode (displaying the explicit external/non-confidential UI indicator), and optionally allow deploying a self-hosted `jgraph/drawio` `Deployment`/`Service`/`Ingress` (`HTTPRoute`) from `charts/disperse` for 100% private in-cluster visual editing.
-   - **Architectural Note on Mermaid (Why Mermaid Remains Text-First)**:
-     - Unlike Excalidraw (JSON scene), BPMN 2.0 (`<bpmndi:BPMNDiagram>` XML), and Diagrams.net (`mxGraphModel` XML)—all of which store explicit `x`/`y` node coordinates in their source format—Mermaid is a declarative auto-layout DSL (`dagre`/`elk`) that does not persist manual canvas coordinates in its syntax; therefore, Mermaid intentionally remains a text-first code language rather than a freeform WYSIWYG canvas.
-
-3. **Vendorized Frontend Assets & Supply-Chain Hardening for Full Air-Gapped Operation**:
-   - Currently, while diagram payloads stay 100% in-cluster when `kroki.enabled: true` with `local` sidecars, the browser still fetches UI fonts, core JS libraries, and WYSIWYG bundles from public CDNs (`fonts.googleapis.com`, `fonts.gstatic.com`, `cdnjs.cloudflare.com`, `unpkg.com`).
+1. **Vendorized Frontend Assets & Supply-Chain Hardening for Full Air-Gapped Operation**:
+   - Currently, while diagram payloads and Draw.io editing stay 100% in-cluster when `kroki.enabled: true` (with `local` sidecars) and `drawio.enabled: true`, the browser still fetches UI fonts, core JS libraries, and Excalidraw/BPMN bundles from public CDNs (`fonts.googleapis.com`, `fonts.gstatic.com`, `cdnjs.cloudflare.com`, `unpkg.com`).
    - To enable **true offline / air-gapped operation** (zero external browser requests) and eliminate external CDN runtime dependencies:
      - **Typography**: Self-host `IBM Plex Sans` and `IBM Plex Mono` (`woff2` subsets + local `@font-face` rules) instead of Google Fonts CDN.
      - **Core SPA Libraries**: Vendorize/bundle `ace.js` (including dynamic syntax mode workers/scripts used by `ENGINES` and `keybinding-vim.min.js`), `pako.min.js`, `@panzoom/panzoom`, and `lucide.min.js` into local static assets served directly by Disperse's container image.

@@ -15,7 +15,7 @@ replicaCount: 1
 image:
   registry: ghcr.io
   repository: sleepinfinitydev/disperse
-  # Overrides the image tag whose default is the chart appVersion ("latest")
+  # Overrides the image tag whose default is the chart appVersion ("0.2.0")
   tag: ""
   pullPolicy: IfNotPresent
 
@@ -56,6 +56,12 @@ disperse:
   krokiBaseUrl: ""
   # Optional external fallback Kroki URL override (defaults to kroki.remoteFallbackUrl / "https://kroki.io")
   krokiRemoteUrl: ""
+  # Draw.io / diagrams.net visual editor base URL used by the browser (DRAWIO_BASE_URL).
+  # When empty (""):
+  # - If drawio.enabled=false: defaults to drawio.remoteFallbackUrl ("https://embed.diagrams.net")
+  # - If drawio.enabled=true: auto-derives from drawio.ingress.hosts[0], drawio.httpRoute.hostnames[0],
+  #   or falls back to "http://localhost:<drawio.service.port>" for port-forward usage.
+  drawioBaseUrl: ""
   # Optional per-engine mode overrides when kroki.enabled=false (e.g. { mermaid: "remote" })
   engineModes: {}
   # Custom footer HTML/text injected via FOOTER_CREDITS:
@@ -196,6 +202,16 @@ kroki:
       port: 8004
       env: []
       resources: {}
+    diagramsnet:
+      mode: "local"
+      image:
+        registry: docker.io
+        repository: yuzutech/kroki-diagramsnet
+        tag: "0.33.0"
+        pullPolicy: IfNotPresent
+      port: 8005
+      env: []
+      resources: {}
   # Dedicated Ingress for the self-hosted Kroki backend (when kroki.enabled=true)
   ingress:
     enabled: false
@@ -223,6 +239,85 @@ kroki:
       #   sectionName: https
     hostnames: []
       # - kroki.127.0.0.1.nip.io
+    rules:
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /
+
+# -----------------------------------------------------------------------------
+# Self-Hosted Draw.io / diagrams.net Visual Editor (Deployment 3: <fullname>-drawio)
+# -----------------------------------------------------------------------------
+drawio:
+  enabled: false
+  replicaCount: 1
+  # External Draw.io embed URL used when drawio.enabled is false
+  remoteFallbackUrl: "https://embed.diagrams.net"
+  image:
+    registry: docker.io
+    repository: jgraph/drawio
+    tag: "32.6.10"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+    nodePort: null
+    annotations: {}
+  env: []
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    runAsGroup: 999
+    fsGroup: 999
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    runAsUser: 1001
+    capabilities:
+      drop:
+        - ALL
+  resources: {}
+    # limits:
+    #   cpu: 500m
+    #   memory: 512Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 256Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # Dedicated Ingress for the self-hosted Draw.io editor (when drawio.enabled=true)
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: drawio.127.0.0.1.nip.io
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+    #  - secretName: drawio-tls
+    #    hosts:
+    #      - drawio.example.com
+  # Dedicated Gateway API HTTPRoute for the self-hosted Draw.io editor (when drawio.enabled=true)
+  httpRoute:
+    enabled: false
+    https: false
+    annotations: {}
+    labels: {}
+    parentRefs: []
+      # - name: main-gateway
+      #   namespace: gateway-system
+      #   sectionName: https
+    hostnames: []
+      # - drawio.127.0.0.1.nip.io
     rules:
       - matches:
           - path:

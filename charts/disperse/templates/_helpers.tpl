@@ -31,6 +31,13 @@ Fully qualified name for the self-hosted Kroki resources.
 {{- end }}
 
 {{/*
+Fully qualified name for the self-hosted Draw.io resources.
+*/}}
+{{- define "disperse.drawioFullname" -}}
+{{- printf "%s-drawio" (include "disperse.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
 Create chart name and version as used by the chart label.
 */}}
 {{- define "disperse.chart" -}}
@@ -86,6 +93,32 @@ app.kubernetes.io/component: kroki
 {{- end }}
 
 {{/*
+Common labels for Draw.io editor resources
+*/}}
+{{- define "disperse.drawioLabels" -}}
+{{- $drawio := .Values.drawio | default dict -}}
+{{- $drawioImg := $drawio.image | default dict -}}
+helm.sh/chart: {{ include "disperse.chart" . }}
+{{ include "disperse.drawioSelectorLabels" . }}
+{{- if $drawioImg.tag }}
+app.kubernetes.io/version: {{ $drawioImg.tag | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- with .Values.commonLabels }}
+{{ toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Selector labels for the Draw.io Deployment & Service
+*/}}
+{{- define "disperse.drawioSelectorLabels" -}}
+app.kubernetes.io/name: {{ include "disperse.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: drawio
+{{- end }}
+
+{{/*
 Create the name of the service account to use
 */}}
 {{- define "disperse.serviceAccountName" -}}
@@ -134,6 +167,31 @@ Resolve Kroki numeric container port
 {{- end }}
 
 {{/*
+Resolve Draw.io Service port
+*/}}
+{{- define "disperse.drawioPort" -}}
+{{- $drawio := .Values.drawio | default dict -}}
+{{- $svc := $drawio.service | default dict -}}
+{{- int ($svc.port | default $drawio.port | default 8080) -}}
+{{- end }}
+
+{{/*
+Resolve Draw.io numeric container port
+*/}}
+{{- define "disperse.drawioContainerPort" -}}
+{{- $drawio := .Values.drawio | default dict -}}
+{{- $svc := $drawio.service | default dict -}}
+{{- $tp := $svc.targetPort -}}
+{{- if and $tp (or (kindIs "int" $tp) (kindIs "int64" $tp) (kindIs "float64" $tp)) -}}
+{{- int $tp -}}
+{{- else if and $tp (kindIs "string" $tp) (regexMatch "^[0-9]+$" $tp) -}}
+{{- $tp -}}
+{{- else -}}
+{{- include "disperse.drawioPort" . -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Resolve Disperse container image
 */}}
 {{- define "disperse.image" -}}
@@ -156,6 +214,22 @@ Resolve Kroki container image
 {{- printf "%s/%s:%s" $registry .Values.kroki.image.repository $tag -}}
 {{- else -}}
 {{- printf "%s:%s" .Values.kroki.image.repository $tag -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Resolve Draw.io container image
+*/}}
+{{- define "disperse.drawioImage" -}}
+{{- $drawio := .Values.drawio | default dict -}}
+{{- $img := $drawio.image | default dict -}}
+{{- $registry := default ($img.registry | default "docker.io") .Values.global.imageRegistry -}}
+{{- $repo := $img.repository | default "jgraph/drawio" -}}
+{{- $tag := default "32.6.10" $img.tag | toString -}}
+{{- if $registry -}}
+{{- printf "%s/%s:%s" $registry $repo $tag -}}
+{{- else -}}
+{{- printf "%s:%s" $repo $tag -}}
 {{- end -}}
 {{- end }}
 
@@ -271,6 +345,42 @@ Effective Remote Fallback URL for remote-mode companion engines
 {{- define "disperse.krokiRemoteUrl" -}}
 {{- $fallback := .Values.kroki.remoteFallbackUrl | default "https://kroki.io" -}}
 {{- default $fallback .Values.disperse.krokiRemoteUrl | trimSuffix "/" -}}
+{{- end }}
+
+{{/*
+Effective Draw.io Base URL for the embedded visual editor in the browser
+*/}}
+{{- define "disperse.drawioBaseUrl" -}}
+{{- $drawio := .Values.drawio | default dict -}}
+{{- if .Values.disperse.drawioBaseUrl -}}
+{{- .Values.disperse.drawioBaseUrl | trimSuffix "/" -}}
+{{- else if $drawio.enabled -}}
+  {{- $dIng := $drawio.ingress | default dict -}}
+  {{- $dHr := $drawio.httpRoute | default dict -}}
+  {{- if and $dIng.enabled (gt (len ($dIng.hosts | default list)) 0) -}}
+    {{- $firstHost := index $dIng.hosts 0 -}}
+    {{- if $firstHost.host -}}
+      {{- $scheme := ternary "https" "http" (gt (len ($dIng.tls | default list)) 0) -}}
+      {{- $firstPath := "" -}}
+      {{- if gt (len ($firstHost.paths | default list)) 0 -}}
+        {{- $p := (index $firstHost.paths 0).path | default "/" | trimSuffix "/" -}}
+        {{- if and $p (ne $p "/") -}}
+          {{- $firstPath = $p -}}
+        {{- end -}}
+      {{- end -}}
+      {{- printf "%s://%s%s" $scheme $firstHost.host $firstPath -}}
+    {{- else -}}
+      {{- printf "http://localhost:%s" (include "disperse.drawioPort" .) -}}
+    {{- end -}}
+  {{- else if and $dHr.enabled (gt (len ($dHr.hostnames | default list)) 0) -}}
+    {{- $scheme := include "disperse.httpRouteScheme" $dHr -}}
+    {{- printf "%s://%s" $scheme (index $dHr.hostnames 0) -}}
+  {{- else -}}
+    {{- printf "http://localhost:%s" (include "disperse.drawioPort" .) -}}
+  {{- end -}}
+{{- else -}}
+{{- $drawio.remoteFallbackUrl | default "https://embed.diagrams.net" | trimSuffix "/" -}}
+{{- end -}}
 {{- end }}
 
 {{/*

@@ -1,14 +1,20 @@
 {{- $krokiSvcPort := int (include "disperse.krokiPort" .) -}}
+{{- $drawioSvcPort := int (include "disperse.drawioPort" .) -}}
 {{- $kIng := .Values.kroki.ingress | default dict -}}
 {{- $kHr := .Values.kroki.httpRoute | default dict -}}
+{{- $drawio := .Values.drawio | default dict -}}
+{{- $dIng := $drawio.ingress | default dict -}}
+{{- $dHr := $drawio.httpRoute | default dict -}}
 1. Disperse has been deployed!
    - Mode: {{ if .Values.kroki.enabled }}Self-hosted Kroki backend ({{ include "disperse.krokiFullname" . }}){{ else }}External Kroki backend{{ end }}
    - Primary Kroki URL (KROKI_BASE_URL): {{ include "disperse.krokiBaseUrl" . }}
+   - Draw.io Editor URL (DRAWIO_BASE_URL): {{ include "disperse.drawioBaseUrl" . }}{{ if $drawio.enabled }} (self-hosted: {{ include "disperse.drawioFullname" . }}){{ end }}
 {{- if .Values.kroki.enabled }}
    - Companion engine modes:
-     * mermaid:    {{ include "disperse.engineMode" (dict "root" . "engine" "mermaid") }}
-     * bpmn:       {{ include "disperse.engineMode" (dict "root" . "engine" "bpmn") }}
-     * excalidraw: {{ include "disperse.engineMode" (dict "root" . "engine" "excalidraw") }}
+     * mermaid:     {{ include "disperse.engineMode" (dict "root" . "engine" "mermaid") }}
+     * bpmn:        {{ include "disperse.engineMode" (dict "root" . "engine" "bpmn") }}
+     * excalidraw:  {{ include "disperse.engineMode" (dict "root" . "engine" "excalidraw") }}
+     * diagramsnet: {{ include "disperse.engineMode" (dict "root" . "engine" "diagramsnet") }}
 {{- end }}
 
 2. Access Disperse:
@@ -44,4 +50,9 @@
 
 3. Forward the self-hosted Kroki service locally (required when neither kroki.ingress nor kroki.httpRoute is enabled):
   kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "disperse.krokiFullname" . }} {{ $krokiSvcPort }}:{{ $krokiSvcPort }}
+{{- end }}
+{{- if and $drawio.enabled (not $dIng.enabled) (not $dHr.enabled) }}
+
+4. Forward the self-hosted Draw.io editor locally (required when neither drawio.ingress nor drawio.httpRoute is enabled):
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "disperse.drawioFullname" . }} {{ $drawioSvcPort }}:{{ $drawioSvcPort }}
 {{- end }}

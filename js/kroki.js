@@ -30,7 +30,8 @@ const ENGINES = [
   { id: 'wavedrom', label: 'wavedrom', mode: 'json', docs: 'https://wavedrom.com/tutorial.html' },
   { id: 'wireviz', label: 'wireviz', mode: 'yaml', docs: 'https://github.com/wireviz/WireViz' },
   { id: 'excalidraw', label: 'Excalidraw (Editor · Beta)', mode: 'json', docs: 'https://docs.excalidraw.com/', wysiwyg: true, beta: true, krokiFormats: ['svg'] },
-  { id: 'bpmn', label: 'BPMN (Editor · Beta)', mode: 'xml', docs: 'https://www.omg.org/spec/BPMN/2.0/', wysiwyg: true, beta: true, krokiFormats: ['svg'] }
+  { id: 'bpmn', label: 'BPMN (Editor · Beta)', mode: 'xml', docs: 'https://www.omg.org/spec/BPMN/2.0/', wysiwyg: true, beta: true, krokiFormats: ['svg'] },
+  { id: 'diagramsnet', label: 'Draw.io (Editor · Beta)', mode: 'xml', docs: 'https://www.drawio.com/doc/', wysiwyg: true, beta: true }
 ];
 
 const D2_LAYOUTS = [
@@ -111,6 +112,7 @@ const ENGINE_EXTENSIONS = {
   c4plantuml: 'puml',
   d2: 'd2',
   dbml: 'dbml',
+  diagramsnet: 'drawio',
   ditaa: 'ditaa',
   erd: 'erd',
   excalidraw: 'excalidraw',
@@ -132,6 +134,9 @@ const ENGINE_EXTENSIONS = {
 function getEngineInfo(engineId) {
   const exact = ENGINES.find((e) => e.id === engineId);
   if (exact) return exact;
+  if (engineId === 'drawio') {
+    return ENGINES.find((e) => e.id === 'diagramsnet') || { id: 'diagramsnet', krokiEngine: 'diagramsnet', label: 'Draw.io (Editor · Beta)', mode: 'xml', wysiwyg: true, beta: true };
+  }
   if (engineId === 'c4plantuml') {
     return ENGINES.find((e) => e.id === 'c4plantuml-context') || { id: 'c4plantuml', krokiEngine: 'c4plantuml', label: 'c4plantuml', mode: 'text' };
   }
@@ -149,13 +154,15 @@ function isWysiwygEngine(engineId) {
 
 function isKnownEngineId(engineId) {
   if (!engineId || typeof engineId !== 'string') return false;
-  return ENGINES.some((e) => e.id === engineId) || engineId === 'c4plantuml';
+  return ENGINES.some((e) => e.id === engineId) || engineId === 'c4plantuml' || engineId === 'drawio';
 }
 
 function resolveEngineId(engineId, code = '') {
   let candidate = null;
   if (ENGINES.some((e) => e.id === engineId)) {
     candidate = engineId;
+  } else if (engineId === 'drawio') {
+    candidate = 'diagramsnet';
   } else if (engineId === 'c4plantuml') {
     if (/C4_Container/i.test(code)) candidate = 'c4plantuml-container';
     else if (/C4_Component/i.test(code)) candidate = 'c4plantuml-component';
@@ -185,6 +192,8 @@ function detectEngineFromFile(filename, content = '') {
     detected = 'vega';
   } else if (lower.endsWith('.vl.json')) {
     detected = 'vegalite';
+  } else if (lower.endsWith('.drawio.xml')) {
+    detected = 'diagramsnet';
   } else {
     const dotIdx = lower.lastIndexOf('.');
     const ext = dotIdx !== -1 ? lower.slice(dotIdx + 1) : '';
@@ -192,6 +201,10 @@ function detectEngineFromFile(filename, content = '') {
     switch (ext) {
       case 'bpmn':
         detected = 'bpmn';
+        break;
+      case 'drawio':
+      case 'dio':
+        detected = 'diagramsnet';
         break;
       case 'excalidraw':
         detected = 'excalidraw';
@@ -270,6 +283,8 @@ function detectEngineFromFile(filename, content = '') {
       case 'xml':
         if (/omg\.org\/spec\/BPMN/i.test(src) || /<bpmn:/i.test(src)) {
           detected = 'bpmn';
+        } else if (/<mxfile\b/i.test(src) || /<mxGraphModel\b/i.test(src)) {
+          detected = 'diagramsnet';
         } else if ((/<diagram\b/i.test(src) && /umlet/i.test(src)) || /<id>UML/i.test(src)) {
           detected = 'umlet';
         }
@@ -349,14 +364,38 @@ function getKrokiRemoteUrl() {
   return base;
 }
 
-function getRemoteHostLabel() {
-  const remoteUrl = getKrokiRemoteUrl();
+function extractHostLabel(rawUrl, fallback = '') {
   try {
-    const parsed = new URL(remoteUrl);
-    return parsed.host || remoteUrl;
+    const parsed = new URL(rawUrl);
+    return parsed.host || rawUrl;
   } catch (_) {
-    return remoteUrl.replace(/^https?:\/\//i, '').split('/')[0] || 'kroki.io';
+    return String(rawUrl || '').replace(/^https?:\/\//i, '').split('/')[0] || fallback;
   }
+}
+
+function getRemoteHostLabel() {
+  return extractHostLabel(getKrokiRemoteUrl(), 'kroki.io');
+}
+
+function getDrawioBaseUrl() {
+  const configured =
+    window.DISPERSE_CONFIG && typeof window.DISPERSE_CONFIG.drawioBaseUrl === 'string'
+      ? window.DISPERSE_CONFIG.drawioBaseUrl.trim()
+      : '';
+  const base = (configured || 'https://embed.diagrams.net').replace(/\/+$/, '');
+  if (base.startsWith('/') && typeof window !== 'undefined' && window.location && window.location.origin) {
+    return `${window.location.origin}${base}`;
+  }
+  return base;
+}
+
+function isPublicDrawioUrl(rawUrl) {
+  const host = extractHostLabel(rawUrl, 'embed.diagrams.net').split(':')[0].toLowerCase();
+  return /(?:^|\.)(?:diagrams\.net|draw\.io)$/i.test(host);
+}
+
+function getDrawioHostLabel() {
+  return extractHostLabel(getDrawioBaseUrl(), 'embed.diagrams.net');
 }
 
 function normalizeEngineMode(val) {
@@ -396,7 +435,9 @@ function getEngineMode(engineId) {
 
   const idLower = String(engineId).toLowerCase();
   const krokiLower = String(krokiEngine).toLowerCase();
-  if (disabledList.includes(idLower) || disabledList.includes(krokiLower)) {
+  const isDrawioAlias =
+    (idLower === 'diagramsnet' || krokiLower === 'diagramsnet') && disabledList.includes('drawio');
+  if (disabledList.includes(idLower) || disabledList.includes(krokiLower) || isDrawioAlias) {
     return 'disabled';
   }
 
@@ -414,6 +455,9 @@ function getEngineMode(engineId) {
     if (Object.prototype.hasOwnProperty.call(modes, krokiLower)) {
       return normalizeEngineMode(modes[krokiLower]);
     }
+    if ((idLower === 'diagramsnet' || krokiLower === 'diagramsnet') && Object.prototype.hasOwnProperty.call(modes, 'drawio')) {
+      return normalizeEngineMode(modes.drawio);
+    }
   }
 
   return 'local';
@@ -423,8 +467,40 @@ function isEngineDisabled(engineId) {
   return getEngineMode(engineId) === 'disabled';
 }
 
-function isEngineRemote(engineId) {
+function isKrokiEngineRemote(engineId) {
   return getEngineMode(engineId) === 'remote' && getKrokiBaseUrl() !== getKrokiRemoteUrl();
+}
+
+function isDrawioEditorRemote() {
+  return getKrokiBaseUrl() !== getKrokiRemoteUrl() && isPublicDrawioUrl(getDrawioBaseUrl());
+}
+
+function isEngineRemote(engineId) {
+  const krokiEngine = getKrokiEngine(engineId);
+  if (engineId === 'diagramsnet' || krokiEngine === 'diagramsnet') {
+    return isKrokiEngineRemote('diagramsnet') || isDrawioEditorRemote();
+  }
+  return isKrokiEngineRemote(engineId);
+}
+
+function getEngineRemoteHostLabel(engineId) {
+  const krokiEngine = getKrokiEngine(engineId);
+  if (engineId === 'diagramsnet' || krokiEngine === 'diagramsnet') {
+    const hosts = [];
+    if (isDrawioEditorRemote()) {
+      hosts.push(getDrawioHostLabel());
+    }
+    if (isKrokiEngineRemote('diagramsnet')) {
+      const krokiHost = getRemoteHostLabel();
+      if (!hosts.includes(krokiHost)) {
+        hosts.push(krokiHost);
+      }
+    }
+    if (hosts.length > 0) {
+      return hosts.join(', ');
+    }
+  }
+  return getRemoteHostLabel();
 }
 
 function getEnabledEngines() {
@@ -435,7 +511,7 @@ function getEngineDisplayLabel(engineOrId) {
   const info = typeof engineOrId === 'string' ? getEngineInfo(engineOrId) : engineOrId;
   if (!info) return '';
   if (isEngineRemote(info.id)) {
-    return `${info.label} 🌐 (${getRemoteHostLabel()})`;
+    return `${info.label} 🌐 (${getEngineRemoteHostLabel(info.id)})`;
   }
   return info.label;
 }
@@ -455,12 +531,17 @@ window.kroki = {
   getKrokiEngine,
   getEngineMode,
   isEngineDisabled,
+  isKrokiEngineRemote,
+  isDrawioEditorRemote,
   isEngineRemote,
   getEnabledEngines,
   getEngineDisplayLabel,
   getKrokiBaseUrl,
   getKrokiRemoteUrl,
   getRemoteHostLabel,
+  getEngineRemoteHostLabel,
+  getDrawioBaseUrl,
+  getDrawioHostLabel,
   isWysiwygEngine,
   isKnownEngineId,
   resolveEngineId,
@@ -473,7 +554,7 @@ window.kroki = {
         ? info.krokiFormats[0]
         : format;
     const query = buildOptionsQuery(krokiEngine, options);
-    const baseUrl = isEngineRemote(engine) ? getKrokiRemoteUrl() : getKrokiBaseUrl();
+    const baseUrl = isKrokiEngineRemote(engine) ? getKrokiRemoteUrl() : getKrokiBaseUrl();
     return `${baseUrl}/${krokiEngine}/${effectiveFormat}/${payload}${query}`;
   }
 };

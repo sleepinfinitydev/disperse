@@ -1,18 +1,19 @@
 # Disperse Helm Chart
 
-Official Helm v3 chart for deploying **Disperse** — a Diagrams as Code single-page web application (SPA) with an optional self-hosted **Kroki** backend and companion rendering sidecars on Kubernetes.
+Official Helm v3 chart (`0.2.0`) for deploying **Disperse** — a Diagrams as Code single-page web application (SPA) with optional self-hosted **Kroki** rendering and **Draw.io (`jgraph/drawio`)** visual editing backends on Kubernetes.
 
 ## Features
 
 - **Decoupled Backend Operating Modes**:
-  - **Standalone (`kroki.enabled: false`, default)**: Deploys only the lightweight Disperse static SPA (`nginxinc/nginx-unprivileged`), pointing to `https://kroki.io` (or any custom external Kroki server via `disperse.krokiBaseUrl`).
-  - **Self-Hosted Kroki Stack (`kroki.enabled: true`)**: Deploys a second `Deployment` (`<fullname>-kroki`) running `yuzutech/kroki` along with configurable companion sidecars (`mermaid`, `bpmn`, `excalidraw`), exposed through its own dedicated `Service`, `Ingress`, or Gateway API `HTTPRoute`.
-- **Clean Separation of Ingress / Gateway API**: Disperse and Kroki use independent Kubernetes `Service`, `Ingress`, and `HTTPRoute` resources—requiring zero reverse-proxy logic inside Nginx and zero controller-specific path-rewrite CRDs.
-- **Per-Engine Privacy & Resource Control (`local` vs. `remote` vs. `disabled`)**: Independently control each Chromium-based companion engine (`mermaid`, `bpmn`, `excalidraw`) via `kroki.sidecars.<engine>.mode`:
+  - **Standalone (`kroki.enabled: false`, `drawio.enabled: false`, default)**: Deploys only the lightweight Disperse static SPA (`nginxinc/nginx-unprivileged`), pointing to `https://kroki.io` and `https://embed.diagrams.net` (or any custom external servers via `disperse.krokiBaseUrl` and `disperse.drawioBaseUrl`).
+  - **Self-Hosted Kroki Stack (`kroki.enabled: true`)**: Deploys a second `Deployment` (`<fullname>-kroki`) running `yuzutech/kroki` along with configurable companion sidecars (`mermaid`, `bpmn`, `excalidraw`, `diagramsnet`), exposed through its own dedicated `Service`, `Ingress`, or Gateway API `HTTPRoute`.
+  - **Self-Hosted Draw.io Visual Editor (`drawio.enabled: true`)**: Optionally deploys a third `Deployment` (`<fullname>-drawio`) running `jgraph/drawio` (`:8080`) with its own `Service`, `Ingress`, or `HTTPRoute` so interactive Draw.io editing stays 100% private in-cluster instead of loading `https://embed.diagrams.net`.
+- **Clean Separation of Ingress / Gateway API**: Disperse, Kroki, and Draw.io each use independent Kubernetes `Service`, `Ingress`, and `HTTPRoute` resources—requiring zero reverse-proxy logic inside Nginx and zero controller-specific path-rewrite CRDs.
+- **Per-Engine Privacy & Resource Control (`local` vs. `remote` vs. `disabled`)**: Independently control each Chromium-based companion engine (`mermaid`, `bpmn`, `excalidraw`, `diagramsnet`) via `kroki.sidecars.<engine>.mode`:
   - `local` *(default when `kroki.enabled: true`)*: Deploys the `yuzutech/kroki-<engine>` sidecar container inside the Kroki Pod over `127.0.0.1` for 100% private in-cluster diagram rendering.
-  - `remote`: Omits the sidecar container to save Chromium RAM and routes requests for that engine from the browser to `kroki.remoteFallbackUrl` (`https://kroki.io`) with an explicit `🌐 (kroki.io)` non-private indicator and warning tooltip in the UI.
+  - `remote`: Omits the sidecar container to save Chromium RAM and routes requests for that engine from the browser to `kroki.remoteFallbackUrl` (`https://kroki.io`) with an explicit `🌐 (...)` non-private indicator and warning tooltip in the UI.
   - `disabled`: Omits the sidecar container and removes the engine from Disperse's language selector.
-- **Hardened by Default**: Both `disperse` (`UID 101`) and `kroki` (`UID 1001`) run with `runAsNonRoot: true`, `readOnlyRootFilesystem: true`, `allowPrivilegeEscalation: false`, `seccompProfile: RuntimeDefault`, and `capabilities.drop: ["ALL"]`.
+- **Hardened by Default**: `disperse` (`UID 101`), `kroki` + sidecars (`UID 1001`, `readOnlyRootFilesystem: true`), and `drawio` (`UID 1001`, `GID 999`) all run under Kubernetes `PodSecurity: restricted` (`runAsNonRoot: true`, `allowPrivilegeEscalation: false`, `seccompProfile: RuntimeDefault`, `capabilities.drop: ["ALL"]`).
 - **Extensibility via `extraManifests`**: Bundle arbitrary Kubernetes manifests rendered through Helm's `tpl` engine.
 
 ## Quick Start
@@ -25,7 +26,7 @@ Install directly from GitHub Container Registry:
 helm upgrade --install disperse oci://ghcr.io/sleepinfinitydev/charts/disperse
 ```
 
-*(To test a branch preview build before merging to `main`, pass `--version 0.1.0-<branch>`, e.g. `--version 0.1.0-feat-helm-charts`. From a local git checkout, use `./charts/disperse`.)*
+*(To test a branch preview build before merging to `main`, pass `--version 0.2.0-<branch>`, e.g. `--version 0.2.0-feat-drawio-editor`. From a local git checkout, use `./charts/disperse`.)*
 
 ### 2. Full Self-Hosted Stack with Ingress (`nip.io`)
 
@@ -37,6 +38,16 @@ kroki:
     enabled: true
     hosts:
       - host: kroki.127.0.0.1.nip.io
+        paths:
+          - path: /
+            pathType: Prefix
+
+drawio:
+  enabled: true
+  ingress:
+    enabled: true
+    hosts:
+      - host: drawio.127.0.0.1.nip.io
         paths:
           - path: /
             pathType: Prefix
@@ -69,6 +80,8 @@ kroki:
       mode: remote   # or "disabled"
     excalidraw:
       mode: remote   # or "disabled"
+    diagramsnet:
+      mode: disabled # note: public kroki.io does not run kroki-diagramsnet; use "local" or "disabled"
   ingress:
     enabled: true
     hosts:
@@ -97,8 +110,11 @@ helm upgrade --install disperse oci://ghcr.io/sleepinfinitydev/charts/disperse -
 | `replicaCount` | Number of Disperse frontend replicas | `1` |
 | `image.registry` | Disperse OCI image registry | `ghcr.io` |
 | `image.repository` | Disperse OCI image repository | `sleepinfinitydev/disperse` |
-| `image.tag` | Disperse image tag (defaults to `.Chart.AppVersion`) | `""` (`"latest"`) |
+| `image.tag` | Disperse image tag (defaults to `.Chart.AppVersion`) | `""` (`"0.2.0"`) |
 | `disperse.krokiBaseUrl` | Override primary Kroki URL (`""` auto-derives from `kroki.ingress`, `kroki.httpRoute`, `http://localhost:8000`, or `https://kroki.io`) | `""` |
+| `disperse.krokiRemoteUrl` | Override external fallback Kroki URL (`""` defaults to `kroki.remoteFallbackUrl`) | `""` |
+| `disperse.drawioBaseUrl` | Override Draw.io editor URL (`""` auto-derives from `drawio.ingress`, `drawio.httpRoute`, `http://localhost:8080`, or `https://embed.diagrams.net`) | `""` |
+| `disperse.engineModes` | Per-engine mode overrides (`local` \| `remote` \| `disabled`) when `kroki.enabled=false` | `{}` |
 | `disperse.footerCredits` | Custom footer HTML/text (`null` = default credits, `""` = hide footer) | `null` |
 | `disperse.disabledEngines` | Array of engine IDs to hide from `#engine-select` | `[]` |
 | `service.type` | Disperse Kubernetes Service type | `ClusterIP` |
@@ -113,5 +129,11 @@ helm upgrade --install disperse oci://ghcr.io/sleepinfinitydev/charts/disperse -
 | `kroki.sidecars.mermaid.mode` | Mode for `mermaid` when `kroki.enabled=true` (`local` \| `remote` \| `disabled`) | `"local"` |
 | `kroki.sidecars.bpmn.mode` | Mode for `bpmn` when `kroki.enabled=true` (`local` \| `remote` \| `disabled`) | `"local"` |
 | `kroki.sidecars.excalidraw.mode` | Mode for `excalidraw` when `kroki.enabled=true` (`local` \| `remote` \| `disabled`) | `"local"` |
+| `kroki.sidecars.diagramsnet.mode` | Mode for `diagramsnet` when `kroki.enabled=true` (`local` \| `remote` \| `disabled`) | `"local"` |
+| `drawio.enabled` | Deploy the self-hosted `jgraph/drawio` visual editor Deployment & Service | `false` |
+| `drawio.service.port` | Draw.io Kubernetes Service port | `8080` |
+| `drawio.ingress.enabled` | Enable dedicated Kubernetes `Ingress` for Draw.io (`drawio.127.0.0.1.nip.io` by default) | `false` |
+| `drawio.httpRoute.enabled` | Enable dedicated Gateway API `HTTPRoute` for Draw.io | `false` |
+| `drawio.remoteFallbackUrl` | External Draw.io embed URL used when `drawio.enabled=false` | `"https://embed.diagrams.net"` |
 | `pdb.enabled` | Enable `PodDisruptionBudget` (`policy/v1`) | `false` |
 | `extraManifests` | Additional templated Kubernetes manifests | `[]` |

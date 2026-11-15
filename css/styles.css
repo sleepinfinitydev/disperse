@@ -650,6 +650,19 @@ body > main {
   outline: none;
 }
 
+.wysiwyg-iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  background-color: var(--bg-panel);
+}
+
+body:has(#splitter.dragging) .wysiwyg-iframe,
+body:has(#export-splitter.dragging) .wysiwyg-iframe {
+  pointer-events: none;
+}
+
 #viewer-container.wysiwyg-active .viewer-actions {
   display: none !important;
 }
@@ -1084,6 +1097,7 @@ body.drag-over .drop-overlay,
 .drop-overlay.active {
   opacity: 1;
   visibility: visible;
+  pointer-events: auto;
 }
 
 .drop-overlay-box {

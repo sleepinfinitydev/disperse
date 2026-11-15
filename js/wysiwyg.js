@@ -29,6 +29,42 @@ let lastBpmnXml = '';
 let bpmnHasImported = false;
 let bpmnSyncTimer = null;
 
+let drawioIframe = null;
+let drawioOrigin = '';
+let drawioBaseLoaded = '';
+let isDrawioReady = false;
+let drawioHasLoaded = false;
+let drawioMessageBound = false;
+let pendingDrawioLoad = null;
+let lastDrawioXml = '';
+let lastRawDrawioXml = '';
+let drawioSyncTimer = null;
+let pendingDrawioExport = null;
+
+const DRAWIO_PASSTHROUGH_KEYS = [
+  { key: 'r', ctrl: true, shift: false, alt: false, command: 'refresh' },
+  { key: 'o', ctrl: true, shift: false, alt: false, command: 'openFile' },
+  { key: 's', ctrl: true, shift: false, alt: false, command: 'saveFile' },
+  { key: 's', ctrl: true, shift: true, alt: false, command: 'saveFileAs' },
+  { key: 'r', ctrl: false, shift: false, alt: true, command: 'toggleAutoRender' },
+  { key: 'n', ctrl: false, shift: false, alt: true, command: 'newDiagram' },
+  { key: 't', ctrl: false, shift: false, alt: true, command: 'toggleTheme' },
+  { key: 'a', ctrl: false, shift: false, alt: true, command: 'toggleAutoSave' },
+  { key: 'd', ctrl: false, shift: false, alt: true, command: 'download' },
+  { key: 'l', ctrl: false, shift: false, alt: true, command: 'copyLink' },
+  { key: 'i', ctrl: false, shift: false, alt: true, command: 'copyImage' },
+  { key: 'e', ctrl: false, shift: false, alt: true, command: 'copyEditor' },
+  { key: 'x', ctrl: false, shift: false, alt: true, command: 'toggleExport' },
+  { key: '1', ctrl: false, shift: false, alt: true, command: 'splitMaxEditor' },
+  { key: '2', ctrl: false, shift: false, alt: true, command: 'splitReset' },
+  { key: '3', ctrl: false, shift: false, alt: true, command: 'splitMaxViewer' },
+  { key: '0', ctrl: false, shift: false, alt: true, command: 'zoomFit' },
+  { key: '+', ctrl: false, shift: false, alt: true, command: 'zoomIn' },
+  { key: '=', ctrl: false, shift: false, alt: true, command: 'zoomIn' },
+  { key: '-', ctrl: false, shift: false, alt: true, command: 'zoomOut' },
+  { key: 'enter', ctrl: false, shift: false, alt: true, command: 'maximizePreview' }
+];
+
 let activeWysiwygEngine = null;
 let onCodeChangeCallback = null;
 let isUpdatingFromEditor = false;
@@ -493,6 +529,346 @@ async function activateBpmn(pane, code, options = {}) {
   await applyCodeToBpmn(code, isFirstMount || Boolean(options.centerView));
 }
 
+function getDrawioEmbedSpec() {
+  const rawBase =
+    window.kroki && typeof window.kroki.getDrawioBaseUrl === 'function'
+      ? window.kroki.getDrawioBaseUrl()
+      : 'https://embed.diagrams.net';
+  const resolved = new URL(rawBase, window.location.origin);
+  const params = new URLSearchParams(resolved.search);
+  params.set('embed', '1');
+  params.set('proto', 'json');
+  params.set('spin', '1');
+  if (!params.has('ui')) {
+    params.set('ui', 'kennedy');
+  }
+  params.set('dark', getActiveTheme() === 'dark' ? '1' : '0');
+  params.set('configure', '1');
+  params.set('modified', '0');
+  params.set('noSaveBtn', '1');
+  params.set('saveAndExit', '0');
+  params.set('noExitBtn', '1');
+  params.set('libraries', '1');
+  resolved.search = params.toString();
+  return {
+    base: rawBase,
+    origin: resolved.origin,
+    url: resolved.toString()
+  };
+}
+
+function postToDrawio(payload) {
+  if (!drawioIframe || !drawioIframe.contentWindow) return false;
+  const targetOrigin = drawioOrigin && drawioOrigin !== 'null' ? drawioOrigin : '*';
+  drawioIframe.contentWindow.postMessage(JSON.stringify(payload), targetOrigin);
+  return true;
+}
+
+function validateDrawioXml(code) {
+  const trimmed = (code || '').trim();
+  if (!trimmed) {
+    throw new Error('Empty Draw.io XML source');
+  }
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(trimmed, 'application/xml');
+  const parseErr = xmlDoc ? xmlDoc.querySelector('parsererror') : null;
+  if (parseErr) {
+    throw new Error((parseErr.textContent || 'Malformed XML').trim().split('\n')[0]);
+  }
+  const rootTag =
+    xmlDoc && xmlDoc.documentElement
+      ? (xmlDoc.documentElement.localName || xmlDoc.documentElement.tagName || '').toLowerCase()
+      : '';
+  if (rootTag !== 'mxfile' && rootTag !== 'mxgraphmodel') {
+    throw new Error('Root element must be <mxfile> or <mxGraphModel>');
+  }
+  return xmlDoc;
+}
+
+function serializeXmlNodePretty(node, depth = 0) {
+  const indent = '  '.repeat(depth);
+  const serializer = new XMLSerializer();
+
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    const childNodes = Array.from(node.childNodes || []);
+    const hasSignificantText = childNodes.some(
+      (c) =>
+        (c.nodeType === Node.TEXT_NODE || c.nodeType === Node.CDATA_SECTION_NODE) &&
+        (c.nodeValue || '').trim().length > 0
+    );
+    const elementChildren = childNodes.filter((c) => c.nodeType === Node.ELEMENT_NODE);
+
+    if (hasSignificantText) {
+      return `${indent}${serializer.serializeToString(node)}`;
+    }
+
+    const clone = node.cloneNode(false);
+    const emptySerialized = serializer.serializeToString(clone);
+
+    if (elementChildren.length === 0) {
+      if (emptySerialized.endsWith('/>')) {
+        return `${indent}${emptySerialized}`;
+      }
+      const closeIdx = emptySerialized.lastIndexOf('></');
+      if (closeIdx !== -1) {
+        return `${indent}${emptySerialized.slice(0, closeIdx)} />`;
+      }
+      return `${indent}${emptySerialized}`;
+    }
+
+    let openTag = emptySerialized;
+    let closeTag = `</${node.tagName}>`;
+    if (emptySerialized.endsWith('/>')) {
+      openTag = `${emptySerialized.slice(0, -2)}>`;
+    } else {
+      const closeIdx = emptySerialized.lastIndexOf('></');
+      if (closeIdx !== -1) {
+        openTag = emptySerialized.slice(0, closeIdx + 1);
+        closeTag = emptySerialized.slice(closeIdx + 1);
+      }
+    }
+
+    const inner = elementChildren
+      .map((child) => serializeXmlNodePretty(child, depth + 1))
+      .join('\n');
+    return `${indent}${openTag}\n${inner}\n${indent}${closeTag}`;
+  }
+
+  return '';
+}
+
+function formatDrawioXml(rawXml) {
+  try {
+    const xmlDoc = validateDrawioXml(rawXml);
+    if (xmlDoc && xmlDoc.documentElement) {
+      return serializeXmlNodePretty(xmlDoc.documentElement, 0);
+    }
+  } catch (_) {}
+  return (rawXml || '').trim();
+}
+
+function dispatchDrawioHostShortcut(command) {
+  const selectorMap = {
+    refresh: '#refresh-btn',
+    openFile: '#file-open-btn',
+    saveFile: '#file-save-btn',
+    saveFileAs: '#file-save-as-btn',
+    toggleAutoRender: '#autorender-btn',
+    newDiagram: '#new-btn',
+    toggleTheme: '#theme-btn',
+    toggleAutoSave: '#file-autosave-btn',
+    download: '#download-btn',
+    copyLink: '#brand-link',
+    copyImage: 'button[data-input="out-image-text"]',
+    copyEditor: 'button[data-input="out-editor-text"]',
+    splitMaxEditor: '#split-max-editor',
+    splitReset: '#split-reset',
+    splitMaxViewer: '#split-max-viewer',
+    zoomFit: '#zoom-fit',
+    zoomIn: '#zoom-in',
+    zoomOut: '#zoom-out',
+    maximizePreview: '#maximize-preview'
+  };
+  if (command === 'toggleExport') {
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'x', code: 'KeyX', altKey: true, bubbles: true })
+    );
+    return;
+  }
+  const sel = selectorMap[command];
+  if (sel) {
+    document.querySelector(sel)?.click();
+  }
+}
+
+function sendLoadToDrawio(xml, centerView = false) {
+  const loadMsg = {
+    action: 'load',
+    xml,
+    autosave: 1,
+    dark: getActiveTheme() === 'dark'
+  };
+  if (centerView) {
+    loadMsg.fit = 1;
+    loadMsg.border = 24;
+    loadMsg.maxFitScale = 1;
+  }
+  isUpdatingFromEditor = true;
+  postToDrawio(loadMsg);
+  setTimeout(() => {
+    isUpdatingFromEditor = false;
+  }, 80);
+}
+
+function applyCodeToDrawio(code, centerView = false) {
+  const trimmed = (code || '').trim();
+  try {
+    validateDrawioXml(trimmed);
+  } catch (err) {
+    if (window.viewer && typeof window.viewer.showError === 'function') {
+      const msg = err && err.message ? err.message : 'Invalid Draw.io XML';
+      window.viewer.showError(
+        msg === 'Empty Draw.io XML source' ? msg : `Draw.io XML error: ${msg}`
+      );
+    }
+    return;
+  }
+
+  if (window.viewer && typeof window.viewer.hideError === 'function') {
+    window.viewer.hideError();
+  }
+
+  if (
+    drawioHasLoaded &&
+    (trimmed === lastDrawioXml || trimmed === lastRawDrawioXml) &&
+    !centerView
+  ) {
+    return;
+  }
+
+  lastDrawioXml = trimmed;
+
+  if (!isDrawioReady || !drawioIframe || !drawioIframe.contentWindow) {
+    pendingDrawioLoad = { code: trimmed, centerView: Boolean(centerView) };
+    return;
+  }
+
+  pendingDrawioLoad = null;
+  sendLoadToDrawio(trimmed, centerView);
+}
+
+function handleDrawioMessage(evt) {
+  if (!drawioIframe || evt.source !== drawioIframe.contentWindow) return;
+  if (drawioOrigin && drawioOrigin !== 'null' && evt.origin !== drawioOrigin) return;
+  if (typeof evt.data !== 'string' || !evt.data) return;
+
+  let msg;
+  try {
+    msg = JSON.parse(evt.data);
+  } catch (_) {
+    return;
+  }
+  if (!msg || typeof msg !== 'object') return;
+
+  if (msg.event === 'configure') {
+    postToDrawio({
+      action: 'configure',
+      config: {
+        compressXml: false,
+        passThroughKeys: DRAWIO_PASSTHROUGH_KEYS
+      }
+    });
+    return;
+  }
+
+  if (msg.event === 'init') {
+    isDrawioReady = true;
+    const loading = document.getElementById('loading');
+    if (loading && activeWysiwygEngine === 'diagramsnet') {
+      loading.style.display = 'none';
+    }
+    if (pendingDrawioLoad) {
+      const { code, centerView } = pendingDrawioLoad;
+      pendingDrawioLoad = null;
+      requestAnimationFrame(() => {
+        sendLoadToDrawio(code, centerView);
+      });
+    }
+    return;
+  }
+
+  if (msg.event === 'load') {
+    drawioHasLoaded = true;
+    if (typeof msg.xml === 'string' && msg.xml.trim()) {
+      lastRawDrawioXml = msg.xml.trim();
+    }
+    return;
+  }
+
+  if (msg.event === 'autosave' || msg.event === 'save') {
+    if (isUpdatingFromEditor || activeWysiwygEngine !== 'diagramsnet') return;
+    const rawXml = typeof msg.xml === 'string' ? msg.xml.trim() : '';
+    if (!rawXml || rawXml === lastRawDrawioXml) return;
+
+    lastRawDrawioXml = rawXml;
+    const formatted = formatDrawioXml(rawXml);
+    lastDrawioXml = formatted;
+
+    if (drawioSyncTimer) {
+      clearTimeout(drawioSyncTimer);
+    }
+    drawioSyncTimer = setTimeout(() => {
+      drawioSyncTimer = null;
+      if (isUpdatingFromEditor || activeWysiwygEngine !== 'diagramsnet') return;
+      if (typeof onCodeChangeCallback === 'function') {
+        onCodeChangeCallback(formatted);
+      }
+    }, 150);
+    return;
+  }
+
+  if (msg.event === 'export' && pendingDrawioExport) {
+    const current = pendingDrawioExport;
+    pendingDrawioExport = null;
+    clearTimeout(current.timer);
+    current.resolve(msg);
+    return;
+  }
+
+  if (msg.event === 'shortcut' && msg.command) {
+    dispatchDrawioHostShortcut(msg.command);
+  }
+}
+
+function ensureDrawioMessageListener() {
+  if (drawioMessageBound) return;
+  window.addEventListener('message', handleDrawioMessage);
+  drawioMessageBound = true;
+}
+
+function activateDrawio(pane, code, options = {}) {
+  ensureDrawioMessageListener();
+  const loading = document.getElementById('loading');
+  const spec = getDrawioEmbedSpec();
+
+  void pane.offsetWidth;
+
+  const needsMount = !drawioIframe || drawioBaseLoaded !== spec.base;
+  if (needsMount) {
+    isDrawioReady = false;
+    drawioHasLoaded = false;
+    drawioOrigin = spec.origin;
+    drawioBaseLoaded = spec.base;
+    pane.innerHTML = '';
+
+    const iframe = document.createElement('iframe');
+    iframe.className = 'wysiwyg-iframe';
+    iframe.title = 'Draw.io Diagram Editor';
+    iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+    iframe.allow = 'clipboard-read; clipboard-write';
+    iframe.addEventListener('error', () => {
+      if (loading && activeWysiwygEngine === 'diagramsnet') {
+        loading.style.display = 'none';
+      }
+      if (window.viewer && typeof window.viewer.showError === 'function') {
+        window.viewer.showError(`Failed to load Draw.io editor from ${spec.base}`);
+      }
+    });
+
+    drawioIframe = iframe;
+    if (loading) loading.style.display = 'flex';
+    applyCodeToDrawio(code, true);
+    iframe.src = spec.url;
+    pane.appendChild(iframe);
+    return;
+  }
+
+  if (!isDrawioReady && loading) {
+    loading.style.display = 'flex';
+  }
+  applyCodeToDrawio(code, Boolean(options.centerView));
+}
+
 async function activateWysiwyg(engine, code, options = {}) {
   const viewerContainer = document.getElementById('viewer-container');
   const viewer = document.getElementById('viewer');
@@ -512,9 +888,16 @@ async function activateWysiwyg(engine, code, options = {}) {
 
   const excalidrawPane = getOrCreatePane(wysiwygContainer, 'wysiwyg-excalidraw');
   const bpmnPane = getOrCreatePane(wysiwygContainer, 'wysiwyg-bpmn');
+  const drawioPane = getOrCreatePane(wysiwygContainer, 'wysiwyg-diagramsnet');
 
   excalidrawPane.style.display = engine === 'excalidraw' ? 'block' : 'none';
   bpmnPane.style.display = engine === 'bpmn' ? 'block' : 'none';
+  drawioPane.style.display = engine === 'diagramsnet' ? 'block' : 'none';
+
+  if (engine === 'diagramsnet') {
+    activateDrawio(drawioPane, code, options);
+    return;
+  }
 
   if (engine === 'bpmn') {
     try {
@@ -608,6 +991,10 @@ function deactivateWysiwyg() {
     clearTimeout(bpmnSyncTimer);
     bpmnSyncTimer = null;
   }
+  if (drawioSyncTimer) {
+    clearTimeout(drawioSyncTimer);
+    drawioSyncTimer = null;
+  }
   pendingSceneChange = null;
 
   if (viewerContainer) {
@@ -622,13 +1009,31 @@ function deactivateWysiwyg() {
 }
 
 function setTheme(theme) {
+  const isDark = theme === 'dark';
+
+  if (isDrawioReady && drawioIframe && drawioIframe.contentWindow) {
+    const xmlToKeep = lastRawDrawioXml || lastDrawioXml;
+    if (xmlToKeep) {
+      isUpdatingFromEditor = true;
+      postToDrawio({
+        action: 'load',
+        xml: xmlToKeep,
+        autosave: 1,
+        dark: isDark
+      });
+      setTimeout(() => {
+        isUpdatingFromEditor = false;
+      }, 80);
+    }
+  }
+
   if (!isExcalidrawMounted || !excalidrawAPI) return;
   const excalidrawPane = document.getElementById('wysiwyg-excalidraw');
   isUpdatingFromEditor = true;
   try {
     excalidrawAPI.updateScene({
       appState: {
-        theme: theme === 'dark' ? 'dark' : 'light'
+        theme: isDark ? 'dark' : 'light'
       }
     });
     if (excalidrawPane && window.React && window.ReactDOM && window.ExcalidrawLib) {
@@ -642,6 +1047,10 @@ function setTheme(theme) {
 }
 
 function zoomIn() {
+  if (activeWysiwygEngine === 'diagramsnet') {
+    postToDrawio({ action: 'invokeAction', actionName: 'zoomIn' });
+    return;
+  }
   if (activeWysiwygEngine === 'bpmn' && bpmnModeler) {
     const canvas = bpmnModeler.get('canvas');
     if (canvas) {
@@ -662,6 +1071,10 @@ function zoomIn() {
 }
 
 function zoomOut() {
+  if (activeWysiwygEngine === 'diagramsnet') {
+    postToDrawio({ action: 'invokeAction', actionName: 'zoomOut' });
+    return;
+  }
   if (activeWysiwygEngine === 'bpmn' && bpmnModeler) {
     const canvas = bpmnModeler.get('canvas');
     if (canvas) {
@@ -682,6 +1095,10 @@ function zoomOut() {
 }
 
 function zoomFit() {
+  if (activeWysiwygEngine === 'diagramsnet') {
+    postToDrawio({ action: 'fit', border: 24, maxScale: 1 });
+    return;
+  }
   if (activeWysiwygEngine === 'bpmn' && bpmnModeler) {
     const canvas = bpmnModeler.get('canvas');
     if (canvas) {
@@ -740,8 +1157,102 @@ function svgStringToPngBlob(svgString) {
   });
 }
 
+function drawioExportToBlob(msg, ext) {
+  const data = msg && typeof msg.data === 'string' ? msg.data : '';
+  if (!data) {
+    throw new Error('Empty export payload from Draw.io');
+  }
+
+  if (ext === 'svg') {
+    const trimmed = data.trim();
+    if (trimmed.startsWith('<svg') || trimmed.startsWith('<?xml')) {
+      return new Blob([trimmed], { type: 'image/svg+xml;charset=utf-8' });
+    }
+    if (data.startsWith('data:image/svg+xml;base64,')) {
+      const b64 = data.slice('data:image/svg+xml;base64,'.length);
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) {
+        bytes[i] = bin.charCodeAt(i);
+      }
+      return new Blob([bytes], { type: 'image/svg+xml;charset=utf-8' });
+    }
+    const commaIdx = data.indexOf(',');
+    if (commaIdx !== -1) {
+      const svgStr = decodeURIComponent(data.slice(commaIdx + 1));
+      return new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+    }
+    throw new Error('Unsupported SVG export data from Draw.io');
+  }
+
+  const base64Prefix = 'data:image/png;base64,';
+  const rawB64 = data.startsWith(base64Prefix) ? data.slice(base64Prefix.length) : data;
+  const bin = atob(rawB64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) {
+    bytes[i] = bin.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: 'image/png' });
+}
+
+function requestDrawioExport(ext) {
+  return new Promise((resolve, reject) => {
+    if (!isDrawioReady || !drawioIframe || !drawioIframe.contentWindow) {
+      reject(new Error('Draw.io editor is not ready'));
+      return;
+    }
+    if (pendingDrawioExport) {
+      clearTimeout(pendingDrawioExport.timer);
+      pendingDrawioExport.reject(new Error('Superseded by newer export request'));
+      pendingDrawioExport = null;
+    }
+    const timer = setTimeout(() => {
+      pendingDrawioExport = null;
+      reject(new Error('Timed out waiting for Draw.io export'));
+    }, 15000);
+    pendingDrawioExport = { resolve, reject, timer };
+
+    if (ext === 'png') {
+      postToDrawio({
+        action: 'export',
+        format: 'png',
+        scale: 2,
+        border: 8,
+        background: getActiveTheme() === 'dark' ? '#1e1e1e' : '#ffffff',
+        spinKey: 'exporting'
+      });
+    } else {
+      postToDrawio({
+        action: 'export',
+        format: 'svg',
+        asText: true,
+        border: 8,
+        spinKey: 'exporting'
+      });
+    }
+  });
+}
+
 async function download(format = 'svg') {
   const ext = format === 'png' ? 'png' : 'svg';
+
+  if (activeWysiwygEngine === 'diagramsnet') {
+    try {
+      const msg = await requestDrawioExport(ext);
+      const blob = drawioExportToBlob(msg, ext);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `disperse-diagramsnet.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      console.error('Failed to export Draw.io diagram:', err);
+    }
+    return;
+  }
 
   if (activeWysiwygEngine === 'bpmn' && bpmnModeler) {
     try {
@@ -841,6 +1352,8 @@ window.wysiwyg = {
       applyCodeToExcalidraw(code, centerView);
     } else if (activeWysiwygEngine === 'bpmn') {
       applyCodeToBpmn(code, centerView);
+    } else if (activeWysiwygEngine === 'diagramsnet') {
+      applyCodeToDrawio(code, centerView);
     }
   },
   setTheme,
