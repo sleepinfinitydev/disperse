@@ -18,6 +18,7 @@ This documentation is organized according to the [Diátaxis](https://diataxis.fr
 1. [**Tutorials** *(Learning-oriented)*](#1-tutorials)
    - [Tutorial 1: Run Disperse with Docker in 60 Seconds](#tutorial-1-run-disperse-with-docker-in-60-seconds)
    - [Tutorial 2: Deploy a Self-Hosted Disperse + Kroki Stack on Local k3s with Helm](#tutorial-2-deploy-a-self-hosted-disperse--kroki-stack-on-local-k3s-with-helm)
+   - [Tutorial 3: Deploy Disperse on a Traditional Web Server (Debian + Caddy, Nginx, or Apache)](#tutorial-3-deploy-disperse-on-a-traditional-web-server-debian--caddy-nginx-or-apache)
 2. [**How-To Guides** *(Task-oriented)*](#2-how-to-guides)
    - [How to Choose a Deployment Topology (Remote, Full Local, or Hybrid/Mixed)](#how-to-choose-a-deployment-topology-remote-full-local-or-hybridmixed)
    - [How to Configure Companion Sidecars (`local`, `remote`, `disabled`)](#how-to-configure-companion-sidecars-local-remote-disabled)
@@ -29,6 +30,7 @@ This documentation is organized according to the [Diátaxis](https://diataxis.fr
    - [How to Work with Local Files and Auto-Save](#how-to-work-with-local-files-and-auto-save)
 3. [**Reference** *(Information-oriented)*](#3-reference)
    - [Published OCI Artifacts (`ghcr.io`)](#published-oci-artifacts-ghcrio)
+   - [Published Static Web Packages (`.zip`)](#published-static-web-packages-zip)
    - [12-Factor Environment Variables](#12-factor-environment-variables)
    - [Helm Chart Values (`charts/disperse`)](#helm-chart-values-chartsdisperse)
    - [Keyboard Shortcuts](#keyboard-shortcuts)
@@ -191,6 +193,184 @@ Open **`http://disperse.127.0.0.1.nip.io`** in your browser:
 
 ---
 
+### Tutorial 3: Deploy Disperse on a Traditional Web Server (Debian + Caddy, Nginx, or Apache)
+
+Because Disperse is a pure HTML5/CSS3/ES6 static single-page application (**SPA**) with no server-side runtime or build step, you can deploy it directly on any traditional Linux web server **without Docker or Kubernetes**.
+
+In this tutorial, you will download the official minimal `.zip` package onto a **Debian** server (e.g., Debian 12 Bookworm / Debian 13 Trixie), optionally customize `/var/www/disperse/js/config.js`, and serve it with **Caddy**, **Nginx**, or **Apache (`apache2`)**.
+
+#### Prerequisites
+- A **Debian** host with `sudo` privileges.
+- `curl` and `unzip` installed:
+  ```bash
+  sudo apt update && sudo apt install -y curl unzip
+  ```
+
+#### Step 1: Download, verify, and extract the static `.zip` package
+Download `disperse.zip` and `SHA256SUMS` from GitHub Releases, verify the archive checksum, and extract the files into `/var/www/disperse`:
+
+```bash
+cd /tmp
+curl -fsSLO https://github.com/sleepinfinitydev/disperse/releases/latest/download/disperse.zip
+curl -fsSLO https://github.com/sleepinfinitydev/disperse/releases/latest/download/SHA256SUMS
+sha256sum -c --ignore-missing SHA256SUMS
+
+sudo mkdir -p /var/www/disperse
+sudo unzip -o -q disperse.zip -d /var/www/disperse
+sudo chown -R www-data:www-data /var/www/disperse
+sudo find /var/www/disperse -type d -exec chmod 0755 {} +
+sudo find /var/www/disperse -type f -exec chmod 0644 {} +
+rm -f /tmp/disperse.zip /tmp/SHA256SUMS
+```
+
+> **Pinning a specific version, testing a branch preview, or packaging locally**:
+> - **Pin a specific version (`v0.2.0`)**:
+>   ```bash
+>   curl -fsSLO https://github.com/sleepinfinitydev/disperse/releases/download/v0.2.0/disperse-0.2.0.zip
+>   ```
+> - **Branch preview from GitHub Releases (`v0.2.0-<branch>`)**:
+>   ```bash
+>   curl -fsSLO https://github.com/sleepinfinitydev/disperse/releases/download/v0.2.0-feat-static-deploy/disperse-0.2.0-feat-static-deploy.zip
+>   ```
+> - **Build the `.zip` locally from source**: Run `task package` (produces `disperse-0.2.0.zip` and `disperse.zip`).
+
+The extracted `/var/www/disperse` directory contains only the essential runtime assets (~200 KB uncompressed):
+- `index.html` and `favicon.svg`
+- `css/styles.css`
+- `js/` (`config.js`, `theme.js`, `kroki.js`, `viewer.js`, `wysiwyg.js`, `app.js`)
+- `examples/*.txt` (33 starter diagram templates)
+
+#### Step 2: Review or customize `/var/www/disperse/js/config.js` (Optional)
+Out of the box, `/var/www/disperse/js/config.js` comes pre-populated with all default settings (`https://kroki.io` and `https://embed.diagrams.net`), so **no configuration changes are required** to start using Disperse immediately.
+
+If you want to point Disperse to a private Kroki server, a self-hosted Draw.io instance, disable specific engines, or customize the footer credits, edit `/var/www/disperse/js/config.js`:
+
+```bash
+sudo nano /var/www/disperse/js/config.js
+```
+
+```javascript
+window.DISPERSE_CONFIG = Object.assign(
+  {
+    krokiBaseUrl: "https://kroki.io",
+    krokiRemoteUrl: "https://kroki.io",
+    drawioBaseUrl: "https://embed.diagrams.net",
+    footerCredits:
+      'Made with <i data-lucide="heart" class="heart-icon"></i> in Betanzos · ...',
+    engineModes: {
+      mermaid: "local",
+      bpmn: "local",
+      excalidraw: "local",
+      diagramsnet: "local"
+    },
+    disabledEngines: ""
+  },
+  window.DISPERSE_CONFIG || {}
+);
+```
+
+#### Step 3: Configure your web server on Debian (Choose Caddy, Nginx, or Apache)
+
+Choose **one** of the following web servers (replace `disperse.example.com` with your domain, or use `:80` / `_` for local/IP access):
+
+##### Option A: Caddy on Debian
+1. Install Caddy from Debian's official repositories:
+   ```bash
+   sudo apt install -y caddy
+   ```
+2. Replace `/etc/caddy/Caddyfile` (Caddy automatically provisions HTTPS certificates when given a public domain name, or use `:80` for plain HTTP):
+   ```caddyfile
+   disperse.example.com {
+       root * /var/www/disperse
+       encode zstd gzip
+
+       @config path /js/config.js
+       header @config Cache-Control "no-store, no-cache, must-revalidate"
+
+       file_server
+   }
+   ```
+3. Validate and reload Caddy:
+   ```bash
+   sudo caddy validate --config /etc/caddy/Caddyfile
+   sudo systemctl reload caddy
+   ```
+
+##### Option B: Nginx on Debian
+1. Install Nginx:
+   ```bash
+   sudo apt install -y nginx
+   ```
+2. Create `/etc/nginx/sites-available/disperse`:
+   ```nginx
+   server {
+       listen 80;
+       listen [::]:80;
+       server_name disperse.example.com _;
+
+       root /var/www/disperse;
+       index index.html;
+
+       location = /js/config.js {
+           default_type application/javascript;
+           add_header Cache-Control "no-store, no-cache, must-revalidate";
+       }
+
+       location / {
+           try_files $uri $uri/ /index.html;
+       }
+   }
+   ```
+3. Enable the site, test the configuration, and reload Nginx:
+   ```bash
+   sudo ln -sf /etc/nginx/sites-available/disperse /etc/nginx/sites-enabled/disperse
+   sudo rm -f /etc/nginx/sites-enabled/default
+   sudo nginx -t
+   sudo systemctl reload nginx
+   ```
+
+##### Option C: Apache (`apache2`) on Debian
+1. Install Apache and enable the `headers` and `deflate` modules:
+   ```bash
+   sudo apt install -y apache2
+   sudo a2enmod headers deflate
+   ```
+2. Create `/etc/apache2/sites-available/disperse.conf`:
+   ```apache
+   <VirtualHost *:80>
+       ServerName disperse.example.com
+       DocumentRoot /var/www/disperse
+
+       <Directory /var/www/disperse>
+           Options -Indexes +FollowSymLinks
+           AllowOverride None
+           Require all granted
+           DirectoryIndex index.html
+       </Directory>
+
+       <Location "/js/config.js">
+           Header set Cache-Control "no-store, no-cache, must-revalidate"
+       </Location>
+
+       ErrorLog ${APACHE_LOG_DIR}/disperse-error.log
+       CustomLog ${APACHE_LOG_DIR}/disperse-access.log combined
+   </VirtualHost>
+   ```
+3. Enable the virtual host, disable the default placeholder site, verify syntax, and reload Apache:
+   ```bash
+   sudo a2ensite disperse.conf
+   sudo a2dissite 000-default.conf
+   sudo apache2ctl configtest
+   sudo systemctl reload apache2
+   ```
+
+#### Step 4: Open Disperse in your browser
+Open **`http://disperse.example.com`** (or `http://<server-ip>`) in your browser:
+- Because `/js/config.js` is served with `Cache-Control: no-store, no-cache, must-revalidate`, any future edits to `/var/www/disperse/js/config.js` take effect immediately on browser refresh without restarting Caddy, Nginx, or Apache.
+- To upgrade Disperse in the future while preserving your custom `js/config.js`, back up `cp /var/www/disperse/js/config.js /tmp/config.js.bak`, unzip the new `disperse.zip` into `/var/www/disperse`, and restore `cp /tmp/config.js.bak /var/www/disperse/js/config.js`.
+
+---
+
 ## 2. How-To Guides
 
 ### How to Choose a Deployment Topology (Remote, Full Local, or Hybrid/Mixed)
@@ -334,6 +514,25 @@ docker run --rm -p 8765:8765 \
   ghcr.io/sleepinfinitydev/disperse:0.2.0
 ```
 
+#### On a Static Web Server (`/var/www/disperse/js/config.js`)
+Edit `engineModes` in `js/config.js`:
+
+```javascript
+window.DISPERSE_CONFIG = Object.assign(
+  {
+    krokiBaseUrl: "https://kroki.internal.example.com",
+    krokiRemoteUrl: "https://kroki.io",
+    engineModes: {
+      mermaid: "local",
+      bpmn: "remote",
+      excalidraw: "disabled",
+      diagramsnet: "local"
+    }
+  },
+  window.DISPERSE_CONFIG || {}
+);
+```
+
 ---
 
 ### How to Deploy a Self-Hosted Draw.io Visual Editor
@@ -413,6 +612,24 @@ kroki:
 ```
 ```bash
 helm upgrade --install disperse oci://ghcr.io/sleepinfinitydev/charts/disperse -n disperse -f values.yaml
+```
+
+#### On a Static Web Server (`/var/www/disperse/js/config.js`)
+Set `disabledEngines` (comma-separated string or array) and/or `engineModes.<engine>: "disabled"` in `js/config.js`:
+
+```javascript
+window.DISPERSE_CONFIG = Object.assign(
+  {
+    engineModes: {
+      mermaid: "local",
+      bpmn: "local",
+      excalidraw: "local",
+      diagramsnet: "disabled"
+    },
+    disabledEngines: "tikz,umlet,bytefield,c4plantuml-dynamic"
+  },
+  window.DISPERSE_CONFIG || {}
+);
 ```
 
 *(Note: If a user opens a shared `#<engine>/...` URL for a language that has been disabled on the instance, Disperse preserves the URL hash, displays the decoded source code safely in the editor without overwriting local drafts, and shows an explicit notice in the preview panel.)*
@@ -604,6 +821,17 @@ Both the container image and the Helm chart are published to GitHub Container Re
 
 ---
 
+### Published Static Web Packages (`.zip`)
+
+Minimal static web server packages (`.zip`) containing strictly the runtime files needed by **Caddy**, **Nginx**, or **Apache** (`index.html`, `favicon.svg`, `css/`, `js/` with pre-populated `js/config.js` defaults, and `examples/`) are built and published by `.github/workflows/static-package.yml` to both **GitHub Releases** and **GitHub Actions Artifacts**:
+
+| Channel | Release Tag / Artifact Name | `main` Files & Direct Download URLs | Branch Preview Files (e.g. `feat-static-deploy`) |
+| :--- | :--- | :--- | :--- |
+| **GitHub Releases** | `v0.2.0` (`latest` on `main`)<br/>`v0.2.0-<branch>` *(prerelease)* | `disperse-0.2.0.zip`, `disperse.zip`, `SHA256SUMS`<br/>`https://github.com/sleepinfinitydev/disperse/releases/latest/download/disperse.zip` | `disperse-0.2.0-<branch>.zip`, `disperse-0.2.0-<branch>-<git-short-sha>.zip`, `disperse.zip`, `SHA256SUMS` *(marked `prerelease`, never `latest`)* |
+| **GitHub Actions Artifacts** | `disperse-static-<version>` | `disperse-0.2.0.zip`, `disperse.zip`, `SHA256SUMS` *(90-day retention)* | `disperse-0.2.0-<branch>.zip`, `disperse-0.2.0-<branch>-<git-short-sha>.zip`, `disperse.zip`, `SHA256SUMS` |
+
+---
+
 ### 12-Factor Environment Variables
 
 | Variable | `window.DISPERSE_CONFIG` Key | Default | Description |
@@ -731,6 +959,9 @@ task run
 ENGINE_MODE_EXCALIDRAW=remote KROKI_BASE_URL=http://localhost:8000 task run PORT=9000
 DRAWIO_BASE_URL=http://localhost:8080 task run
 FOOTER_CREDITS="" task run
+
+# Package minimal static .zip archives (disperse-0.2.0.zip and disperse.zip) for Caddy/Nginx/Apache
+task package
 
 # Build OCI image (auto-detects podman or docker, tags :0.2.0, :<git-hash>, and :latest)
 task build

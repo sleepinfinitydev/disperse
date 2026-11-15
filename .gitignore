@@ -8,6 +8,8 @@
 *.orig
 *~
 
-# Packaged Helm charts & local override values
+# Packaged Helm charts, static zip packages & local override values
 *.tgz
+*.zip
+SHA256SUMS
 values-*.yaml

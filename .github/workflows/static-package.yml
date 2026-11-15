@@ -1,0 +1,220 @@
+name: Publish Static Web Package (.zip)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Compute package version and release metadata
+        id: meta
+        run: |
+          GIT_HASH="$(git rev-parse --short HEAD)"
+          BASE_VERSION="$(awk '/^version:/{print $2; exit}' charts/disperse/Chart.yaml | tr -d "\"'")"
+
+          echo "base_version=${BASE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "git_hash=${GIT_HASH}" >> "$GITHUB_OUTPUT"
+
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            echo "is_main=true" >> "$GITHUB_OUTPUT"
+            echo "pkg_version=${BASE_VERSION}" >> "$GITHUB_OUTPUT"
+            echo "release_tag=v${BASE_VERSION}" >> "$GITHUB_OUTPUT"
+            echo "release_title=Disperse v${BASE_VERSION}" >> "$GITHUB_OUTPUT"
+            echo "primary_zip=disperse-${BASE_VERSION}.zip" >> "$GITHUB_OUTPUT"
+            echo "zip_files=disperse-${BASE_VERSION}.zip disperse.zip" >> "$GITHUB_OUTPUT"
+          else
+            BRANCH_SLUG="$(printf '%s' "${GITHUB_REF_NAME}" \
+              | tr '[:upper:]' '[:lower:]' \
+              | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' \
+              | cut -c1-40 \
+              | sed -E 's/-+$//')"
+            if [ -z "$BRANCH_SLUG" ]; then
+              BRANCH_SLUG="dev"
+            fi
+            PKG_VER="${BASE_VERSION}-${BRANCH_SLUG}"
+            COMMIT_PKG_VER="${BASE_VERSION}-${BRANCH_SLUG}-${GIT_HASH}"
+
+            echo "is_main=false" >> "$GITHUB_OUTPUT"
+            echo "pkg_version=${PKG_VER}" >> "$GITHUB_OUTPUT"
+            echo "release_tag=v${PKG_VER}" >> "$GITHUB_OUTPUT"
+            echo "release_title=Disperse v${PKG_VER} (Branch Preview)" >> "$GITHUB_OUTPUT"
+            echo "primary_zip=disperse-${PKG_VER}.zip" >> "$GITHUB_OUTPUT"
+            echo "zip_files=disperse-${PKG_VER}.zip disperse-${COMMIT_PKG_VER}.zip disperse.zip" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and verify minimal static .zip package
+        run: |
+          STAGE_DIR="$(mktemp -d)"
+          DIST_DIR="${RUNNER_TEMP}/dist"
+          mkdir -p "$DIST_DIR"
+
+          # Copy only the essential files required by static web servers (Caddy, Nginx, Apache)
+          cp index.html favicon.svg "$STAGE_DIR/"
+          cp -r css js examples "$STAGE_DIR/"
+
+          PRIMARY_ZIP="${{ steps.meta.outputs.primary_zip }}"
+          (
+            cd "$STAGE_DIR"
+            zip -r -q "${DIST_DIR}/${PRIMARY_ZIP}" \
+              index.html \
+              favicon.svg \
+              css \
+              js \
+              examples \
+              -x "*.DS_Store" "*.bak" "*.swp" "*~"
+          )
+
+          for z in ${{ steps.meta.outputs.zip_files }}; do
+            if [ "$z" != "$PRIMARY_ZIP" ]; then
+              cp "${DIST_DIR}/${PRIMARY_ZIP}" "${DIST_DIR}/${z}"
+            fi
+          done
+
+          (
+            cd "$DIST_DIR"
+            sha256sum ${{ steps.meta.outputs.zip_files }} > SHA256SUMS
+          )
+
+          # Verify required runtime files are present and non-runtime files are excluded
+          CONTENTS="$(unzip -Z1 "${DIST_DIR}/${PRIMARY_ZIP}")"
+          for req in "index.html" "favicon.svg" "css/styles.css" "js/config.js" "js/app.js" "js/kroki.js" "js/theme.js" "js/viewer.js" "js/wysiwyg.js" "examples/d2.txt"; do
+            echo "$CONTENTS" | grep -Fxq "$req" || { echo "Missing required file in zip: $req"; exit 1; }
+          done
+          for forbidden in "Containerfile" "Taskfile.yml" "README.md" "SPEC.md" "AGENTS.md" "charts/disperse/Chart.yaml"; do
+            if echo "$CONTENTS" | grep -Fxq "$forbidden"; then
+              echo "Unexpected non-runtime file in zip: $forbidden"
+              exit 1
+            fi
+          done
+
+          ls -lh "$DIST_DIR"
+          cat "${DIST_DIR}/SHA256SUMS"
+
+      - name: Upload static .zip package to GitHub Actions Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: disperse-static-${{ steps.meta.outputs.pkg_version }}
+          path: |
+            ${{ runner.temp }}/dist/*.zip
+            ${{ runner.temp }}/dist/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish static .zip package to GitHub Releases
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DIST_DIR="${RUNNER_TEMP}/dist"
+          TAG="${{ steps.meta.outputs.release_tag }}"
+          TITLE="${{ steps.meta.outputs.release_title }}"
+          IS_MAIN="${{ steps.meta.outputs.is_main }}"
+          PRIMARY_ZIP="${{ steps.meta.outputs.primary_zip }}"
+          REPO="${GITHUB_REPOSITORY}"
+
+          NOTES_FILE="$(mktemp)"
+          {
+            echo "Minimal static web server distribution of **Disperse** (\`${{ steps.meta.outputs.pkg_version }}\`, commit \`${{ steps.meta.outputs.git_hash }}\`) for **Caddy**, **Nginx**, **Apache**, or any static HTTP server."
+            echo ""
+            echo "### Included Contents"
+            echo "- \`index.html\`, \`favicon.svg\`, \`css/\`, \`js/\` (with pre-populated \`js/config.js\` defaults), and \`examples/\`."
+            echo ""
+            echo "### Quick Deploy on Debian"
+            echo "\`\`\`bash"
+            if [ "$IS_MAIN" = "true" ]; then
+              echo "curl -fsSLO https://github.com/${REPO}/releases/latest/download/disperse.zip"
+              echo "sudo mkdir -p /var/www/disperse"
+              echo "sudo unzip -o -q disperse.zip -d /var/www/disperse"
+            else
+              echo "curl -fsSLO https://github.com/${REPO}/releases/download/${TAG}/${PRIMARY_ZIP}"
+              echo "sudo mkdir -p /var/www/disperse"
+              echo "sudo unzip -o -q ${PRIMARY_ZIP} -d /var/www/disperse"
+            fi
+            echo "\`\`\`"
+            echo ""
+            echo "### SHA-256 Checksums"
+            echo "\`\`\`text"
+            cat "${DIST_DIR}/SHA256SUMS"
+            echo "\`\`\`"
+          } > "$NOTES_FILE"
+
+          cd "$DIST_DIR"
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" ${{ steps.meta.outputs.zip_files }} SHA256SUMS --clobber --repo "$REPO"
+            if [ "$IS_MAIN" = "true" ]; then
+              gh release edit "$TAG" --title "$TITLE" --notes-file "$NOTES_FILE" --latest --prerelease=false --repo "$REPO"
+            else
+              gh release edit "$TAG" --title "$TITLE" --notes-file "$NOTES_FILE" --prerelease --repo "$REPO"
+            fi
+          else
+            if [ "$IS_MAIN" = "true" ]; then
+              gh release create "$TAG" ${{ steps.meta.outputs.zip_files }} SHA256SUMS \
+                --target "${GITHUB_SHA}" \
+                --title "$TITLE" \
+                --notes-file "$NOTES_FILE" \
+                --latest \
+                --repo "$REPO"
+            else
+              gh release create "$TAG" ${{ steps.meta.outputs.zip_files }} SHA256SUMS \
+                --target "${GITHUB_SHA}" \
+                --title "$TITLE" \
+                --notes-file "$NOTES_FILE" \
+                --prerelease \
+                --repo "$REPO"
+            fi
+          fi
+
+      - name: Write job summary
+        run: |
+          DIST_DIR="${RUNNER_TEMP}/dist"
+          TAG="${{ steps.meta.outputs.release_tag }}"
+          IS_MAIN="${{ steps.meta.outputs.is_main }}"
+          PRIMARY_ZIP="${{ steps.meta.outputs.primary_zip }}"
+          REPO="${GITHUB_REPOSITORY}"
+
+          {
+            echo "## Published Static Web Package (\`.zip\`)"
+            echo ""
+            echo "### Archives"
+            for z in ${{ steps.meta.outputs.zip_files }}; do
+              echo "- \`${z}\`"
+            done
+            echo "- \`SHA256SUMS\`"
+            echo ""
+            echo "### SHA-256 Checksums"
+            echo "\`\`\`text"
+            cat "${DIST_DIR}/SHA256SUMS"
+            echo "\`\`\`"
+            if [ "${{ github.event_name }}" != "pull_request" ]; then
+              echo ""
+              echo "### Quick Download & Extract (GitHub Releases: \`${TAG}\`)"
+              echo "\`\`\`bash"
+              if [ "$IS_MAIN" = "true" ]; then
+                echo "# Download latest release .zip"
+                echo "curl -fsSLO https://github.com/${REPO}/releases/latest/download/disperse.zip"
+                echo "sudo mkdir -p /var/www/disperse && sudo unzip -o -q disperse.zip -d /var/www/disperse"
+              else
+                echo "# Download branch preview .zip (${TAG})"
+                echo "curl -fsSLO https://github.com/${REPO}/releases/download/${TAG}/${PRIMARY_ZIP}"
+                echo "sudo mkdir -p /var/www/disperse && sudo unzip -o -q ${PRIMARY_ZIP} -d /var/www/disperse"
+              fi
+              echo "\`\`\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

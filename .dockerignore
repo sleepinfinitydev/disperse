@@ -9,3 +9,5 @@ LICENSE
 Taskfile.yml
 Containerfile
 *.tgz
+*.zip
+SHA256SUMS
