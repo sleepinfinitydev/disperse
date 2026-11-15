@@ -19,22 +19,24 @@ This documentation is organized according to the [Diátaxis](https://diataxis.fr
    - [Tutorial 1: Run Disperse with Docker in 60 Seconds](#tutorial-1-run-disperse-with-docker-in-60-seconds)
    - [Tutorial 2: Deploy a Self-Hosted Disperse + Kroki Stack on Local k3s with Helm](#tutorial-2-deploy-a-self-hosted-disperse--kroki-stack-on-local-k3s-with-helm)
 2. [**How-To Guides** *(Task-oriented)*](#2-how-to-guides)
+   - [How to Choose a Deployment Topology (Remote, Full Local, or Hybrid/Mixed)](#how-to-choose-a-deployment-topology-remote-full-local-or-hybridmixed)
    - [How to Configure Companion Sidecars (`local`, `remote`, `disabled`)](#how-to-configure-companion-sidecars-local-remote-disabled)
    - [How to Deploy a Self-Hosted Draw.io Visual Editor](#how-to-deploy-a-self-hosted-drawio-visual-editor)
-   - [How to Disable Specific Diagram Languages](#how-to-disable-specific-diagram-languages)
+   - [How to Enable or Disable Diagram Engines](#how-to-enable-or-disable-diagram-engines)
    - [How to Connect to an External or Custom Kroki Server](#how-to-connect-to-an-external-or-custom-kroki-server)
    - [How to Customize or Hide Footer Credits](#how-to-customize-or-hide-footer-credits)
-   - [How to Expose Disperse and Kroki via Ingress or Gateway API (`HTTPRoute`)](#how-to-expose-disperse-and-kroki-via-ingress-or-gateway-api-httproute)
+   - [How to Expose Disperse, Kroki, and Draw.io via Ingress or Gateway API (`HTTPRoute`)](#how-to-expose-disperse-kroki-and-drawio-via-ingress-or-gateway-api-httproute)
    - [How to Work with Local Files and Auto-Save](#how-to-work-with-local-files-and-auto-save)
 3. [**Reference** *(Information-oriented)*](#3-reference)
-   - [Published OCI Artifacts (`ghcr.io`)](#published-oci-artifacts-ghcr-io)
+   - [Published OCI Artifacts (`ghcr.io`)](#published-oci-artifacts-ghcrio)
    - [12-Factor Environment Variables](#12-factor-environment-variables)
    - [Helm Chart Values (`charts/disperse`)](#helm-chart-values-chartsdisperse)
    - [Keyboard Shortcuts](#keyboard-shortcuts)
    - [Supported Diagram Engines & File Extensions](#supported-diagram-engines--file-extensions)
    - [Development Tasks (`Taskfile.yml`)](#development-tasks-taskfileyml)
 4. [**Explanation** *(Understanding-oriented)*](#4-explanation)
-   - [Architecture: Decoupled Static SPA & Dedicated Kroki Ingress/Gateway](#architecture-decoupled-static-spa--dedicated-kroki-ingressgateway)
+   - [Architecture: Decoupled Static SPA & Dedicated Kroki/Draw.io Ingress/Gateway](#architecture-decoupled-static-spa--dedicated-krokidrawio-ingressgateway)
+   - [Why Draw.io Has Both a Kroki Sidecar and an Optional `Deployment`](#why-drawio-has-both-a-kroki-sidecar-and-an-optional-deployment)
    - [Privacy Model: Why `local`, `remote`, and `disabled` Modes Exist](#privacy-model-why-local-remote-and-disabled-modes-exist)
    - [Stateless URLs vs. Per-Language Local Workspace Persistence](#stateless-urls-vs-per-language-local-workspace-persistence)
    - [Tetradic OKLCH Color System & Dark Mode Adaptation](#tetradic-oklch-color-system--dark-mode-adaptation)
@@ -146,16 +148,21 @@ helm upgrade --install disperse oci://ghcr.io/sleepinfinitydev/charts/disperse \
   -f values-k3s.yaml
 ```
 
-> **Testing a branch / preview build (or local checkout)**:
-> - To test a branch build published by CI before merging to `main` (for example `feat-drawio-editor`), pass `--version 0.2.0-<branch>` (the chart automatically pulls the matching `<branch>-<sha>` container image):
+> **Testing a preview branch or building 100% locally without `ghcr.io`**:
+> - **Branch preview from GHCR**: Pass `--version 0.2.0-<branch>` (automatically pulls `<branch>-<sha>`):
 >   ```bash
 >   helm upgrade --install disperse oci://ghcr.io/sleepinfinitydev/charts/disperse \
 >     --version 0.2.0-feat-drawio-editor \
->     --namespace disperse \
->     --create-namespace \
->     -f values-k3s.yaml
+>     --namespace disperse --create-namespace -f values-k3s.yaml
 >   ```
-> - Or from a cloned repository checkout, replace `oci://ghcr.io/sleepinfinitydev/charts/disperse` with `./charts/disperse`.
+> - **Local source build on K3s (zero GHCR dependency)**: Build the image locally, import it into K3s's `containerd` store, and install `./charts/disperse` with `image.pullPolicy=Never`:
+>   ```bash
+>   docker build -t ghcr.io/sleepinfinitydev/disperse:0.2.0 -f Containerfile .
+>   docker save ghcr.io/sleepinfinitydev/disperse:0.2.0 | sudo k3s ctr images import -
+>   helm upgrade --install disperse ./charts/disperse \
+>     --namespace disperse --create-namespace -f values-k3s.yaml \
+>     --set image.pullPolicy=Never
+>   ```
 
 What this deploys in your k3s cluster:
 - **`Deployment/disperse` + `Service/disperse` + `Ingress/disperse`**: Serves the static Disperse SPA on `http://disperse.127.0.0.1.nip.io` (`nginxinc/nginx-unprivileged`, `UID 101`, `readOnlyRootFilesystem: true`), pre-configured with `KROKI_BASE_URL=http://kroki.127.0.0.1.nip.io` and `DRAWIO_BASE_URL=http://drawio.127.0.0.1.nip.io`.
@@ -185,6 +192,78 @@ Open **`http://disperse.127.0.0.1.nip.io`** in your browser:
 ---
 
 ## 2. How-To Guides
+
+### How to Choose a Deployment Topology (Remote, Full Local, or Hybrid/Mixed)
+
+Disperse supports four deployment topologies so you can balance **cluster resource footprint** against **diagram data privacy**:
+
+| Topology | What Runs In-Cluster | External Endpoints Used | Typical Footprint | Best For |
+| :--- | :--- | :--- | :--- | :--- |
+| **1. Remote Backends** *(default)* | `disperse` only (static Nginx SPA) | `https://kroki.io` + `https://embed.diagrams.net` | ~30 MB RAM | Personal setups, demos, non-confidential diagrams |
+| **2. Full Local Stack** | `disperse` + `disperse-kroki` (core + 4 sidecars) + `disperse-drawio` | None for diagram data (100% in-cluster rendering & editing) | ~1.5–2.5 GB RAM | Corporate / confidential architecture & strict data privacy |
+| **3. Hybrid / Mixed (Strict Private)** | `disperse` + `disperse-kroki` (core + selected sidecars `local`, others `disabled`) | None (`disabled` engines are hidden from UI) | ~600 MB–1.2 GB RAM | Private clusters conserving RAM by disabling unused editors |
+| **4. Hybrid / Mixed (Public Fallback)** | `disperse` + `disperse-kroki` (core local, heavy sidecars `remote`, `drawio.enabled: false`) | `kroki.io` / `embed.diagrams.net` *(marked in UI with `🌐` warning)* | ~500–800 MB RAM | Small clusters wanting fast local core engines + transparent cloud fallback |
+
+#### Recipe 1: Remote Backends Only (Minimal Footprint)
+```yaml
+# values-remote.yaml
+kroki:
+  enabled: false   # uses https://kroki.io
+drawio:
+  enabled: false   # uses https://embed.diagrams.net
+
+ingress:
+  enabled: true
+  hosts:
+    - host: disperse.127.0.0.1.nip.io
+      paths:
+        - path: /
+          pathType: Prefix
+```
+
+#### Recipe 2: Full Local Stack (100% In-Cluster Rendering & Editing)
+See `values-k3s.yaml` in [Tutorial 2](#tutorial-2-deploy-a-self-hosted-disperse--kroki-stack-on-local-k3s-with-helm) (`kroki.enabled: true` + `drawio.enabled: true` — all 4 Kroki sidecars default to `mode: local`).
+
+#### Recipe 3: Hybrid / Mixed Stack (Customizing Local, Remote, and Disabled Engines)
+```yaml
+# values-mixed.yaml
+kroki:
+  enabled: true
+  sidecars:
+    mermaid:
+      mode: local      # keep Mermaid 100% local in-cluster
+    bpmn:
+      mode: remote     # omit BPMN sidecar; route Kroki snippets to kroki.io with 🌐 warning
+    excalidraw:
+      mode: disabled   # omit Excalidraw sidecar and hide it from Disperse
+    diagramsnet:
+      mode: local      # keep Kroki diagramsnet rendering local
+  ingress:
+    enabled: true
+    hosts:
+      - host: kroki.127.0.0.1.nip.io
+        paths:
+          - path: /
+            pathType: Prefix
+
+drawio:
+  enabled: false       # omit Tomcat pod; Draw.io editor uses embed.diagrams.net with 🌐 warning
+
+disperse:
+  disabledEngines:     # optionally hide any other unused code engines
+    - tikz
+    - bytefield
+
+ingress:
+  enabled: true
+  hosts:
+    - host: disperse.127.0.0.1.nip.io
+      paths:
+        - path: /
+          pathType: Prefix
+```
+
+---
 
 ### How to Configure Companion Sidecars (`local`, `remote`, `disabled`)
 
@@ -294,15 +373,24 @@ docker run --rm -p 8765:8765 \
 
 ---
 
-### How to Disable Specific Diagram Languages
+### How to Enable or Disable Diagram Engines
 
-If your organization standardizes on a subset of languages (for example, hiding `tikz`, `umlet`, and `bytefield`), you can disable any engine ID from the dropdown selector:
+Disperse provides two complementary controls for enabling or disabling diagram languages across all **33 selectable entries** (29 Kroki engines):
+
+1. **Companion Sidecar Engines (`mermaid`, `bpmn`, `excalidraw`, `diagramsnet`)**:
+   - **When `kroki.enabled: true` in Helm**: Set `kroki.sidecars.<engine>.mode` to `local` (default), `remote`, or `disabled`. Setting `disabled` both **prevents deploying that Chromium sidecar container** in Kubernetes and **hides the engine** from Disperse's language selector and file auto-detection.
+   - **When `kroki.enabled: false` in Helm** (e.g., connecting to an external shared Kroki server that only runs a subset of sidecars): Use `disperse.engineModes` (e.g., `disperse.engineModes: { diagramsnet: "disabled", excalidraw: "remote" }`).
+   - **In Docker**: Set `ENGINE_MODE_MERMAID`, `ENGINE_MODE_BPMN`, `ENGINE_MODE_EXCALIDRAW`, and `ENGINE_MODE_DIAGRAMSNET` (`local` | `remote` | `disabled`).
+
+2. **Any Diagram Engine or C4 Variant (`KROKI_DISABLED_ENGINES` / `disperse.disabledEngines`)**:
+   - You can hide **any** engine ID—including core code languages (`tikz`, `umlet`, `bytefield`, `vega`), individual C4 templates (`c4plantuml-dynamic`) or all C4 templates (`c4plantuml`), and visual editors (`excalidraw`, `bpmn`, `diagramsnet`)—without affecting other languages:
 
 #### With Docker
 ```bash
 docker run --rm -p 8765:8765 \
-  -e KROKI_DISABLED_ENGINES="tikz,umlet,bytefield" \
-  ghcr.io/sleepinfinitydev/disperse:latest
+  -e KROKI_DISABLED_ENGINES="tikz,umlet,bytefield,c4plantuml-dynamic" \
+  -e ENGINE_MODE_DIAGRAMSNET="disabled" \
+  ghcr.io/sleepinfinitydev/disperse:0.2.0
 ```
 
 #### With Helm
@@ -313,10 +401,19 @@ disperse:
     - tikz
     - umlet
     - bytefield
+    - c4plantuml-dynamic
+
+kroki:
+  enabled: true
+  sidecars:
+    diagramsnet:
+      mode: disabled
 ```
 ```bash
 helm upgrade --install disperse oci://ghcr.io/sleepinfinitydev/charts/disperse -n disperse -f values.yaml
 ```
+
+*(Note: If a user opens a shared `#<engine>/...` URL for a language that has been disabled on the instance, Disperse preserves the URL hash, displays the decoded source code safely in the editor without overwriting local drafts, and shows an explicit notice in the preview panel.)*
 
 ---
 
@@ -338,6 +435,10 @@ kroki:
 
 disperse:
   krokiBaseUrl: "https://kroki.example.com"
+  # Optional: if your external Kroki server does not run certain companion sidecars:
+  engineModes:
+    excalidraw: remote      # fallback to kroki.io with 🌐 warning
+    diagramsnet: disabled   # hide from selector
 ```
 ```bash
 helm upgrade --install disperse oci://ghcr.io/sleepinfinitydev/charts/disperse -n disperse -f values.yaml
@@ -379,7 +480,7 @@ disperse:
 
 ---
 
-### How to Expose Disperse and Kroki via Ingress or Gateway API (`HTTPRoute`)
+### How to Expose Disperse, Kroki, and Draw.io via Ingress or Gateway API (`HTTPRoute`)
 
 Complex diagrams produce long Base64-encoded GET URLs on the **Kroki** endpoint. While Kroki is pre-configured with `KROKI_MAX_URI_LENGTH=16384`, **make sure your Ingress or Gateway controller in front of Kroki also allows large request headers**.
 
@@ -403,6 +504,21 @@ kroki:
         hosts:
           - kroki.example.com
 
+drawio:
+  enabled: true
+  ingress:
+    enabled: true
+    className: nginx
+    hosts:
+      - host: drawio.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: drawio-tls
+        hosts:
+          - drawio.example.com
+
 ingress:
   enabled: true
   className: nginx
@@ -420,7 +536,7 @@ ingress:
 helm upgrade --install disperse oci://ghcr.io/sleepinfinitydev/charts/disperse -n disperse -f values-ingress.yaml
 ```
 
-*(Note: When `disperse.krokiBaseUrl` is left empty `""`, the chart automatically sets `KROKI_BASE_URL` to `https://kroki.example.com` based on `kroki.ingress`!)*
+*(Note: When `disperse.krokiBaseUrl` and `disperse.drawioBaseUrl` are left empty `""`, the chart automatically derives `KROKI_BASE_URL=https://kroki.example.com` and `DRAWIO_BASE_URL=https://drawio.example.com` from `kroki.ingress` and `drawio.ingress`!)*
 
 #### Using Kubernetes Gateway API (`HTTPRoute`)
 ```yaml
@@ -436,6 +552,18 @@ kroki:
         sectionName: https
     hostnames:
       - kroki.example.com
+
+drawio:
+  enabled: true
+  httpRoute:
+    enabled: true
+    https: true
+    parentRefs:
+      - name: main-gateway
+        namespace: gateway-system
+        sectionName: https
+    hostnames:
+      - drawio.example.com
 
 httpRoute:
   enabled: true
@@ -502,7 +630,9 @@ Chart metadata: `version: 0.2.0`, `appVersion: "0.2.0"`.
 | `image.repository` | `string` | `"sleepinfinitydev/disperse"` | Disperse OCI image repository. |
 | `image.tag` | `string` | `""` (`"0.2.0"`) | Image tag override (defaults to `.Chart.AppVersion`). |
 | `disperse.krokiBaseUrl` | `string` | `""` | Overrides primary Kroki URL (`""` auto-derives from `kroki.ingress`, `kroki.httpRoute`, `http://localhost:8000`, or `https://kroki.io`). |
+| `disperse.krokiRemoteUrl` | `string` | `""` | Overrides external fallback Kroki URL (`""` defaults to `kroki.remoteFallbackUrl`). |
 | `disperse.drawioBaseUrl` | `string` | `""` | Overrides Draw.io editor URL (`""` auto-derives from `drawio.ingress`, `drawio.httpRoute`, `http://localhost:8080`, or `https://embed.diagrams.net`). |
+| `disperse.engineModes` | `object` | `{}` | Per-engine mode overrides (`local` \| `remote` \| `disabled`) when `kroki.enabled=false`. |
 | `disperse.footerCredits` | `string\|null` | `null` | Custom footer HTML/text (`null` = default credits, `""` = hidden). |
 | `disperse.disabledEngines` | `list` | `[]` | List of engine IDs to hide from `#engine-select`. |
 | `service.type` | `string` | `"ClusterIP"` | Disperse Service type (`ClusterIP`, `NodePort`, `LoadBalancer`). |
@@ -611,7 +741,7 @@ task push
 
 ## 4. Explanation
 
-### Architecture: Decoupled Static SPA & Dedicated Kroki Ingress/Gateway
+### Architecture: Decoupled Static SPA & Dedicated Kroki/Draw.io Ingress/Gateway
 
 Disperse, Kroki, and Draw.io have fundamentally different runtime profiles: Disperse is an ultra-lightweight static HTML/CSS/JS SPA, Kroki is a JVM/CLI + headless-Chromium rendering backend that expects requests at its root path (`/{engine}/{format}/{payload}`) and natively emits CORS headers (`Access-Control-Allow-Origin: *`), and Draw.io (`jgraph/drawio`) is a Tomcat webapp embedded via `<iframe>` + `postMessage`.
 
@@ -641,6 +771,19 @@ flowchart TB
 - **100% Controller-Agnostic**: Works out of the box on K3s (Traefik), `ingress-nginx`, Cilium, HAProxy, AWS ALB, and any Gateway API controller without vendor-specific regex path-rewrite annotations or CRDs.
 - **Zero Extra Network Hops**: Diagram rendering and visual editor requests go directly to `disperse-kroki` / `disperse-drawio` (or `kroki.io` / `embed.diagrams.net`), never traversing the frontend Nginx pod.
 - **Pure 12-Factor & Restricted PodSecurity**: All Deployments run non-root (`UID 101` and `UID 1001`) with `allowPrivilegeEscalation: false`, `seccompProfile: RuntimeDefault`, and `capabilities.drop: ["ALL"]`, configured strictly via environment variables.
+
+---
+
+### Why Draw.io Has Both a Kroki Sidecar and an Optional `Deployment`
+
+Unlike **Excalidraw** (`@excalidraw/excalidraw`) and **BPMN** (`bpmn-js`), which are client-side JavaScript libraries mounted directly into a `<div>` inside Disperse, **Draw.io (`diagrams.net`)** is a full web application designed to be embedded via **`<iframe>` + JSON `postMessage`**. Consequently, full self-hosted Draw.io support involves two distinct components with separate roles and network boundaries:
+
+| Component | Role | Who Communicates With It |
+| :--- | :--- | :--- |
+| **`kroki-diagramsnet` sidecar** *(inside `Deployment/disperse-kroki`, `:8005`)* | Headless Node.js + Chromium worker bundling only `export3.html` (**no interactive editor UI**). Converts `<mxfile>` XML into static `SVG` / `PNG`. | Only the **`kroki`** container over `127.0.0.1:8005` (never exposed externally). Powers shareable Kroki image URLs (`/diagramsnet/svg/...`). |
+| **`Deployment/disperse-drawio`** *(`jgraph/drawio`, `:8080`, when `drawio.enabled: true`)* | Complete interactive Draw.io web editor (Tomcat + UI, menus, stencils, shapes). | Directly the **user's browser** via `Ingress` / `HTTPRoute` inside Disperse's `<iframe src=".../?embed=1">`, replacing `https://embed.diagrams.net`. |
+
+Keeping `disperse-drawio` as an independent optional `Deployment` lets you expose it cleanly to the browser, scale or omit it independently from Kroki, and preserve `readOnlyRootFilesystem: true` on `disperse` and `disperse-kroki`.
 
 ---
 

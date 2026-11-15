@@ -112,7 +112,9 @@ helm upgrade --install disperse oci://ghcr.io/sleepinfinitydev/charts/disperse -
 | `image.repository` | Disperse OCI image repository | `sleepinfinitydev/disperse` |
 | `image.tag` | Disperse image tag (defaults to `.Chart.AppVersion`) | `""` (`"0.2.0"`) |
 | `disperse.krokiBaseUrl` | Override primary Kroki URL (`""` auto-derives from `kroki.ingress`, `kroki.httpRoute`, `http://localhost:8000`, or `https://kroki.io`) | `""` |
+| `disperse.krokiRemoteUrl` | Override external fallback Kroki URL (`""` defaults to `kroki.remoteFallbackUrl`) | `""` |
 | `disperse.drawioBaseUrl` | Override Draw.io editor URL (`""` auto-derives from `drawio.ingress`, `drawio.httpRoute`, `http://localhost:8080`, or `https://embed.diagrams.net`) | `""` |
+| `disperse.engineModes` | Per-engine mode overrides (`local` \| `remote` \| `disabled`) when `kroki.enabled=false` | `{}` |
 | `disperse.footerCredits` | Custom footer HTML/text (`null` = default credits, `""` = hide footer) | `null` |
 | `disperse.disabledEngines` | Array of engine IDs to hide from `#engine-select` | `[]` |
 | `service.type` | Disperse Kubernetes Service type | `ClusterIP` |
