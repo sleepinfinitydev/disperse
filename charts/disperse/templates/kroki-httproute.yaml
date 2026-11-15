@@ -1,0 +1,52 @@
+{{- $kHr := .Values.kroki.httpRoute | default dict -}}
+{{- if and .Values.kroki.enabled $kHr.enabled -}}
+{{- $krokiFullName := include "disperse.krokiFullname" . -}}
+{{- $krokiSvcPort := int (include "disperse.krokiPort" .) -}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $krokiFullName }}
+  labels:
+    {{- include "disperse.krokiLabels" . | nindent 4 }}
+    {{- with $kHr.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with (mergeOverwrite (deepCopy (.Values.commonAnnotations | default dict)) ($kHr.annotations | default dict)) }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with $kHr.parentRefs }}
+  parentRefs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $kHr.hostnames }}
+  hostnames:
+    {{- range . }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range $kHr.rules }}
+    - {{- with .matches }}
+      matches:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .filters }}
+      filters:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .timeouts }}
+      timeouts:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .backendRefs }}
+      backendRefs:
+        {{- toYaml .backendRefs | nindent 8 }}
+      {{- else }}
+      backendRefs:
+        - name: {{ $krokiFullName }}
+          port: {{ $krokiSvcPort }}
+      {{- end }}
+    {{- end }}
+{{- end }}

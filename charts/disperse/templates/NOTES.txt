@@ -1,0 +1,47 @@
+{{- $krokiSvcPort := int (include "disperse.krokiPort" .) -}}
+{{- $kIng := .Values.kroki.ingress | default dict -}}
+{{- $kHr := .Values.kroki.httpRoute | default dict -}}
+1. Disperse has been deployed!
+   - Mode: {{ if .Values.kroki.enabled }}Self-hosted Kroki backend ({{ include "disperse.krokiFullname" . }}){{ else }}External Kroki backend{{ end }}
+   - Primary Kroki URL (KROKI_BASE_URL): {{ include "disperse.krokiBaseUrl" . }}
+{{- if .Values.kroki.enabled }}
+   - Companion engine modes:
+     * mermaid:    {{ include "disperse.engineMode" (dict "root" . "engine" "mermaid") }}
+     * bpmn:       {{ include "disperse.engineMode" (dict "root" . "engine" "bpmn") }}
+     * excalidraw: {{ include "disperse.engineMode" (dict "root" . "engine" "excalidraw") }}
+{{- end }}
+
+2. Access Disperse:
+{{- if .Values.httpRoute.enabled }}
+{{- $scheme := include "disperse.httpRouteScheme" .Values.httpRoute }}
+{{- if .Values.httpRoute.hostnames }}
+{{- range .Values.httpRoute.hostnames }}
+  {{ $scheme }}://{{ . }}/
+{{- end }}
+{{- else }}
+  Via your Gateway listener attached to HTTPRoute/{{ include "disperse.fullname" . }}
+{{- end }}
+{{- else if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+  {{- range .paths }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ .path }}
+  {{- end }}
+{{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "disperse.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else if contains "LoadBalancer" .Values.service.type }}
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+        Watch status with: kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "disperse.fullname" . }}
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "disperse.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo http://$SERVICE_IP:{{ .Values.service.port }}
+{{- else if contains "ClusterIP" .Values.service.type }}
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "disperse.fullname" . }} 8765:{{ .Values.service.port }}
+  echo "Visit http://localhost:8765 to use Disperse"
+{{- end }}
+{{- if and .Values.kroki.enabled (not $kIng.enabled) (not $kHr.enabled) }}
+
+3. Forward the self-hosted Kroki service locally (required when neither kroki.ingress nor kroki.httpRoute is enabled):
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "disperse.krokiFullname" . }} {{ $krokiSvcPort }}:{{ $krokiSvcPort }}
+{{- end }}

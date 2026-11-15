@@ -1,0 +1,286 @@
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+commonLabels: {}
+commonAnnotations: {}
+
+# -----------------------------------------------------------------------------
+# Disperse Static SPA Frontend (Deployment 1)
+# -----------------------------------------------------------------------------
+replicaCount: 1
+
+image:
+  registry: ghcr.io
+  repository: sleepinfinitydev/disperse
+  # Overrides the image tag whose default is the chart appVersion ("latest")
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  automount: false
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 101
+  runAsGroup: 101
+  fsGroup: 101
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 101
+  capabilities:
+    drop:
+      - ALL
+
+disperse:
+  # Primary Kroki API base URL used by the browser (KROKI_BASE_URL).
+  # When empty (""):
+  # - If kroki.enabled=false: defaults to "https://kroki.io"
+  # - If kroki.enabled=true: auto-derives from kroki.ingress.hosts[0], kroki.httpRoute.hostnames[0],
+  #   or falls back to "http://localhost:<kroki.service.port>" for port-forward usage.
+  krokiBaseUrl: ""
+  # Optional external fallback Kroki URL override (defaults to kroki.remoteFallbackUrl / "https://kroki.io")
+  krokiRemoteUrl: ""
+  # Optional per-engine mode overrides when kroki.enabled=false (e.g. { mermaid: "remote" })
+  engineModes: {}
+  # Custom footer HTML/text injected via FOOTER_CREDITS:
+  # - null (default): displays the standard Disperse footer credit line
+  # - "": hides the footer credit line completely
+  # - "<custom string/HTML>": renders custom credits (supports <a> and <i data-lucide="...">)
+  footerCredits: null
+  # Explicit list of diagram engine IDs to disable in the UI selector (e.g. ["tikz", "vega"])
+  disabledEngines: []
+  # Extra 12-Factor environment variables for the disperse container
+  env: []
+
+# -----------------------------------------------------------------------------
+# Disperse Kubernetes Service (<fullname>)
+# -----------------------------------------------------------------------------
+service:
+  type: ClusterIP
+  port: 8765
+  targetPort: 8765
+  nodePort: null
+  annotations: {}
+
+resources: {}
+  # limits:
+  #   cpu: 200m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 50m
+  #   memory: 64Mi
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 15
+  timeoutSeconds: 3
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 2
+  periodSeconds: 10
+  timeoutSeconds: 3
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+pdb:
+  enabled: false
+  minAvailable: null
+  maxUnavailable: 1
+
+# -----------------------------------------------------------------------------
+# Self-Hosted Kroki Backend (Deployment 2: <fullname>-kroki)
+# -----------------------------------------------------------------------------
+kroki:
+  enabled: false
+  replicaCount: 1
+  # External Kroki URL used by companion engines configured with mode: "remote"
+  remoteFallbackUrl: "https://kroki.io"
+  image:
+    registry: docker.io
+    repository: yuzutech/kroki
+    tag: "0.33.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+    nodePort: null
+    annotations: {}
+  safeMode: "SECURE"
+  maxUriLength: 16384
+  env: []
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    runAsGroup: 1001
+    fsGroup: 1001
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1001
+    capabilities:
+      drop:
+        - ALL
+  resources: {}
+    # limits:
+    #   cpu: 1000m
+    #   memory: 1Gi
+    # requests:
+    #   cpu: 200m
+    #   memory: 512Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # Companion Chromium sidecar containers when kroki.enabled is true:
+  # - "local": deploys the yuzutech/kroki-<engine> sidecar inside the Kroki Pod (100% private)
+  # - "remote": omits the sidecar and routes that engine from the browser to kroki.remoteFallbackUrl with UI warning (🌐)
+  # - "disabled": omits the sidecar and hides the engine from Disperse's language selector
+  sidecars:
+    shmSize: "256Mi"
+    mermaid:
+      mode: "local"
+      image:
+        registry: docker.io
+        repository: yuzutech/kroki-mermaid
+        tag: "0.33.0"
+        pullPolicy: IfNotPresent
+      port: 8002
+      env: []
+      resources: {}
+    bpmn:
+      mode: "local"
+      image:
+        registry: docker.io
+        repository: yuzutech/kroki-bpmn
+        tag: "0.33.0"
+        pullPolicy: IfNotPresent
+      port: 8003
+      env: []
+      resources: {}
+    excalidraw:
+      mode: "local"
+      image:
+        registry: docker.io
+        repository: yuzutech/kroki-excalidraw
+        tag: "0.33.0"
+        pullPolicy: IfNotPresent
+      port: 8004
+      env: []
+      resources: {}
+  # Dedicated Ingress for the self-hosted Kroki backend (when kroki.enabled=true)
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+      # nginx.ingress.kubernetes.io/large-client-header-buffers: "4 16k"
+    hosts:
+      - host: kroki.127.0.0.1.nip.io
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+    #  - secretName: kroki-tls
+    #    hosts:
+    #      - kroki.example.com
+  # Dedicated Gateway API HTTPRoute for the self-hosted Kroki backend (when kroki.enabled=true)
+  httpRoute:
+    enabled: false
+    https: false
+    annotations: {}
+    labels: {}
+    parentRefs: []
+      # - name: main-gateway
+      #   namespace: gateway-system
+      #   sectionName: https
+    hostnames: []
+      # - kroki.127.0.0.1.nip.io
+    rules:
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /
+
+# -----------------------------------------------------------------------------
+# External Access for Disperse — Kubernetes Ingress (networking.k8s.io/v1)
+# -----------------------------------------------------------------------------
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: disperse.127.0.0.1.nip.io
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: disperse-tls
+  #    hosts:
+  #      - disperse.example.com
+
+# -----------------------------------------------------------------------------
+# External Access for Disperse — Gateway API (gateway.networking.k8s.io/v1)
+# -----------------------------------------------------------------------------
+httpRoute:
+  enabled: false
+  https: false
+  annotations: {}
+  labels: {}
+  parentRefs: []
+    # - name: main-gateway
+    #   namespace: gateway-system
+    #   sectionName: https
+  hostnames: []
+    # - disperse.127.0.0.1.nip.io
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+
+# -----------------------------------------------------------------------------
+# Helm Test Pod Configuration
+# -----------------------------------------------------------------------------
+test:
+  image:
+    registry: docker.io
+    repository: library/busybox
+    tag: "1.36"
+    pullPolicy: IfNotPresent
+
+# -----------------------------------------------------------------------------
+# Extensibility — Arbitrary Kubernetes Manifests (rendered with `tpl`)
+# -----------------------------------------------------------------------------
+extraManifests: []
+  # - apiVersion: networking.k8s.io/v1
+  #   kind: NetworkPolicy
+  #   metadata:
+  #     name: "{{ include \"disperse.fullname\" . }}-allow-all"

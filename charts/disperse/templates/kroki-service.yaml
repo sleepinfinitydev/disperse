@@ -1,0 +1,27 @@
+{{- if .Values.kroki.enabled -}}
+{{- $svc := .Values.kroki.service | default dict -}}
+{{- $svcType := $svc.type | default "ClusterIP" -}}
+{{- $krokiPort := int (include "disperse.krokiPort" .) -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "disperse.krokiFullname" . }}
+  labels:
+    {{- include "disperse.krokiLabels" . | nindent 4 }}
+  {{- with (mergeOverwrite (deepCopy (.Values.commonAnnotations | default dict)) ($svc.annotations | default dict)) }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $svcType }}
+  ports:
+    - port: {{ $krokiPort }}
+      targetPort: {{ if and $svc.targetPort (kindIs "string" $svc.targetPort) (not (regexMatch "^[0-9]+$" $svc.targetPort)) }}{{ $svc.targetPort }}{{ else }}http{{ end }}
+      protocol: TCP
+      name: http
+      {{- if and (or (eq $svcType "NodePort") (eq $svcType "LoadBalancer")) $svc.nodePort }}
+      nodePort: {{ $svc.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "disperse.krokiSelectorLabels" . | nindent 4 }}
+{{- end }}
