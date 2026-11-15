@@ -362,7 +362,9 @@ drawio:
           - drawio.example.com
 ```
 
-#### Option B: Point Disperse to an existing Draw.io server
+#### Option B: Point Disperse to an existing Draw.io server (or customize the Draw.io UI theme)
+Disperse embeds Draw.io with the classic full toolbar (`?ui=kennedy`) by default, and preserves any explicit `?ui=...` query parameter (`kennedy`, `atlas`, `simple`, `min`, `sketch`) supplied in `DRAWIO_BASE_URL` / `disperse.drawioBaseUrl`:
+
 ```bash
 # Docker
 docker run --rm -p 8765:8765 \
@@ -609,7 +611,7 @@ Both the container image and the Helm chart are published to GitHub Container Re
 | `PORT` | *(Nginx unprivileged)* | `8765` | HTTP listening port inside the container (`UID 101`). |
 | `KROKI_BASE_URL` | `krokiBaseUrl` | `https://kroki.io` | Primary Kroki API URL used by the browser (`fetch` and shareable image snippets). |
 | `KROKI_REMOTE_URL` | `krokiRemoteUrl` | `https://kroki.io` | External fallback Kroki URL used by engines in `remote` mode when `KROKI_BASE_URL` differs. |
-| `DRAWIO_BASE_URL` | `drawioBaseUrl` | `https://embed.diagrams.net` | Base URL of the embedded Draw.io / `diagrams.net` visual editor (`<iframe>`). |
+| `DRAWIO_BASE_URL` | `drawioBaseUrl` | `https://embed.diagrams.net` | Base URL of the embedded Draw.io / `diagrams.net` visual editor (`<iframe>`; uses `ui=kennedy` by default and preserves custom `?ui=...` parameters). |
 | `ENGINE_MODE_MERMAID` | `engineModes.mermaid` | `local` | Routing mode for Mermaid (`local` \| `remote` \| `disabled`). |
 | `ENGINE_MODE_BPMN` | `engineModes.bpmn` | `local` | Routing mode for BPMN (`local` \| `remote` \| `disabled`). |
 | `ENGINE_MODE_EXCALIDRAW` | `engineModes.excalidraw` | `local` | Routing mode for Excalidraw (`local` \| `remote` \| `disabled`). |
