@@ -539,7 +539,9 @@ function getDrawioEmbedSpec() {
   params.set('embed', '1');
   params.set('proto', 'json');
   params.set('spin', '1');
-  params.set('ui', 'min');
+  if (!params.has('ui')) {
+    params.set('ui', 'kennedy');
+  }
   params.set('dark', getActiveTheme() === 'dark' ? '1' : '0');
   params.set('configure', '1');
   params.set('modified', '0');
